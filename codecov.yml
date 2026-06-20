@@ -10,7 +10,8 @@ coverage:
         threshold: 2%         # tolerate small fluctuations
     patch:
       default:
-        informational: true   # report patch coverage, never fail the check
+        target: 80%           # new (non-ignored) code must be ≥80% covered
+        threshold: 0%         # no slack below the target
 
 comment:
   # Only comment when coverage actually changed; keeps PRs quiet.
