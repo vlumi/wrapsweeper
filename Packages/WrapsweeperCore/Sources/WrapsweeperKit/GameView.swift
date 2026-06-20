@@ -58,15 +58,13 @@ public struct GameView: View {
                 Text(faceGlyph).font(.system(size: 26))
             }
             .buttonStyle(.plain)
-            .keyboardShortcut("r", modifiers: [])
-            .help("New game (R)")
+            .help("New game")
 
             Button(action: { showingScores = true }) {
                 Text("🏆").font(.system(size: 22))
             }
             .buttonStyle(.plain)
-            .keyboardShortcut("s", modifiers: [])
-            .help("High scores (S)")
+            .help("High scores")
 
             Spacer(minLength: 8)
 

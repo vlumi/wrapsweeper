@@ -84,8 +84,6 @@ when the whole board already fits on screen, panning is disabled.
 | Key     | Action                                        |
 | ------- | --------------------------------------------- |
 | Space   | Toggle reveal / flag mode                     |
-| R       | New game                                      |
-| S       | Show high scores                              |
 | ⌘N      | New game (macOS menu)                         |
 | ⌘F      | Toggle mode (macOS menu)                      |
 | ⌘1/2/3  | Beginner / Intermediate / Expert (macOS menu) |

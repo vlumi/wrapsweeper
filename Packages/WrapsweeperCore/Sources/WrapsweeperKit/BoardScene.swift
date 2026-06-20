@@ -34,6 +34,11 @@ public final class BoardScene: SKScene {
         rebuildIfNeeded()
         centerCamera()
         installGestureRecognizers(on: view)
+        #if os(macOS)
+        // Take first responder so the scene receives key events (Space) without
+        // the user having to click the board first.
+        view.window?.makeFirstResponder(view)
+        #endif
     }
 
     public override func update(_ currentTime: TimeInterval) {
@@ -277,6 +282,17 @@ public final class BoardScene: SKScene {
 
     @objc private func handleRightClick(_ g: NSClickGestureRecognizer) {
         flag(atScenePoint: scenePoint(fromViewPoint: g.location(in: g.view)))
+    }
+
+    // The scene handles key input directly: a bare Space as a SwiftUI menu
+    // shortcut doesn't fire reliably, but the scene is in the responder chain
+    // for its gesture recognizers and receives key events here.
+    public override func keyDown(with event: NSEvent) {
+        if event.charactersIgnoringModifiers == " " {
+            viewModel.inputMode.toggle()
+        } else {
+            super.keyDown(with: event)
+        }
     }
     #endif
 
