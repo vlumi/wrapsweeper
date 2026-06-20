@@ -61,7 +61,7 @@ jobs:
           # (which needs UI automation to exercise) so the figure reflects the
           # unit-tested logic. CellLayout and Scoreboard stay measured.
           xcrun llvm-cov export "$BIN" -instr-profile "$PROF" -format=lcov \
-            -ignore-filename-regex='(\.build|Tests)/|WrapsweeperKit/(BoardScene|BoardView|GameView|GameViewModel)\.swift' \
+            -ignore-filename-regex='(\.build|Tests)/|WrapsweeperKit/(BoardScene|BoardView|GameView|GameViewModel|Settings|Palette)\.swift' \
             > coverage.lcov
           # Rewrite absolute SF: paths to repo-relative so Codecov maps files
           # correctly (its ignore globs and file tree are repo-relative). The
