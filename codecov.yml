@@ -1,0 +1,26 @@
+# Coverage tracks the testable logic, not the SwiftKit/AppKit view layer (which
+# needs UI automation this project doesn't run). Keep the signal on Core +
+# Scoreboard; don't let untestable view code fail PRs.
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto          # don't drop below the current project coverage
+        threshold: 2%         # tolerate small fluctuations
+    patch:
+      default:
+        informational: true   # report patch coverage, never fail the check
+
+comment:
+  # Only comment when coverage actually changed; keeps PRs quiet.
+  require_changes: true
+
+# The SpriteKit scene and SwiftUI views need UI automation to exercise, which
+# this project doesn't run. CellLayout is intentionally NOT ignored — it's pure
+# geometry and should be unit-tested.
+ignore:
+  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardScene.swift"
+  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardView.swift"
+  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/GameView.swift"
+  - "Packages/WrapsweeperCore/Tests/**"
