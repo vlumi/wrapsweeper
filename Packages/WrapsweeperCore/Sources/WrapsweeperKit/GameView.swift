@@ -5,33 +5,74 @@ import WrapsweeperCore
 /// The full game surface: a status bar over a pannable/zoomable SpriteKit board.
 /// Hosts a single long-lived `BoardScene`, which owns all board input (tap,
 /// flag, chord, pan, zoom) natively; this view only renders chrome.
+/// Thin wrapper that owns the stores and applies the user's appearance choice.
+/// `.preferredColorScheme` is applied HERE so the descendant `GameContent` reads
+/// the resolved scheme via `@Environment(\.colorScheme)` — a view cannot observe
+/// a scheme it forces on itself, so the read must happen below the modifier.
 public struct GameView: View {
     @StateObject private var viewModel: GameViewModel
     @StateObject private var scoreboard: Scoreboard
+    @StateObject private var settings: Settings
     @State private var scene: BoardScene
-    @State private var showingScores = false
 
     public init(difficulty: Difficulty = .beginner) {
-        self.init(viewModel: GameViewModel(difficulty: difficulty), scoreboard: Scoreboard())
+        self.init(
+            viewModel: GameViewModel(difficulty: difficulty),
+            scoreboard: Scoreboard(),
+            settings: Settings())
     }
 
     /// Use this when the host (e.g. the macOS menu bar) needs to drive the same
     /// view model that the board renders.
-    public init(viewModel: GameViewModel, scoreboard: Scoreboard) {
+    public init(viewModel: GameViewModel, scoreboard: Scoreboard, settings: Settings) {
         _viewModel = StateObject(wrappedValue: viewModel)
         _scoreboard = StateObject(wrappedValue: scoreboard)
+        _settings = StateObject(wrappedValue: settings)
         _scene = State(initialValue: BoardScene(viewModel: viewModel))
     }
 
     public var body: some View {
+        GameContent(viewModel: viewModel, scoreboard: scoreboard, settings: settings, scene: scene)
+            .preferredColorScheme(settings.appearance.colorScheme)
+    }
+}
+
+/// The actual game surface. Lives below `GameView`'s `.preferredColorScheme`, so
+/// its `@Environment(\.colorScheme)` is the effective appearance for all of
+/// system/light/dark — the single source the chrome and the SKScene both use.
+private struct GameContent: View {
+    @ObservedObject var viewModel: GameViewModel
+    @ObservedObject var scoreboard: Scoreboard
+    @ObservedObject var settings: Settings
+    let scene: BoardScene
+
+    @State private var showingScores = false
+    @State private var showingSettings = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// One resolved scheme for both the chrome and the scene. Driven by the
+    /// user's setting; `.system` reads the real OS appearance (see
+    /// `resolvedScheme`). `colorScheme` is only the iOS fallback, but reading it
+    /// also re-runs `body` when the OS appearance flips while on System.
+    private var scheme: ColorScheme {
+        settings.appearance.resolvedScheme(systemFallback: colorScheme)
+    }
+    private var palette: Palette { .resolved(for: scheme) }
+
+    var body: some View {
         VStack(spacing: 0) {
             statusBar
             BoardView(scene: scene)
         }
-        .background(Color(white: 0.08))
+        .background(palette.pageBackground)
         .onChange(of: viewModel.lastWin?.seconds) { _ in handleWin() }
+        .onAppear { scene.palette = palette }
+        .onChange(of: scheme) { _ in scene.palette = palette }
         .sheet(isPresented: $showingScores) {
             ScoreboardView(scoreboard: scoreboard)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(settings: settings)
         }
     }
 
@@ -66,6 +107,12 @@ public struct GameView: View {
             .buttonStyle(.plain)
             .help("High scores")
 
+            Button(action: { showingSettings = true }) {
+                Text("⚙️").font(.system(size: 20))
+            }
+            .buttonStyle(.plain)
+            .help("Settings")
+
             Spacer(minLength: 8)
 
             counter(label: "⏱", value: viewModel.elapsedSeconds)
@@ -73,7 +120,7 @@ public struct GameView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .safeAreaInset(edge: .bottom, spacing: 0) { difficultyPicker }
-        .background(Color(white: 0.14))
+        .background(palette.statusBar)
     }
 
     /// Toggle between reveal- and flag-mode for plain taps. The icon shows the
@@ -88,7 +135,7 @@ public struct GameView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(
                             viewModel.inputMode == .flag
-                                ? Color.orange.opacity(0.35) : Color.white.opacity(0.08))
+                                ? palette.modeFlagTint : palette.modeRevealTint)
                 )
         }
         .buttonStyle(.plain)
@@ -104,7 +151,7 @@ public struct GameView: View {
             Text(label)
             Text(String(format: "%03d", max(0, value)))
                 .font(.system(.title3, design: .monospaced).weight(.bold))
-                .foregroundStyle(Color(red: 1, green: 0.45, blue: 0.3))
+                .foregroundStyle(palette.counter)
         }
     }
 
@@ -175,5 +222,36 @@ struct ScoreboardView: View {
             Button("Clear scores", role: .destructive) { scoreboard.reset() }
             Button("Cancel", role: .cancel) {}
         }
+    }
+}
+
+/// App settings. Currently just appearance; more rows (e.g. language) slot in
+/// under the same VStack later.
+struct SettingsView: View {
+    @ObservedObject var settings: Settings
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Settings").font(.title2.bold())
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Appearance").font(.headline)
+                Picker("Appearance", selection: $settings.appearance) {
+                    ForEach(AppearancePreference.allCases) { pref in
+                        Text(pref.label).tag(pref)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 320)
     }
 }

@@ -11,12 +11,21 @@ public final class BoardScene: SKScene {
     private var lastRevision = -1
     private var lastGameID = -1
 
+    /// The active color palette. Set by the host when the system appearance
+    /// changes; updating it recolors the background and rebuilds the cells.
+    public var palette: Palette = .dark {
+        didSet {
+            backgroundColor = palette.sceneBackground
+            rebuild()
+        }
+    }
+
     public init(viewModel: GameViewModel, layout: any CellLayout = SquareLayout()) {
         self.viewModel = viewModel
         self.layout = layout
         super.init(size: CGSize(width: 320, height: 320))
         scaleMode = .resizeFill
-        backgroundColor = SKColor(white: 0.12, alpha: 1)
+        backgroundColor = palette.sceneBackground
         addChild(boardLayer)
         addChild(cameraNode)
         camera = cameraNode
@@ -90,37 +99,22 @@ public final class BoardScene: SKScene {
     private func fillColor(for cell: Cell) -> SKColor {
         switch cell.state {
         case .hidden, .flagged:
-            return SKColor(white: 0.32, alpha: 1)
+            return palette.hiddenTile
         case .revealed:
-            return cell.isMine
-                ? SKColor(red: 0.6, green: 0.1, blue: 0.1, alpha: 1)
-                : SKColor(white: 0.2, alpha: 1)
+            return cell.isMine ? palette.mineTile : palette.revealedTile
         }
     }
 
     private func glyph(for cell: Cell) -> (text: String, color: SKColor)? {
         switch cell.state {
         case .flagged:
-            return ("⚑", SKColor(red: 0.95, green: 0.4, blue: 0.3, alpha: 1))
+            return ("⚑", palette.flagGlyph)
         case .hidden:
             return nil
         case .revealed:
-            if cell.isMine { return ("✸", .white) }
+            if cell.isMine { return ("✸", palette.mineGlyph) }
             guard cell.adjacentMines > 0 else { return nil }
-            return (String(cell.adjacentMines), Self.numberColor(cell.adjacentMines))
-        }
-    }
-
-    private static func numberColor(_ n: Int) -> SKColor {
-        switch n {
-        case 1: return SKColor(red: 0.40, green: 0.70, blue: 1.00, alpha: 1)
-        case 2: return SKColor(red: 0.45, green: 0.85, blue: 0.45, alpha: 1)
-        case 3: return SKColor(red: 1.00, green: 0.45, blue: 0.45, alpha: 1)
-        case 4: return SKColor(red: 0.65, green: 0.55, blue: 1.00, alpha: 1)
-        case 5: return SKColor(red: 0.85, green: 0.55, blue: 0.30, alpha: 1)
-        case 6: return SKColor(red: 0.40, green: 0.80, blue: 0.80, alpha: 1)
-        case 7: return SKColor(white: 0.85, alpha: 1)
-        default: return SKColor(white: 0.65, alpha: 1)
+            return (String(cell.adjacentMines), palette.number(cell.adjacentMines))
         }
     }
 
@@ -254,13 +248,19 @@ public final class BoardScene: SKScene {
     }
 
     // Left mouse: a press that stays put is a click (reveal/flag/chord); a press
-    // that moves is a drag-pan (and suppresses the click). Right/Control-click
-    // always flags. `SKScene` reports event locations already in scene space.
+    // that moves past a small threshold is a drag-pan (and suppresses the click).
+    // Right/Control-click always flags. The threshold matters: a normal click
+    // carries a pixel or two of jitter, which must NOT count as a drag or clicks
+    // get eaten. `SKScene` reports event locations already in scene space.
     private var lastDragViewPoint: CGPoint = .zero
+    private var mouseDownViewPoint: CGPoint = .zero
     private var didDragInScene = false
+    private static let dragThreshold: CGFloat = 4
 
     public override func mouseDown(with event: NSEvent) {
-        lastDragViewPoint = view?.convert(event.locationInWindow, from: nil) ?? .zero
+        let p = view?.convert(event.locationInWindow, from: nil) ?? .zero
+        lastDragViewPoint = p
+        mouseDownViewPoint = p
         didDragInScene = false
     }
 
@@ -269,9 +269,15 @@ public final class BoardScene: SKScene {
         // the cursor. Use the view-space delta (camera-independent) and let
         // pan() scale it by the current zoom. AppKit view Y grows upward, which
         // matches the scene, so no Y flip is needed.
-        didDragInScene = true
         guard let view = view else { return }
         let p = view.convert(event.locationInWindow, from: nil)
+        // Only become a drag once movement clears the threshold, so click jitter
+        // doesn't suppress the click.
+        if !didDragInScene {
+            let moved = hypot(p.x - mouseDownViewPoint.x, p.y - mouseDownViewPoint.y)
+            guard moved > Self.dragThreshold else { return }
+            didDragInScene = true
+        }
         // pan() applies +Y to the camera; negate so a grab drag moves content
         // with the cursor on both axes.
         pan(byTranslation: CGPoint(x: p.x - lastDragViewPoint.x, y: -(p.y - lastDragViewPoint.y)))
@@ -279,7 +285,7 @@ public final class BoardScene: SKScene {
     }
 
     public override func mouseUp(with event: NSEvent) {
-        guard !didDragInScene else { return }  // a drag panned; don't also click
+        guard !didDragInScene else { return }  // a real drag panned; don't also click
         let p = event.location(in: self)
         if NSEvent.modifierFlags.contains(.control) {
             flag(atScenePoint: p)

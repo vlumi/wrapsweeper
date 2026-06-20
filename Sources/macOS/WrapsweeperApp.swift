@@ -6,10 +6,11 @@ import WrapsweeperKit
 struct WrapsweeperApp: App {
     @StateObject private var viewModel = GameViewModel()
     @StateObject private var scoreboard = Scoreboard()
+    @StateObject private var settings = Settings()
 
     var body: some Scene {
         WindowGroup {
-            GameView(viewModel: viewModel, scoreboard: scoreboard)
+            GameView(viewModel: viewModel, scoreboard: scoreboard, settings: settings)
                 .frame(minWidth: 360, minHeight: 480)
         }
         .commands {
