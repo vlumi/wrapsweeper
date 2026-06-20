@@ -60,7 +60,7 @@ jobs:
           xcrun llvm-cov export "$BIN" -instr-profile "$PROF" -format=lcov \
             -ignore-filename-regex='(\.build|Tests)/' > coverage.lcov
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: Packages/WrapsweeperCore/coverage.lcov
           fail_ci_if_error: false
