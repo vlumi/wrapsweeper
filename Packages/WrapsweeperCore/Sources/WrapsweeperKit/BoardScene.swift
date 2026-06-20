@@ -10,10 +10,6 @@ public final class BoardScene: SKScene {
     private let boardLayer = SKNode()
     private var lastRevision = -1
     private var lastGameID = -1
-    #if os(macOS)
-    private weak var panRecognizer: NSGestureRecognizer?
-    private var clickRecognizers: [NSGestureRecognizer] = []
-    #endif
 
     public init(viewModel: GameViewModel, layout: any CellLayout = SquareLayout()) {
         self.viewModel = viewModel
@@ -209,23 +205,10 @@ public final class BoardScene: SKScene {
             view.addGestureRecognizer(g)
         }
         #elseif os(macOS)
-        let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePan))
+        // Clicks, drag-to-pan, and right-click are handled directly via mouse
+        // events (mouseDown/Dragged/Up below). Only zoom needs a recognizer.
         let pinch = NSMagnificationGestureRecognizer(target: self, action: #selector(handlePinch))
-        // One primary-click recognizer; ⌘ held = chord, otherwise reveal. A
-        // single recognizer resolves instantly (no double-click timeout).
-        let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick))
-        let rightClick = NSClickGestureRecognizer(target: self, action: #selector(handleRightClick))
-        rightClick.buttonMask = 0x2  // secondary (right) button
-        // The pan only engages once the click recognizer has given up, so a
-        // plain click is never swallowed by the drag recognizer. AppKit
-        // expresses this through the delegate (no UIKit-style `require(toFail:)`).
-        pan.delaysPrimaryMouseButtonEvents = false
-        self.panRecognizer = pan
-        self.clickRecognizers = [click]
-        for g in [pan, pinch, click, rightClick] as [NSGestureRecognizer] {
-            g.delegate = self
-            view.addGestureRecognizer(g)
-        }
+        view.addGestureRecognizer(pinch)
         #endif
     }
 
@@ -253,26 +236,51 @@ public final class BoardScene: SKScene {
         longPressAction(atScenePoint: scenePoint(fromViewPoint: g.location(in: g.view)))
     }
     #elseif os(macOS)
-    private var lastPan: CGPoint = .zero
-
-    @objc private func handlePan(_ g: NSPanGestureRecognizer) {
-        let t = g.translation(in: g.view)
-        // AppKit's view Y grows upward, opposite UIKit; flip to match pan()'s
-        // expectation that a downward drag moves content down.
-        if g.state == .began { lastPan = .zero }
-        pan(byTranslation: CGPoint(x: t.x - lastPan.x, y: -(t.y - lastPan.y)))
-        lastPan = t
-    }
-
     @objc private func handlePinch(_ g: NSMagnificationGestureRecognizer) {
         zoom(by: 1 + g.magnification)
         g.magnification = 0
     }
 
-    @objc private func handleClick(_ g: NSClickGestureRecognizer) {
-        let p = scenePoint(fromViewPoint: g.location(in: g.view))
-        // Control-click always flags (the classic Mac right-click equivalent),
-        // regardless of mode; a plain click follows the current input mode.
+    /// Two-finger trackpad swipe (or mouse wheel) pans the camera, the way
+    /// Maps and Preview behave. Precise deltas come from the trackpad; a plain
+    /// wheel reports coarse line deltas, so scale those up.
+    public override func scrollWheel(with event: NSEvent) {
+        let step: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
+        // Natural-scroll convention: content follows the fingers. AppKit's Y
+        // grows upward, matching the scene, so pass deltas through directly.
+        pan(
+            byTranslation: CGPoint(
+                x: event.scrollingDeltaX * step, y: event.scrollingDeltaY * step))
+    }
+
+    // Left mouse: a press that stays put is a click (reveal/flag/chord); a press
+    // that moves is a drag-pan (and suppresses the click). Right/Control-click
+    // always flags. `SKScene` reports event locations already in scene space.
+    private var lastDragViewPoint: CGPoint = .zero
+    private var didDragInScene = false
+
+    public override func mouseDown(with event: NSEvent) {
+        lastDragViewPoint = view?.convert(event.locationInWindow, from: nil) ?? .zero
+        didDragInScene = false
+    }
+
+    public override func mouseDragged(with event: NSEvent) {
+        // Grab model: content follows the cursor, so the camera moves opposite to
+        // the cursor. Use the view-space delta (camera-independent) and let
+        // pan() scale it by the current zoom. AppKit view Y grows upward, which
+        // matches the scene, so no Y flip is needed.
+        didDragInScene = true
+        guard let view = view else { return }
+        let p = view.convert(event.locationInWindow, from: nil)
+        // pan() applies +Y to the camera; negate so a grab drag moves content
+        // with the cursor on both axes.
+        pan(byTranslation: CGPoint(x: p.x - lastDragViewPoint.x, y: -(p.y - lastDragViewPoint.y)))
+        lastDragViewPoint = p
+    }
+
+    public override func mouseUp(with event: NSEvent) {
+        guard !didDragInScene else { return }  // a drag panned; don't also click
+        let p = event.location(in: self)
         if NSEvent.modifierFlags.contains(.control) {
             flag(atScenePoint: p)
         } else {
@@ -280,8 +288,8 @@ public final class BoardScene: SKScene {
         }
     }
 
-    @objc private func handleRightClick(_ g: NSClickGestureRecognizer) {
-        flag(atScenePoint: scenePoint(fromViewPoint: g.location(in: g.view)))
+    public override func rightMouseUp(with event: NSEvent) {
+        flag(atScenePoint: event.location(in: self))
     }
 
     // The scene handles key input directly: a bare Space as a SwiftUI menu
@@ -355,16 +363,3 @@ public final class BoardScene: SKScene {
     /// Reset camera to fit and center the whole board (e.g. on new game).
     public func resetCamera() { centerCamera() }
 }
-
-#if os(macOS)
-extension BoardScene: NSGestureRecognizerDelegate {
-    /// Make the drag recognizer wait for the click recognizers to fail, so a
-    /// stationary click reveals reliably instead of being eaten by the pan.
-    public func gestureRecognizer(
-        _ recognizer: NSGestureRecognizer,
-        shouldRequireFailureOf other: NSGestureRecognizer
-    ) -> Bool {
-        recognizer === panRecognizer && clickRecognizers.contains(other)
-    }
-}
-#endif

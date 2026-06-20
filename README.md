@@ -73,7 +73,7 @@ The toggle shows ⛏️ in Reveal mode and 🚩 in Flag mode.
 | Other           | iOS   | macOS                        |
 | --------------- | ----- | ---------------------------- |
 | Flag (any mode) | —     | Right-click or Control-click |
-| Pan             | Drag  | Drag                         |
+| Pan             | Drag  | Two-finger scroll            |
 | Zoom            | Pinch | Pinch (trackpad)             |
 
 Panning is constrained to the board, so you can never scroll past its edges;
