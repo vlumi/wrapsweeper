@@ -23,4 +23,5 @@ ignore:
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardScene.swift"
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardView.swift"
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/GameView.swift"
+  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/GameViewModel.swift"
   - "Packages/WrapsweeperCore/Tests/**"
