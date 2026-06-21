@@ -47,6 +47,21 @@ builds on the existing logical solver.
 - [ ] Optional per-config "no-guess" toggle (esp. for the harder densities).
 - [ ] Safe-reveal / question-mark flag cycle (classic third flag state).
 
+## Session quality-of-life (planned)
+
+Pause and resume — two related features that share a foundation: serializing
+full game state and tracking elapsed time as accumulated segments rather than
+`now − startDate`.
+
+- [ ] **Pause**: stop the clock, hide/blur the board so it can't be studied
+      while paused; resume continues the same game. Requires the timer to
+      accumulate elapsed across pause/resume segments (not a single start date).
+- [ ] **Persist & restore on quit**: save the in-progress game on
+      background/quit and offer to resume it on next launch. Needs `Game` /
+      `Board` / `Topology` to be `Codable` and the *exact* placed mine layout
+      saved (mines are placed first-click-safe mid-game and must not be
+      re-randomized). Store the config + accumulated elapsed time too.
+
 ## v0.3.0 — Big boards
 
 The "huge zoomable maps" pillar. Mostly a rendering/perf effort behind the
