@@ -104,6 +104,25 @@ Everything composes: square **or** hex, bounded **or** wrapped, any size.
 - [ ] Performance validated on the largest supported boards
 - [ ] Release builds for iOS + macOS
 
+## Publishing & distribution (planned — gated on a paid account)
+
+How the apps reach the stores once a paid Apple Developer account exists:
+
+- **iOS is one universal app**: a single App Store Connect record + binary runs
+  on **both iPhone and iPad** and appears on both stores automatically (shared
+  page, reviews, price). No extra work — it's the default device family.
+- **macOS is a separate native app**: our Mac target is a distinct native build
+  (not Mac Catalyst), so it's its **own** App Store Connect record + binary +
+  review. The Mac and iOS stores are browsed independently.
+- **Bundle IDs likely need to diverge**: iOS and the separate native Mac app
+  generally need **distinct bundle IDs** (both currently share
+  `fi.misaki.wrapsweeper`). Pick the Mac ID (e.g. `fi.misaki.wrapsweeper.mac`)
+  and split it in `project.yml` **before** registering IDs with Apple — changing
+  it after registration is painful. (Unifying them into a single "universal
+  purchase" is a deliberate Catalyst/SwiftUI-app setup, not automatic.)
+- **App age rating**: 4+ / PEGI 3 (set via the App Store Connect questionnaire;
+  nothing in the feature set pushes it higher).
+
 ## Game Center & achievements (planned — gated on a paid account)
 
 Achievements (and possibly leaderboards) via Game Center. Mostly an
