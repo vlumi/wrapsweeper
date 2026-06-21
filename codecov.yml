@@ -21,12 +21,12 @@ comment:
 # this project doesn't run. CellLayout is intentionally NOT ignored — it's pure
 # geometry and should be unit-tested.
 ignore:
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardScene.swift"
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardScene+Effects.swift"
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardView.swift"
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/GameView.swift"
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/SheetViews.swift"
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/GameViewModel.swift"
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/Settings.swift"
-  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/Palette.swift"
-  - "Packages/WrapsweeperCore/Tests/**"
+  - "Packages/DonpaCore/Sources/DonpaKit/BoardScene.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/BoardScene+Effects.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/BoardView.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/GameView.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/SheetViews.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/GameViewModel.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/Settings.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/Palette.swift"
+  - "Packages/DonpaCore/Tests/**"

@@ -1,9 +1,9 @@
+import DonpaCore
+import DonpaKit
 import SwiftUI
-import WrapsweeperCore
-import WrapsweeperKit
 
 @main
-struct WrapsweeperApp: App {
+struct DonpaApp: App {
     @StateObject private var viewModel = GameViewModel()
     @StateObject private var scoreboard = Scoreboard()
     @StateObject private var settings = Settings()

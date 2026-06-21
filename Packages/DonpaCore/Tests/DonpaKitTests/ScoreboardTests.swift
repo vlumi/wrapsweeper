@@ -1,11 +1,11 @@
-import WrapsweeperCore
+import DonpaCore
 import XCTest
 
-@testable import WrapsweeperKit
+@testable import DonpaKit
 
 @MainActor
 final class ScoreboardTests: XCTestCase {
-    private let suiteName = "wrapsweeper.tests"
+    private let suiteName = "donpa.tests"
     private var defaults: UserDefaults!
 
     override func setUp() {

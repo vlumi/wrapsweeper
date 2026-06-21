@@ -1,5 +1,5 @@
+import DonpaCore
 import Foundation
-import WrapsweeperCore
 
 func pad(_ s: String, _ width: Int) -> String {
     s.count >= width ? s : s + String(repeating: " ", count: width - s.count)

@@ -1,6 +1,6 @@
+import DonpaCore
 import SpriteKit
 import SwiftUI
-import WrapsweeperCore
 
 #if os(iOS)
 import UIKit

@@ -1,14 +1,14 @@
-# SwiftLint configuration for Wrapsweeper.
+# SwiftLint configuration for Donpa.
 # See https://realm.github.io/SwiftLint/rule-directory.html
 
 included:
-  - Packages/WrapsweeperCore/Sources
-  - Packages/WrapsweeperCore/Tests
+  - Packages/DonpaCore/Sources
+  - Packages/DonpaCore/Tests
   - Sources
 
 excluded:
   - .build
-  - Packages/WrapsweeperCore/.build
+  - Packages/DonpaCore/.build
 
 opt_in_rules:
   - empty_count

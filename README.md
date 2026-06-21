@@ -1,9 +1,9 @@
-# Wrapsweeper
+# Donpa Squad
 
-[![CI](https://github.com/vlumi/wrapsweeper/actions/workflows/ci.yml/badge.svg)](https://github.com/vlumi/wrapsweeper/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/vlumi/wrapsweeper/branch/main/graph/badge.svg)](https://codecov.io/gh/vlumi/wrapsweeper)
+[![CI](https://github.com/vlumi/donpa/actions/workflows/ci.yml/badge.svg)](https://github.com/vlumi/donpa/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/vlumi/donpa/branch/main/graph/badge.svg)](https://codecov.io/gh/vlumi/donpa)
 
-A Minesweeper game for Apple platforms (iOS 16+ and macOS 13+). Classic mode
+**Donpa Squad** (ドンパ隊) — a Minesweeper game for Apple platforms (iOS 16+ and macOS 13+). Classic mode
 ships first; the architecture is built for "epic" variants from day one —
 huge zoomable maps, wrapped/torus edges, and hex grids — added later without
 touching the game logic.
@@ -27,13 +27,13 @@ All variation is isolated behind two seams; everything else is written once:
 ## Structure
 
 ```text
-wrapsweeper/
+donpa/
 ├── project.yml                  XcodeGen spec (iOS + macOS app targets)
 ├── Scripts/generate.sh          Regenerates the .xcodeproj (refuses while Xcode is open)
 ├── Sources/{iOS,macOS}/         Thin @main app shells
-└── Packages/WrapsweeperCore/    Swift package — ~90% of the code
-    ├── Sources/WrapsweeperCore/ Pure logic, zero UI imports, fully tested
-    └── Sources/WrapsweeperKit/  SpriteKit + SwiftUI, depends on Core
+└── Packages/DonpaCore/    Swift package — ~90% of the code
+    ├── Sources/DonpaCore/ Pure logic, zero UI imports, fully tested
+    └── Sources/DonpaKit/  SpriteKit + SwiftUI, depends on Core
 ```
 
 The rendering engine is **SpriteKit** (`SKScene` + `SKCameraNode`) hosted in a
@@ -48,11 +48,11 @@ checked in.
 
 ```sh
 # Run the logic test suite (no Xcode needed)
-cd Packages/WrapsweeperCore && swift test
+cd Packages/DonpaCore && swift test
 
 # Generate the Xcode project, then open it
 ./Scripts/generate.sh
-open Wrapsweeper.xcodeproj
+open Donpa.xcodeproj
 ```
 
 ## Modes

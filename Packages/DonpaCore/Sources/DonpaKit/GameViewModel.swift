@@ -1,6 +1,6 @@
 import Combine
+import DonpaCore
 import Foundation
-import WrapsweeperCore
 
 /// What a plain tap/click on a *hidden* cell does. A revealed number always
 /// chords and a long-press always does the opposite primary action, regardless

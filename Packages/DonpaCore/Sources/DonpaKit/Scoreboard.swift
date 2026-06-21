@@ -1,5 +1,5 @@
+import DonpaCore
 import Foundation
-import WrapsweeperCore
 
 /// Per-config stats: how many games have been cleared, and the best time.
 public struct ScoreRecord: Codable, Equatable, Sendable {
@@ -25,7 +25,7 @@ public final class Scoreboard: ObservableObject {
     // Key bumped from the old name-keyed store; entries are now keyed by
     // `GameConfig.storageKey` (geometry-bearing, versioned). Pre-release, so the
     // old store is simply not read — no migration by design.
-    private let key = "wrapsweeper.stats.v1"
+    private let key = "donpa.stats.v1"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

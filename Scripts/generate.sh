@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate Wrapsweeper.xcodeproj from project.yml.
+# Regenerate Donpa.xcodeproj from project.yml.
 # Refuses only if *this* project is open in Xcode: regenerating it on disk
 # while Xcode holds its in-memory model causes a save conflict and can clobber
 # the regenerated file. Unrelated projects open in Xcode are fine.
@@ -7,7 +7,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-project_name="Wrapsweeper.xcodeproj"
+project_name="Donpa.xcodeproj"
 
 if pgrep -x Xcode >/dev/null; then
     # Ask Xcode which documents it has open; refuse only if ours is among them.
@@ -24,4 +24,4 @@ if ! command -v xcodegen >/dev/null; then
 fi
 
 xcodegen generate
-echo "Generated Wrapsweeper.xcodeproj"
+echo "Generated Donpa.xcodeproj"

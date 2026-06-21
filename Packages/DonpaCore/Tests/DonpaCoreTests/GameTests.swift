@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import WrapsweeperCore
+@testable import DonpaCore
 
 final class GameTests: XCTestCase {
 

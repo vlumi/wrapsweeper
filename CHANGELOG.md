@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Wrapsweeper are documented here.
+All notable changes to Donpa are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -74,4 +74,4 @@ Work toward the first release, **v0.1.0** (classic Minesweeper on iOS and macOS)
 - The board now follows system light/dark changes on iOS/iPadOS (previously a
   System → Dark → System toggle could leave the grid stuck dark).
 
-[Unreleased]: https://github.com/vlumi/wrapsweeper/commits/main
+[Unreleased]: https://github.com/vlumi/donpa/commits/main

@@ -1,5 +1,5 @@
+import DonpaCore
 import SwiftUI
-import WrapsweeperCore
 
 /// The high-score table: clears + best time per config. Classic configs always
 /// show; Modern configs appear once they've been played (to avoid 15 empty

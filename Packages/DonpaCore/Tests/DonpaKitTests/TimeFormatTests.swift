@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import WrapsweeperKit
+@testable import DonpaKit
 
 final class TimeFormatTests: XCTestCase {
     func testZero() {

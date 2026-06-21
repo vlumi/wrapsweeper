@@ -32,7 +32,7 @@ jobs:
       - name: swift-format
         run: |
           swift format lint --strict --recursive --configuration .swift-format \
-            Packages/WrapsweeperCore/Sources Packages/WrapsweeperCore/Tests Sources
+            Packages/DonpaCore/Sources Packages/DonpaCore/Tests Sources
 
   test:
     name: Test core logic
@@ -45,32 +45,32 @@ jobs:
       - name: Cache SwiftPM
         uses: actions/cache@v5
         with:
-          path: Packages/WrapsweeperCore/.build
-          key: spm-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('Packages/WrapsweeperCore/Package.swift') }}
+          path: Packages/DonpaCore/.build
+          key: spm-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('Packages/DonpaCore/Package.swift') }}
           restore-keys: |
             spm-${{ runner.os }}-${{ env.XCODE_VERSION }}-
       - name: Run logic tests with coverage
-        working-directory: Packages/WrapsweeperCore
+        working-directory: Packages/DonpaCore
         run: swift test --enable-code-coverage
       - name: Export coverage report
-        working-directory: Packages/WrapsweeperCore
+        working-directory: Packages/DonpaCore
         run: |
           PROF=$(find .build -name '*.profdata' | head -1)
-          BIN=$(find .build -name 'WrapsweeperCorePackageTests.xctest' -type d | head -1)/Contents/MacOS/WrapsweeperCorePackageTests
+          BIN=$(find .build -name 'DonpaCorePackageTests.xctest' -type d | head -1)/Contents/MacOS/DonpaCorePackageTests
           # Exclude build artifacts, tests, and the SpriteKit/SwiftUI view layer
           # (which needs UI automation to exercise) so the figure reflects the
           # unit-tested logic. CellLayout and Scoreboard stay measured.
           xcrun llvm-cov export "$BIN" -instr-profile "$PROF" -format=lcov \
-            -ignore-filename-regex='(\.build|Tests)/|WrapsweeperKit/(BoardScene|BoardView|GameView|GameViewModel|SheetViews|Settings|Palette)' \
+            -ignore-filename-regex='(\.build|Tests)/|DonpaKit/(BoardScene|BoardView|GameView|GameViewModel|SheetViews|Settings|Palette)' \
             > coverage.lcov
           # Rewrite absolute SF: paths to repo-relative so Codecov maps files
           # correctly (its ignore globs and file tree are repo-relative). The
           # job runs on macOS, so this is BSD sed.
-          sed -i '' -E 's#^SF:.*/(Packages/WrapsweeperCore/)#SF:\1#' coverage.lcov
+          sed -i '' -E 's#^SF:.*/(Packages/DonpaCore/)#SF:\1#' coverage.lcov
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
-          files: Packages/WrapsweeperCore/coverage.lcov
+          files: Packages/DonpaCore/coverage.lcov
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -86,8 +86,8 @@ jobs:
       - name: Cache SwiftPM
         uses: actions/cache@v5
         with:
-          path: Packages/WrapsweeperCore/.build
-          key: spm-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('Packages/WrapsweeperCore/Package.swift') }}
+          path: Packages/DonpaCore/.build
+          key: spm-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('Packages/DonpaCore/Package.swift') }}
           restore-keys: |
             spm-${{ runner.os }}-${{ env.XCODE_VERSION }}-
       - name: Install XcodeGen
@@ -97,14 +97,14 @@ jobs:
       - name: Build macOS (no signing)
         run: |
           xcodebuild build \
-            -project Wrapsweeper.xcodeproj \
-            -scheme Wrapsweeper-macOS \
+            -project Donpa.xcodeproj \
+            -scheme Donpa-macOS \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO
       - name: Build iOS (simulator)
         run: |
           xcodebuild build \
-            -project Wrapsweeper.xcodeproj \
-            -scheme Wrapsweeper-iOS \
+            -project Donpa.xcodeproj \
+            -scheme Donpa-iOS \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO

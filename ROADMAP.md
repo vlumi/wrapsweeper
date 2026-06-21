@@ -1,6 +1,6 @@
 # Roadmap
 
-How Wrapsweeper gets from "classic Minesweeper" to the full "epic" vision at
+How Donpa gets from "classic Minesweeper" to the full "epic" vision at
 **v1.0**. The architecture (two seams — `Topology` for logical neighbours,
 `CellLayout` for pixel geometry) means most features land as a new conformer
 plus UI, without touching the game logic.
@@ -138,7 +138,7 @@ How the apps reach the stores once a paid Apple Developer account exists:
   review. The Mac and iOS stores are browsed independently.
 - **Bundle IDs likely need to diverge**: iOS and the separate native Mac app
   generally need **distinct bundle IDs** (both currently share
-  `fi.misaki.wrapsweeper`). Pick the Mac ID (e.g. `fi.misaki.wrapsweeper.mac`)
+  `fi.misaki.donpa`). Pick the Mac ID (e.g. `fi.misaki.donpa.mac`)
   and split it in `project.yml` **before** registering IDs with Apple — changing
   it after registration is painful. (Unifying them into a single "universal
   purchase" is a deliberate Catalyst/SwiftUI-app setup, not automatic.)
@@ -194,7 +194,7 @@ should reward one of:
 - **Hidden / playful** — quirky surprises players stumble into and screenshot:
   win in under 3 clicks, oddly-specific times (the "13-second cursed clear"), a
   flag-everything win, losing on the *second* click (a wink — the first is safe).
-- **Identity / epic-tied** — feats unique to Wrapsweeper's variants once they
+- **Identity / epic-tied** — feats unique to Donpa's variants once they
   ship: first torus clear, hex Insane, "went around the world" (a wrap exploit).
   Generic Minesweeper can't offer these — the strongest long-term hook.
 
@@ -241,12 +241,12 @@ Direction under discussion (brainstorm; nothing locked):
 - **Sounds** (open): usually a mute-play genre, but a melodramatic manga
   "ドーン!" sting could fit the panel gag specifically. Needs a mute toggle.
 - **Name** (time-sensitive — do before registering bundle IDs with Apple):
-  reconsidering "Wrapsweeper". Maker is a **Finn in Japan**; wants **Japanese
+  reconsidering "Donpa". Maker is a **Finn in Japan**; wants **Japanese
   localization**; name should read to both JP and EN (not pure-English, not
   pure-Japanese). Candidates collected in `.local/NAME-OPTIONS.md` (gitignored);
   current lead family is **Donpan/Donpa** (manga boom). Getting JP-native
   (teen) feedback before deciding. The rename is one sweep: repo + bundle IDs +
-  `Wrapsweeper*` package/type names + doc URLs.
+  `Donpa*` package/type names + doc URLs.
 
 ## Distribution & extras (later)
 

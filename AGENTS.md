@@ -1,4 +1,4 @@
-# Wrapsweeper — agent & contributor guide
+# Donpa — agent & contributor guide
 
 A Minesweeper game for Apple platforms. Classic mode first; "epic" variants
 (huge zoomable maps, wrapped/torus edges, hex grids) are designed for from day
@@ -10,7 +10,7 @@ AI coding agents working in this repo.
 - **Platforms:** iOS 16+ and macOS 13+. (An older Intel Mac was intentionally
   dropped — its macOS ceiling forced obsolete SwiftUI APIs.)
 - **Toolchain:** Xcode 16+ / Swift 6, XcodeGen.
-- **Bundle id:** `fi.misaki.wrapsweeper`. **License:** MIT. No monetization.
+- **Bundle id:** `fi.misaki.donpa`. **License:** MIT. No monetization.
 - The `.xcodeproj` is a **generated artifact** (gitignored) — never edit or
   commit it. Signing/team settings live only in that local file, never in
   `project.yml`, so nothing sensitive is committed.
@@ -30,15 +30,15 @@ Two seams isolate all "epic" variation; everything else is written once.
 ### Structure
 
 ```text
-wrapsweeper/
+donpa/
 ├── project.yml                  XcodeGen spec (iOS + macOS app targets)
 ├── Scripts/generate.sh          Regenerates the .xcodeproj (refuses if THIS project is open in Xcode)
 ├── Scripts/make-icon.swift      Regenerates the app icon PNGs into Sources/Shared
 ├── Sources/{iOS,macOS}/         Thin @main app shells
 ├── Sources/Shared/              Assets shared by both targets (the AppIcon set)
-└── Packages/WrapsweeperCore/    Swift package — most of the code
-    ├── Sources/WrapsweeperCore/ Pure logic (GameConfig, Solver, …), fully tested
-    ├── Sources/WrapsweeperKit/  SpriteKit + SwiftUI, depends on Core
+└── Packages/DonpaCore/    Swift package — most of the code
+    ├── Sources/DonpaCore/ Pure logic (GameConfig, Solver, …), fully tested
+    ├── Sources/DonpaKit/  SpriteKit + SwiftUI, depends on Core
     └── Sources/TierAnalysis/    Dev-only CLI: `swift run TierAnalysis` (not shipped)
 ```
 
@@ -55,15 +55,15 @@ wrapsweeper/
 
 ```sh
 # Logic tests (no Xcode needed) — the fast inner loop
-cd Packages/WrapsweeperCore && swift test
+cd Packages/DonpaCore && swift test
 
-# Build just the package (compiles the macOS branch of WrapsweeperKit)
-cd Packages/WrapsweeperCore && swift build
+# Build just the package (compiles the macOS branch of DonpaKit)
+cd Packages/DonpaCore && swift build
 
 # Generate the Xcode project, then build an app target
 ./Scripts/generate.sh
-xcodebuild -project Wrapsweeper.xcodeproj -scheme Wrapsweeper-macOS -destination 'platform=macOS' build
-xcodebuild -project Wrapsweeper.xcodeproj -scheme Wrapsweeper-iOS  -destination 'generic/platform=iOS Simulator' build
+xcodebuild -project Donpa.xcodeproj -scheme Donpa-macOS -destination 'platform=macOS' build
+xcodebuild -project Donpa.xcodeproj -scheme Donpa-iOS  -destination 'generic/platform=iOS Simulator' build
 ```
 
 `swift build` on macOS only compiles the `#if os(macOS)` branch of platform
@@ -74,7 +74,7 @@ code — build the iOS target via `xcodebuild` to exercise the iOS branch.
 ```sh
 swiftlint lint --strict                 # style + light correctness (config: .swiftlint.yml)
 swift format lint --strict --recursive --configuration .swift-format \
-  Packages/WrapsweeperCore/Sources Packages/WrapsweeperCore/Tests Sources
+  Packages/DonpaCore/Sources Packages/DonpaCore/Tests Sources
 swift format --in-place --recursive --configuration .swift-format <paths>   # auto-format
 ```
 
@@ -97,7 +97,7 @@ formatter before committing.
 
 ## Gotchas
 
-- SourceKit in-IDE diagnostics may report `No such module 'WrapsweeperCore'`
+- SourceKit in-IDE diagnostics may report `No such module 'DonpaCore'`
   for files it hasn't indexed — these are **false**. The authoritative checks
   are `swift build` / `swift test` / `xcodebuild`.
 - `BoardScene` uses `SKScene`'s built-in `camera`; the camera node is held as

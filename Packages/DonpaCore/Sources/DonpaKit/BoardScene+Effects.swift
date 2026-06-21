@@ -1,5 +1,5 @@
+import DonpaCore
 import SpriteKit
-import WrapsweeperCore
 
 #if os(iOS)
 import UIKit

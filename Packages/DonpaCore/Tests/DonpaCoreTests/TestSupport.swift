@@ -1,4 +1,4 @@
-import WrapsweeperCore
+import DonpaCore
 
 /// A tiny seedable RNG (SplitMix64) for reproducible mine placement in tests.
 struct SeededRNG: RandomNumberGenerator {

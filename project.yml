@@ -1,4 +1,4 @@
-name: Wrapsweeper
+name: Donpa
 
 options:
   bundleIdPrefix: fi.misaki
@@ -8,11 +8,11 @@ options:
   createIntermediateGroups: true
 
 packages:
-  WrapsweeperCore:
-    path: Packages/WrapsweeperCore
+  DonpaCore:
+    path: Packages/DonpaCore
 
 targets:
-  Wrapsweeper-iOS:
+  Donpa-iOS:
     type: application
     platform: iOS
     sources:
@@ -21,6 +21,7 @@ targets:
     info:
       path: Sources/iOS/Info.plist
       properties:
+        CFBundleDisplayName: Donpa Squad
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -28,16 +29,16 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.wrapsweeper
+        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
-      - package: WrapsweeperCore
-        product: WrapsweeperKit
+      - package: DonpaCore
+        product: DonpaKit
 
-  Wrapsweeper-macOS:
+  Donpa-macOS:
     type: application
     platform: macOS
     sources:
@@ -46,16 +47,17 @@ targets:
     info:
       path: Sources/macOS/Info.plist
       properties:
+        CFBundleDisplayName: Donpa Squad
         LSMinimumSystemVersion: "13.0"
         NSHighResolutionCapable: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.wrapsweeper
+        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
-      - package: WrapsweeperCore
-        product: WrapsweeperKit
+      - package: DonpaCore
+        product: DonpaKit

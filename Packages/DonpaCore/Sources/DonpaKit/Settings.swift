@@ -1,5 +1,5 @@
+import DonpaCore
 import SwiftUI
-import WrapsweeperCore
 
 #if canImport(AppKit)
 import AppKit
@@ -84,11 +84,11 @@ public final class Settings: ObservableObject {
     }
 
     private let defaults: UserDefaults
-    private let appearanceKey = "wrapsweeper.appearance"
-    private let modeKey = "wrapsweeper.mode"
-    private let sizeKey = "wrapsweeper.modernSize"
-    private let densityKey = "wrapsweeper.modernDensity"
-    private let presetKey = "wrapsweeper.classicPreset"
+    private let appearanceKey = "donpa.appearance"
+    private let modeKey = "donpa.mode"
+    private let sizeKey = "donpa.modernSize"
+    private let densityKey = "donpa.modernDensity"
+    private let presetKey = "donpa.classicPreset"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

@@ -1,7 +1,7 @@
-import WrapsweeperCore
+import DonpaCore
 import XCTest
 
-@testable import WrapsweeperKit
+@testable import DonpaKit
 
 @MainActor
 final class GameResultTests: XCTestCase {

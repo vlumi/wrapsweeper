@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct WrapsweeperApp: App {
+struct DonpaApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

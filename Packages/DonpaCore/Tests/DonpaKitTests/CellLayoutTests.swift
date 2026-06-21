@@ -1,8 +1,8 @@
 import CoreGraphics
-import WrapsweeperCore
+import DonpaCore
 import XCTest
 
-@testable import WrapsweeperKit
+@testable import DonpaKit
 
 final class CellLayoutTests: XCTestCase {
     func testCenterIsHalfACellInFromTheOrigin() {
