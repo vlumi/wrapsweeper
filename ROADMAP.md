@@ -219,6 +219,25 @@ Direction under discussion (brainstorm; nothing locked):
   might be too much") — the comic *style* carries the flavour.
   - **Panel size is responsive / try-it-out**: likely full-screen-ish on phone,
     a non-blocking overlay on Mac (must not break the snappy Space-to-restart).
+  - **Build split — code vs art**: the panel *framing and FX* (speed-lines,
+    halftone/screentone, kana SFX lettering, flash, border) are procedural —
+    buildable in SpriteKit/CoreGraphics, no drawn assets, crisp at any size, no
+    licensing concerns. The drawn part is the **panel image in a swappable asset
+    slot**, so the framework can be built first with a placeholder.
+  - **Style**: B/W manga with **screentone/halftone** (not flat outline) — it
+    matches the theme, composites with the mono code FX, and **inverts/tints per
+    light-dark mode** (full colour would fight the appearance theming). An
+    optional win=green / loss=red accent can be applied *in code* over the mono
+    art.
+  - **Panel as one transparent PNG (incl. its border)**: the art is the complete
+    bordered panel with **transparency outside the panel shape**. Drop it in as a
+    single image — no code-drawn frame, no clip math. The **breakout flourish**
+    (a fist / SFX poking past the border) is just drawn past the edge in the same
+    image, opaque-over-transparent — free, no extra layer. Alpha is only the
+    easy kind (outside a clear bordered shape), not a hair-level cut-out.
+  - **Art source**: solo for now — AI-generated panels (NovelAI manga model),
+    exported @1x/2x/3x. A real artist could replace the same slot later, no code
+    change. **Verify commercial-use licensing of any AI art before shipping.**
 - **Sounds** (open): usually a mute-play genre, but a melodramatic manga
   "ドーン!" sting could fit the panel gag specifically. Needs a mute toggle.
 - **Name** (time-sensitive — do before registering bundle IDs with Apple):
