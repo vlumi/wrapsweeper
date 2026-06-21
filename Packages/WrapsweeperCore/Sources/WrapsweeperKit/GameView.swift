@@ -15,9 +15,9 @@ public struct GameView: View {
     @StateObject private var settings: Settings
     @State private var scene: BoardScene
 
-    public init(difficulty: Difficulty = .beginner) {
+    public init(config: GameConfig = .classic(.beginner)) {
         self.init(
-            viewModel: GameViewModel(difficulty: difficulty),
+            viewModel: GameViewModel(config: config),
             scoreboard: Scoreboard(),
             settings: Settings())
     }
@@ -81,7 +81,7 @@ private struct GameContent: View {
     /// new best). Opens the scoreboard so the player sees the result.
     private func handleWin() {
         guard let win = viewModel.lastWin else { return }
-        if scoreboard.submit(win.seconds, for: win.difficulty) {
+        if scoreboard.submit(win.seconds, for: win.config) {
             showingScores = true
         }
     }
@@ -193,9 +193,10 @@ private struct GameContent: View {
     private var difficultyPicker: some View {
         // Label hidden: the segment names are self-explanatory, and a visible
         // "Difficulty" label wraps to a second line on narrow widths.
+        // Classic presets only for now; Modern mode UI arrives in a later PR.
         Picker("Difficulty", selection: difficultyBinding) {
-            ForEach(Difficulty.presets, id: \.self) { d in
-                Text(d.name).tag(d)
+            ForEach(GameConfig.classicConfigs, id: \.self) { config in
+                Text(config.label).tag(config)
             }
         }
         .labelsHidden()
@@ -204,10 +205,10 @@ private struct GameContent: View {
         .padding(.bottom, 8)
     }
 
-    private var difficultyBinding: Binding<Difficulty> {
+    private var difficultyBinding: Binding<GameConfig> {
         Binding(
-            get: { viewModel.difficulty },
-            set: { viewModel.newGame(difficulty: $0) }
+            get: { viewModel.config },
+            set: { viewModel.newGame(config: $0) }
         )
     }
 }
@@ -233,15 +234,15 @@ struct ScoreboardView: View {
                 }
                 .padding(.vertical, 4)
 
-                ForEach(Difficulty.presets, id: \.self) { d in
+                ForEach(GameConfig.classicConfigs, id: \.self) { config in
                     HStack {
-                        Text(d.name)
+                        Text(config.label)
                         Spacer()
-                        Text("\(scoreboard.wins(for: d))")
+                        Text("\(scoreboard.wins(for: config))")
                             .font(.body.monospaced())
                             .frame(width: 70, alignment: .trailing)
                         Group {
-                            if let best = scoreboard.best(for: d) {
+                            if let best = scoreboard.best(for: config) {
                                 Text(String(format: "%03ds", best)).font(.body.monospaced().bold())
                             } else {
                                 Text("—").foregroundStyle(.secondary)
@@ -250,7 +251,7 @@ struct ScoreboardView: View {
                         .frame(width: 60, alignment: .trailing)
                     }
                     .padding(.vertical, 10)
-                    if d != Difficulty.presets.last { Divider() }
+                    if config != GameConfig.classicConfigs.last { Divider() }
                 }
             }
             .padding(.horizontal)

@@ -22,7 +22,10 @@ public final class Scoreboard: ObservableObject {
     @Published public private(set) var records: [String: ScoreRecord]
 
     private let defaults: UserDefaults
-    private let key = "wrapsweeper.stats"
+    // Key bumped from the old name-keyed store; entries are now keyed by
+    // `GameConfig.storageKey` (geometry-bearing, versioned). Pre-release, so the
+    // old store is simply not read — no migration by design.
+    private let key = "wrapsweeper.stats.v1"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -35,33 +38,33 @@ public final class Scoreboard: ObservableObject {
         }
     }
 
-    public func record(for difficulty: Difficulty) -> ScoreRecord? {
-        records[difficulty.name]
+    public func record(for config: GameConfig) -> ScoreRecord? {
+        records[config.storageKey]
     }
 
-    public func best(for difficulty: Difficulty) -> Int? {
-        records[difficulty.name]?.bestSeconds
+    public func best(for config: GameConfig) -> Int? {
+        records[config.storageKey]?.bestSeconds
     }
 
-    public func wins(for difficulty: Difficulty) -> Int {
-        records[difficulty.name]?.wins ?? 0
+    public func wins(for config: GameConfig) -> Int {
+        records[config.storageKey]?.wins ?? 0
     }
 
-    /// True if `seconds` would beat (or set) the best time for this difficulty.
-    public func isNewRecord(_ seconds: Int, for difficulty: Difficulty) -> Bool {
-        guard let best = records[difficulty.name]?.bestSeconds else { return true }
+    /// True if `seconds` would beat (or set) the best time for this config.
+    public func isNewRecord(_ seconds: Int, for config: GameConfig) -> Bool {
+        guard let best = records[config.storageKey]?.bestSeconds else { return true }
         return seconds < best
     }
 
     /// Record a win: always bumps the clear count, and updates the best time if
     /// `seconds` beats it. Returns true if it set a new best time.
     @discardableResult
-    public func submit(_ seconds: Int, for difficulty: Difficulty) -> Bool {
-        var record = records[difficulty.name] ?? ScoreRecord()
+    public func submit(_ seconds: Int, for config: GameConfig) -> Bool {
+        var record = records[config.storageKey] ?? ScoreRecord()
         record.wins += 1
         let isBest = record.bestSeconds.map { seconds < $0 } ?? true
         if isBest { record.bestSeconds = seconds }
-        records[difficulty.name] = record
+        records[config.storageKey] = record
         persist()
         return isBest
     }
