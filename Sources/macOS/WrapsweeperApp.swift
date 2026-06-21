@@ -30,15 +30,19 @@ struct WrapsweeperApp: App {
 
                 Divider()
 
-                classicButton(.classic(.beginner), key: "1")
-                classicButton(.classic(.intermediate), key: "2")
-                classicButton(.classic(.expert), key: "3")
+                classicButton(.beginner, key: "1")
+                classicButton(.intermediate, key: "2")
+                classicButton(.expert, key: "3")
             }
         }
     }
 
-    private func classicButton(_ config: GameConfig, key: KeyEquivalent) -> some View {
-        Button(config.label) { viewModel.newGame(config: config) }
-            .keyboardShortcut(key, modifiers: .command)
+    private func classicButton(_ preset: ClassicPreset, key: KeyEquivalent) -> some View {
+        Button(preset.label) {
+            settings.mode = .classic
+            settings.classicPreset = preset
+            viewModel.newGame(config: .classic(preset))
+        }
+        .keyboardShortcut(key, modifiers: .command)
     }
 }

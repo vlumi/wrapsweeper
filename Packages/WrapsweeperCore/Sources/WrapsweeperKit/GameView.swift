@@ -65,9 +65,15 @@ private struct GameContent: View {
             // Palette passed as a value: BoardView's updateUIView/NSView pushes
             // it to the scene whenever the resolved scheme changes — reliable
             // where .onChange on the SwiftUI side was not.
-            BoardView(scene: scene, palette: palette)
+            BoardView(scene: scene, palette: palette, inputMode: viewModel.inputMode)
         }
         .background(palette.pageBackground)
+        .onAppear {
+            // Restore the persisted board selection on launch.
+            if viewModel.config != settings.currentConfig {
+                viewModel.newGame(config: settings.currentConfig)
+            }
+        }
         .onChange(of: viewModel.lastWin?.seconds) { _ in handleWin() }
         .sheet(isPresented: $showingScores) {
             ScoreboardView(scoreboard: scoreboard)
@@ -190,71 +196,103 @@ private struct GameContent: View {
         .layoutPriority(1)
     }
 
+    /// The bottom configuration bar: a Classic/Modern mode switch over the
+    /// matching board picker (3 classic presets, or Size × Density for Modern).
+    /// Changing any control starts a new game with the implied config.
     private var difficultyPicker: some View {
-        // Label hidden: the segment names are self-explanatory, and a visible
-        // "Difficulty" label wraps to a second line on narrow widths.
-        // Classic presets only for now; Modern mode UI arrives in a later PR.
-        Picker("Difficulty", selection: difficultyBinding) {
-            ForEach(GameConfig.classicConfigs, id: \.self) { config in
-                Text(config.label).tag(config)
+        VStack(spacing: 8) {
+            Picker("Mode", selection: modeBinding) {
+                ForEach(GameMode.allCases) { Text($0.label).tag($0) }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+
+            switch settings.mode {
+            case .classic:
+                Picker("Difficulty", selection: classicBinding) {
+                    ForEach(ClassicPreset.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+            case .modern:
+                Picker("Size", selection: sizeBinding) {
+                    ForEach(BoardSize.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                Picker("Difficulty", selection: densityBinding) {
+                    ForEach(Density.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
             }
         }
-        .labelsHidden()
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.bottom, 8)
     }
 
-    private var difficultyBinding: Binding<GameConfig> {
+    // Each binding writes the Settings selection, then starts a new game on the
+    // resulting config so the board reflects the choice immediately.
+    private var modeBinding: Binding<GameMode> {
         Binding(
-            get: { viewModel.config },
-            set: { viewModel.newGame(config: $0) }
-        )
+            get: { settings.mode },
+            set: {
+                settings.mode = $0
+                viewModel.newGame(config: settings.currentConfig)
+            })
+    }
+    private var classicBinding: Binding<ClassicPreset> {
+        Binding(
+            get: { settings.classicPreset },
+            set: {
+                settings.classicPreset = $0
+                viewModel.newGame(config: settings.currentConfig)
+            })
+    }
+    private var sizeBinding: Binding<BoardSize> {
+        Binding(
+            get: { settings.modernSize },
+            set: {
+                settings.modernSize = $0
+                viewModel.newGame(config: settings.currentConfig)
+            })
+    }
+    private var densityBinding: Binding<Density> {
+        Binding(
+            get: { settings.modernDensity },
+            set: {
+                settings.modernDensity = $0
+                viewModel.newGame(config: settings.currentConfig)
+            })
     }
 }
 
-/// The high-score table: best time per difficulty.
+/// The high-score table: clears + best time per config. Classic configs always
+/// show; Modern configs appear once they've been played (to avoid 15 empty
+/// rows). Stored by geometry, so re-tuned tiers would list as separate entries.
 struct ScoreboardView: View {
     @ObservedObject var scoreboard: Scoreboard
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingReset = false
 
+    /// Modern configs the player has actually cleared at least once.
+    private var playedModern: [GameConfig] {
+        GameConfig.modernConfigs.filter { scoreboard.wins(for: $0) > 0 }
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             Text("High Scores").font(.title2.bold())
 
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Difficulty").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Text("Cleared").font(.caption).foregroundStyle(.secondary)
-                        .frame(width: 70, alignment: .trailing)
-                    Text("Best").font(.caption).foregroundStyle(.secondary)
-                        .frame(width: 60, alignment: .trailing)
-                }
-                .padding(.vertical, 4)
-
-                ForEach(GameConfig.classicConfigs, id: \.self) { config in
-                    HStack {
-                        Text(config.label)
-                        Spacer()
-                        Text("\(scoreboard.wins(for: config))")
-                            .font(.body.monospaced())
-                            .frame(width: 70, alignment: .trailing)
-                        Group {
-                            if let best = scoreboard.best(for: config) {
-                                Text(String(format: "%03ds", best)).font(.body.monospaced().bold())
-                            } else {
-                                Text("—").foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(width: 60, alignment: .trailing)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    section("Classic", configs: GameConfig.classicConfigs)
+                    if !playedModern.isEmpty {
+                        section("Modern", configs: playedModern)
                     }
-                    .padding(.vertical, 10)
-                    if config != GameConfig.classicConfigs.last { Divider() }
                 }
             }
-            .padding(.horizontal)
+            .frame(maxHeight: 360)
 
             HStack {
                 Button("Reset", role: .destructive) { confirmingReset = true }
@@ -268,6 +306,44 @@ struct ScoreboardView: View {
             Button("Clear scores", role: .destructive) { scoreboard.reset() }
             Button("Cancel", role: .cancel) {}
         }
+    }
+
+    private func section(_ title: String, configs: [GameConfig]) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(title).font(.caption.bold()).foregroundStyle(.secondary)
+                Spacer()
+                Text("Cleared").font(.caption).foregroundStyle(.secondary)
+                    .frame(width: 70, alignment: .trailing)
+                Text("Best").font(.caption).foregroundStyle(.secondary)
+                    .frame(width: 60, alignment: .trailing)
+            }
+            .padding(.vertical, 4)
+
+            ForEach(configs, id: \.self) { config in
+                row(config)
+                if config != configs.last { Divider() }
+            }
+        }
+    }
+
+    private func row(_ config: GameConfig) -> some View {
+        HStack {
+            Text(config.label)
+            Spacer()
+            Text("\(scoreboard.wins(for: config))")
+                .font(.body.monospaced())
+                .frame(width: 70, alignment: .trailing)
+            Group {
+                if let best = scoreboard.best(for: config) {
+                    Text(String(format: "%03ds", best)).font(.body.monospaced().bold())
+                } else {
+                    Text("—").foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 60, alignment: .trailing)
+        }
+        .padding(.vertical, 10)
     }
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import WrapsweeperCore
 
 #if canImport(AppKit)
 import AppKit
@@ -52,19 +53,61 @@ public enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// Persisted user settings (currently just appearance), backed by `UserDefaults`.
+/// Which board-config flavour the picker offers.
+public enum GameMode: String, CaseIterable, Identifiable, Sendable {
+    case classic
+    case modern
+
+    public var id: String { rawValue }
+    public var label: String { self == .classic ? "Classic" : "Modern" }
+}
+
+/// Persisted user settings (appearance + last board selection), backed by
+/// `UserDefaults`. Remembering the mode and the Modern size/density lets the
+/// picker restore the player's last choice across launches.
 @MainActor
 public final class Settings: ObservableObject {
     @Published public var appearance: AppearancePreference {
-        didSet { defaults.set(appearance.rawValue, forKey: key) }
+        didSet { defaults.set(appearance.rawValue, forKey: appearanceKey) }
+    }
+    @Published public var mode: GameMode {
+        didSet { defaults.set(mode.rawValue, forKey: modeKey) }
+    }
+    @Published public var modernSize: BoardSize {
+        didSet { defaults.set(modernSize.rawValue, forKey: sizeKey) }
+    }
+    @Published public var modernDensity: Density {
+        didSet { defaults.set(modernDensity.rawValue, forKey: densityKey) }
+    }
+    @Published public var classicPreset: ClassicPreset {
+        didSet { defaults.set(classicPreset.rawValue, forKey: presetKey) }
     }
 
     private let defaults: UserDefaults
-    private let key = "wrapsweeper.appearance"
+    private let appearanceKey = "wrapsweeper.appearance"
+    private let modeKey = "wrapsweeper.mode"
+    private let sizeKey = "wrapsweeper.modernSize"
+    private let densityKey = "wrapsweeper.modernDensity"
+    private let presetKey = "wrapsweeper.classicPreset"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        let stored = defaults.string(forKey: key).flatMap(AppearancePreference.init(rawValue:))
-        appearance = stored ?? .system
+        appearance =
+            defaults.string(forKey: appearanceKey).flatMap(AppearancePreference.init(rawValue:))
+            ?? .system
+        mode = defaults.string(forKey: modeKey).flatMap(GameMode.init(rawValue:)) ?? .classic
+        modernSize = defaults.string(forKey: sizeKey).flatMap(BoardSize.init(rawValue:)) ?? .medium
+        modernDensity =
+            defaults.string(forKey: densityKey).flatMap(Density.init(rawValue:)) ?? .normal
+        classicPreset =
+            defaults.string(forKey: presetKey).flatMap(ClassicPreset.init(rawValue:)) ?? .beginner
+    }
+
+    /// The `GameConfig` implied by the current mode + selections.
+    public var currentConfig: GameConfig {
+        switch mode {
+        case .classic: return .classic(classicPreset)
+        case .modern: return .modern(modernSize, modernDensity)
+        }
     }
 }

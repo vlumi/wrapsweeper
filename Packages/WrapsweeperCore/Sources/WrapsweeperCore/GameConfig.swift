@@ -31,7 +31,7 @@ public enum ClassicPreset: String, CaseIterable, Sendable {
         }
     }
 
-    var label: String {
+    public var label: String {
         switch self {
         case .beginner: return "Beginner"
         case .intermediate: return "Intermediate"
@@ -52,7 +52,7 @@ public enum BoardSize: String, CaseIterable, Sendable {
         }
     }
 
-    var label: String {
+    public var label: String {
         switch self {
         case .small: return "Small"
         case .medium: return "Medium"
@@ -76,7 +76,7 @@ public enum Density: String, CaseIterable, Sendable {
         }
     }
 
-    var label: String {
+    public var label: String {
         switch self {
         case .easy: return "Easy"
         case .normal: return "Normal"
