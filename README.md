@@ -55,14 +55,22 @@ cd Packages/WrapsweeperCore && swift test
 open Wrapsweeper.xcodeproj
 ```
 
+## Modes
+
+A **Classic / Modern** switch in the bottom bar chooses the board:
+
+- **Classic** — the original Beginner / Intermediate / Expert presets.
+- **Modern** — pick a **Size** (Small 9×9 · Medium 16×16 · Large 25×25) and a
+  **Difficulty** (Easy · Normal · Hard · Brutal · Insane). Difficulty is mine
+  density, so it composes with any size; Insane is the deliberately brutal,
+  near-unguessable tier. The chosen mode and selections are remembered.
+
 ## Controls
 
-A toolbar toggle switches a tap/click between **Reveal mode** (⛏️) and
-**Flag mode** (🚩), so you can place flags without risking an accidental reveal.
-A tap on a revealed number always chords in either mode, and a long-press is
-always the opposite primary action.
-
-The toggle shows ⛏️ in Reveal mode and 🚩 in Flag mode.
+A toolbar toggle switches a tap/click between **Reveal mode** and **Flag mode**,
+so you can place flags without risking an accidental reveal. A tap on a revealed
+number always chords in either mode, and a long-press is always the opposite
+primary action.
 
 | Action            | Reveal mode   | Flag mode     |
 | ----------------- | ------------- | ------------- |
@@ -76,8 +84,10 @@ The toggle shows ⛏️ in Reveal mode and 🚩 in Flag mode.
 | Pan             | Drag  | Two-finger scroll            |
 | Zoom            | Pinch | Pinch (trackpad)             |
 
-Panning is constrained to the board, so you can never scroll past its edges;
-when the whole board already fits on screen, panning is disabled.
+On macOS the pointer reflects the mode over the board — a crosshair to reveal,
+a flag to flag. Panning is constrained to the board, so you can never scroll
+past its edges; when the whole board already fits on screen, panning is
+disabled.
 
 ### Keyboard shortcuts
 
@@ -90,9 +100,13 @@ when the whole board already fits on screen, panning is disabled.
 
 ## Scores
 
-Per-difficulty stats are kept locally (via `UserDefaults`) and shown from the
-🏆 button: your best time and how many games you've cleared on each difficulty.
-Beating a best time opens the scoreboard automatically.
+Per-board stats are kept locally (via `UserDefaults`) and shown from the 🏆
+button in Classic and Modern sections: your best time and how many games you've
+cleared on each board. Beating a best time opens the scoreboard automatically.
+
+Stats are keyed by board geometry, not by tier name, so the format stays stable
+toward the "epic" variants: adding wrapped or hex boards — or re-tuning a tier —
+creates new scoreboard entries rather than reinterpreting existing scores.
 
 ## Settings
 

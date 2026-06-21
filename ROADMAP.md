@@ -15,40 +15,36 @@ releases. The project is **currently unversioned** — the first cut is v0.1.0.
 Ship a polished classic Minesweeper on iOS and macOS.
 
 - [x] Core logic: first-click safety, flood-fill, flagging, chording, win/lose
-- [x] Difficulty presets (Beginner / Intermediate / Expert)
+- [x] Classic presets (Beginner / Intermediate / Expert)
+- [x] Modern mode: Size × mine-density grid (curated, two fixed-set axes) —
+      brought forward from v0.2
+- [x] Logical solver + tier-analysis tool (chose the Modern tiers from data)
+- [x] 1.0-stable, geometry-keyed, versioned scoreboard format (no migrations)
 - [x] SpriteKit board with pan/zoom, board-constrained panning
-- [x] Reveal/Flag mode toggle + long-press alternate action
-- [x] Local scoreboard: best time + games-cleared count per difficulty
+- [x] Reveal/Flag mode toggle + long-press alternate action; macOS mode cursor
+- [x] Local scoreboard: best time + games-cleared count per board
 - [x] iOS + macOS app targets, CI
 - [x] App icon
 - [x] Light / dark / system appearance (settings sheet, persisted)
+- [x] Persisted board selection (mode + size/density/preset)
 - [ ] **Remaining for release:**
   - [ ] Launch screen
   - [ ] First-run polish: empty-state, win/lose feedback (haptics on iOS, subtle animation)
   - [ ] Accessibility pass (VoiceOver labels for cells, Dynamic Type in chrome)
-  - [ ] Persist last difficulty and input mode (appearance already persisted)
+  - [ ] Persist last input mode (reveal/flag)
   - [ ] Localization / language setting (Settings sheet has room for it)
   - [ ] Tag v0.1.0, signed builds
 
-## v0.2.0 — Curated board configs & restraint
+## v0.2.0 — Fairer boards & restraint
 
-Groundwork that later epic features lean on. Deliberately **not** free-form
-custom boards — too much choice — but two curated axes instead.
+The curated Size × Density model already shipped in v0.1.0. What's left here
+builds on the existing logical solver.
 
-- [ ] **Split size from difficulty into two fixed-set axes:**
-  - **Size** — a curated set (e.g. Small / Medium / Large; Huge later for the
-    epic maps).
-  - **Difficulty** — a curated set of **mine densities** (% of cells), e.g.
-    Easy / Normal / Hard. Size-independent by nature, so the two axes compose
-    cleanly: `mineCount = round(density × width × height)`. Every size is
-    available at every difficulty (difficulty is just a percentage).
-  - The classic Beginner/Intermediate/Expert presets become specific
-    size×density points.
-  - Scoreboards key by the **combination** (e.g. "Medium · Hard"); the existing
-    per-name stats store already supports this once the config name encodes both
-    axes. This replaces the earlier idea of free-form custom difficulty.
-- [ ] "No-guess" board generation option (solvable without guessing)
-- [ ] Safe-reveal / question-mark flag cycle (classic third flag state)
+- [ ] "No-guess" board generation: reject layouts the solver can't finish
+      without a guess (the `Solver` and `TierAnalysis` from v0.1.0 are the
+      foundation — generation just resamples until solvable).
+- [ ] Optional per-config "no-guess" toggle (esp. for the harder densities).
+- [ ] Safe-reveal / question-mark flag cycle (classic third flag state).
 
 ## v0.3.0 — Big boards
 

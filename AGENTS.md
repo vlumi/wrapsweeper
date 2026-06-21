@@ -37,9 +37,14 @@ wrapsweeper/
 ├── Sources/{iOS,macOS}/         Thin @main app shells
 ├── Sources/Shared/              Assets shared by both targets (the AppIcon set)
 └── Packages/WrapsweeperCore/    Swift package — most of the code
-    ├── Sources/WrapsweeperCore/ Pure logic, zero UI imports, fully tested
-    └── Sources/WrapsweeperKit/  SpriteKit + SwiftUI, depends on Core
+    ├── Sources/WrapsweeperCore/ Pure logic (GameConfig, Solver, …), fully tested
+    ├── Sources/WrapsweeperKit/  SpriteKit + SwiftUI, depends on Core
+    └── Sources/TierAnalysis/    Dev-only CLI: `swift run TierAnalysis` (not shipped)
 ```
+
+- `GameConfig` is the single source of board dimensions, mine count, topology,
+  label, and the **scoreboard key** — a versioned, geometry-bearing token
+  string built to stay stable through future board variants (no migrations).
 
 - App targets are thin: `@main` app + a view hosting `GameView()`.
 - Engine: **SpriteKit** (`SKScene` + `SKCameraNode`) in a SwiftUI `SpriteView`.
