@@ -41,6 +41,15 @@ Work toward the first release, **v0.1.0** (classic Minesweeper on iOS and macOS)
   single effective scheme.
 - macOS: pan a zoomed-in board by click-drag (with a small threshold so clicks
   aren't mistaken for drags) or two-finger trackpad scroll.
+- Win/loss feedback: the board animates on game end (the hit mine detonates with
+  a staggered mine wave and a brief shake on loss; a green ripple on win), the
+  restart button pops, iOS plays a success/error haptic, and a small banner at
+  the bottom shows the result (with the finishing time on a win). Respects
+  Reduce Motion.
+- Precise timing: play time is tracked from the wall clock and best times are
+  recorded and shown as `m:ss.t` (tenths, uncapped) in the scoreboard and
+  banner. The toolbar keeps the classic 3-digit whole-second LED (capped at 999
+  for display).
 - Keyboard shortcuts: Space toggles mode (handled in the scene so it fires
   reliably), plus macOS menu commands ⌘N (new game), ⌘F (toggle mode),
   ⌘1/2/3 (difficulty).

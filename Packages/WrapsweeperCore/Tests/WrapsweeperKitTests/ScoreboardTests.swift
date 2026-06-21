@@ -89,7 +89,7 @@ final class ScoreboardTests: XCTestCase {
         board.submit(20, for: .beginner)
         let r = board.record(for: .beginner)
         XCTAssertEqual(r?.wins, 2)
-        XCTAssertEqual(r?.bestSeconds, 20)
+        XCTAssertEqual(r?.bestCentiseconds, 20)
     }
 
     // MARK: Persistence
