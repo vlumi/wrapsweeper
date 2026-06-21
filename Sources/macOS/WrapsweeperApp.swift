@@ -11,7 +11,7 @@ struct WrapsweeperApp: App {
     var body: some Scene {
         WindowGroup {
             GameView(viewModel: viewModel, scoreboard: scoreboard, settings: settings)
-                .frame(minWidth: 360, minHeight: 480)
+                .frame(minWidth: 320, minHeight: 420)
         }
         .commands {
             CommandGroup(replacing: .newItem) {

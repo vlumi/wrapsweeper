@@ -89,10 +89,11 @@ private struct GameContent: View {
 
     private var statusBar: some View {
         // Three equal-width zones keep the new-game button truly centred without
-        // overlapping the side controls on narrow screens. Left zone: flag +
-        // mode. Centre: new game. Right zone: nav group + timer.
-        HStack(spacing: 8) {
-            HStack(spacing: 10) {
+        // overlapping the side controls. Counters get layout priority so they
+        // shrink (never vanish) when the window gets very narrow; the icon
+        // buttons hold a fixed size.
+        HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 counter(label: "⚑", value: viewModel.flagsRemaining)
                 modeToggle
                 Spacer(minLength: 0)
@@ -101,7 +102,7 @@ private struct GameContent: View {
 
             newGameButton
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 iconButton("trophy", help: "High scores") { showingScores = true }
                 iconButton("gearshape", help: "Settings") { showingSettings = true }
@@ -175,20 +176,28 @@ private struct GameContent: View {
     }
 
     private func counter(label: String, value: Int) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Text(label)
             Text(String(format: "%03d", max(0, value)))
                 .font(.system(.title3, design: .monospaced).weight(.bold))
                 .foregroundStyle(palette.counter)
         }
+        // Shrink to fit very narrow windows rather than clipping or pushing the
+        // timer out of the bar entirely.
+        .lineLimit(1)
+        .minimumScaleFactor(0.5)
+        .layoutPriority(1)
     }
 
     private var difficultyPicker: some View {
+        // Label hidden: the segment names are self-explanatory, and a visible
+        // "Difficulty" label wraps to a second line on narrow widths.
         Picker("Difficulty", selection: difficultyBinding) {
             ForEach(Difficulty.presets, id: \.self) { d in
                 Text(d.name).tag(d)
             }
         }
+        .labelsHidden()
         .pickerStyle(.segmented)
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
