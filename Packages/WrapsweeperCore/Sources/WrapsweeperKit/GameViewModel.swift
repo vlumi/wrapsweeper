@@ -18,7 +18,7 @@ public enum InputMode: Sendable {
 @MainActor
 public final class GameViewModel: ObservableObject {
     @Published public private(set) var game: Game
-    @Published public private(set) var difficulty: Difficulty
+    @Published public private(set) var config: GameConfig
     @Published public private(set) var elapsedSeconds: Int = 0
 
     /// Bumped on every state-changing action so the SpriteKit scene knows to
@@ -30,9 +30,9 @@ public final class GameViewModel: ObservableObject {
     @Published public private(set) var gameID: Int = 0
 
     /// Set once at the moment a game is won, carrying the final time and the
-    /// difficulty it was won on, so a host can record/prompt for a high score.
+    /// config it was won on, so a host can record/prompt for a high score.
     /// Cleared on the next new game.
-    @Published public private(set) var lastWin: (difficulty: Difficulty, seconds: Int)?
+    @Published public private(set) var lastWin: (config: GameConfig, seconds: Int)?
 
     /// What a plain tap on a hidden cell does. Toggled from the toolbar so the
     /// player can place flags without risking an accidental reveal.
@@ -40,15 +40,15 @@ public final class GameViewModel: ObservableObject {
 
     private var timer: AnyCancellable?
 
-    public init(difficulty: Difficulty = .beginner) {
-        self.difficulty = difficulty
-        self.game = Game(difficulty: difficulty)
+    public init(config: GameConfig = .classic(.beginner)) {
+        self.config = config
+        self.game = Game(config: config)
     }
 
     public var status: GameStatus { game.status }
     public var flagsRemaining: Int { game.flagsRemaining }
-    public var boardWidth: Int { difficulty.width }
-    public var boardHeight: Int { difficulty.height }
+    public var boardWidth: Int { config.width }
+    public var boardHeight: Int { config.height }
 
     // MARK: Actions
 
@@ -72,9 +72,9 @@ public final class GameViewModel: ObservableObject {
         bump()
     }
 
-    public func newGame(difficulty: Difficulty? = nil) {
-        if let difficulty { self.difficulty = difficulty }
-        game = Game(difficulty: self.difficulty)
+    public func newGame(config: GameConfig? = nil) {
+        if let config { self.config = config }
+        game = Game(config: self.config)
         elapsedSeconds = 0
         lastWin = nil
         stopTimer()
@@ -87,7 +87,7 @@ public final class GameViewModel: ObservableObject {
         guard game.status == .won || game.status == .lost else { return }
         stopTimer()
         if game.status == .won {
-            lastWin = (difficulty: difficulty, seconds: elapsedSeconds)
+            lastWin = (config: config, seconds: elapsedSeconds)
         }
     }
 

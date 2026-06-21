@@ -27,6 +27,14 @@ public struct Game: Sendable {
         self.mineCount = difficulty.mineCount
     }
 
+    /// Start a game from a `GameConfig` (the modern path): the config supplies
+    /// both the topology and the mine count.
+    public init(config: GameConfig) {
+        self.topology = config.topology
+        self.board = Board(topology: config.topology)
+        self.mineCount = config.mineCount
+    }
+
     /// For epic variants / tests: inject any topology directly.
     public init(topology: any Topology, mineCount: Int) {
         self.topology = topology
