@@ -87,6 +87,57 @@ Everything composes: square **or** hex, bounded **or** wrapped, any size.
 - [ ] Performance validated on the largest supported boards
 - [ ] Release builds for iOS + macOS
 
+## Game Center & achievements (planned — gated on a paid account)
+
+Achievements (and possibly leaderboards) via Game Center. Mostly an
+event-plumbing job, but with real prerequisites and some permanence to design
+around. Targeted once a **paid Apple Developer account** exists (the user is
+planning to go paid; Game Center can't be provisioned under a free personal ID).
+
+**Prerequisites (the real gate, not the code):**
+
+- Paid Apple Developer account; app registered in **App Store Connect** with the
+  **Game Center** capability enabled.
+- Each achievement defined in App Store Connect (ID, title, description, points,
+  hidden/visible, icon). Achievement **IDs are permanent once shipped** — like
+  the scoreboard keys, you can add but not cleanly rename/remove. Design the ID
+  scheme up front (e.g. `clear.modern.large.insane`, `streak.10`, `time.sub60`).
+
+**Design — keep it decoupled:**
+
+- Add an **internal achievement layer** the game emits to (an `AchievementEvent`
+  on each win carrying the `GameConfig` + time + streak), with a local store and
+  in-app display. Game Center becomes just *one backend* behind that layer.
+- This means achievements can be designed, tracked, and shown **offline now**,
+  and GameKit bolts on later as a thin reporter — no rework. (Same
+  forward-compatible instinct as `GameConfig.storageKey`.)
+- Note this crosses a line the app hasn't yet: **online + account-bound**. The
+  GC auth flow can be declined/fail — must degrade gracefully to the local layer.
+
+**Achievement design principles** (decide the actual list when building — IDs are
+permanent, so design carefully). Avoid filler: plain "clear each size/difficulty"
+is *inevitable, not earned* — attrition, no skill or surprise. Every achievement
+should reward one of:
+
+- **Skill / mastery** — speed thresholds (sub-N seconds), no-flag wins (flag
+  count stayed 0), efficiency (few clicks), conquering the near-unsolvable Insane
+  tier, or boards the solver rated unsolvable-without-guessing.
+- **Streaks / tension** — N wins in a row (a loss resets); rewards nerve, far
+  better than "total wins" grind milestones.
+- **Hidden / playful** — quirky surprises players stumble into and screenshot:
+  win in under 3 clicks, oddly-specific times (the "13-second cursed clear"), a
+  flag-everything win, losing on the *second* click (a wink — the first is safe).
+- **Identity / epic-tied** — feats unique to Wrapsweeper's variants once they
+  ship: first torus clear, hex Insane, "went around the world" (a wrap exploit).
+  Generic Minesweeper can't offer these — the strongest long-term hook.
+
+Lean toward a curated set where each entry is interesting; a couple of gentle
+starters (first clear) are fine as an on-ramp, but the bulk should be earned.
+
+**Steps when ready:** internal achievement layer + local UI → GameKit auth on
+launch → report progress on events → GC achievements UI → define achievements in
+App Store Connect.
+
 ---
 
 ## Deliberately out of scope
