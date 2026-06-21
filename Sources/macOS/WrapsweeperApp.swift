@@ -12,6 +12,13 @@ struct WrapsweeperApp: App {
         WindowGroup {
             GameView(viewModel: viewModel, scoreboard: scoreboard, settings: settings)
                 .frame(minWidth: 320, minHeight: 420)
+                .onChange(of: viewModel.config) { config in
+                    WindowSizer.snugFit(forBoard: config.width, by: config.height)
+                }
+                .onAppear {
+                    WindowSizer.snugFit(
+                        forBoard: viewModel.config.width, by: viewModel.config.height)
+                }
         }
         .commands {
             CommandGroup(replacing: .newItem) {

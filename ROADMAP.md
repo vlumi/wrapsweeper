@@ -38,9 +38,12 @@ Ship a polished classic Minesweeper on iOS and macOS.
   - [ ] Accessibility pass (VoiceOver labels for cells, Dynamic Type in chrome)
   - [ ] About view: version number + credits
   - [ ] Light-mode app icon variant (current icon is dark-tuned)
-  - [ ] Window sizing: sensible min/max per board; consider a fixed/snug size
-        for Classic (switching Beginner↔Expert currently feels loose), while
-        still allowing full-screen / resize
+  - [x] Window sizing: macOS snaps to a snug fit per board on config change
+        (Beginner→square, Expert→wide); cells cap their on-screen size and the
+        board centers with padding on oversized/full-screen windows. Manual
+        resize still works. **Revisit for v0.3 huge maps / v0.4 wrapping** —
+        snap-to-fit assumes a board that fits a window, which huge/edgeless
+        boards reject (they're meant to be panned, not framed whole).
   - [ ] Localization: Japanese + Finnish + English (Settings has a language row;
         also affects the App Store listing)
   - [ ] Tag v0.1.0, signed builds — note: any version string is fine for the
@@ -84,6 +87,9 @@ existing `BoardScene` seam.
 - [ ] Incremental re-render (update changed cells instead of full rebuild)
 - [ ] Large presets (e.g. 50×50, 100×100) + smooth pan/zoom at scale
 - [ ] Minimap / overview for navigation
+- [ ] Rethink macOS window snap-to-fit (from v0.1): huge boards don't "fit" a
+      window, so the snug-fit / cell-cap / fit-zoom model needs a pan-first
+      alternative here (and again for edgeless wrapped boards in v0.4).
 
 ## v0.4.0 — Wrapped (torus) boards
 
