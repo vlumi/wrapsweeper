@@ -38,6 +38,12 @@ type_body_length:
   warning: 300
   error: 400
 
+# BoardScene concentrates rendering + native input handling for both platforms;
+# allow a bit more length before flagging.
+file_length:
+  warning: 450
+  error: 550
+
 # Match the project's comment-minimal, terse style.
 line_length:
   warning: 110

@@ -1,15 +1,27 @@
 import SpriteKit
 import WrapsweeperCore
 
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
+
 /// Renders the board with an `SKCameraNode` for pan/zoom. Cell nodes are rebuilt
 /// from the view model whenever its revision changes.
 public final class BoardScene: SKScene {
-    private let viewModel: GameViewModel
-    private let layout: any CellLayout
+    // Accessible to the BoardScene+Effects extension (same module).
+    let viewModel: GameViewModel
+    let layout: any CellLayout
     private let cameraNode = SKCameraNode()
-    private let boardLayer = SKNode()
+    let boardLayer = SKNode()
+    /// End-of-game effects live here, a sibling of `boardLayer`, so `rebuild()`
+    /// (which clears `boardLayer`, including on every palette push) never wipes
+    /// an in-flight animation.
+    let effectsLayer = SKNode()
     private var lastRevision = -1
     private var lastGameID = -1
+    private var lastAnimatedResultID = -1
 
     /// The active color palette. Set by the host when the system appearance
     /// changes; updating it recolors the background and rebuilds the cells.
@@ -27,6 +39,7 @@ public final class BoardScene: SKScene {
         scaleMode = .resizeFill
         backgroundColor = palette.sceneBackground
         addChild(boardLayer)
+        addChild(effectsLayer)
         addChild(cameraNode)
         camera = cameraNode
     }
@@ -55,11 +68,21 @@ public final class BoardScene: SKScene {
     private func rebuildIfNeeded() {
         if viewModel.gameID != lastGameID {
             lastGameID = viewModel.gameID
+            lastAnimatedResultID = -1  // a fresh game can animate its own result
+            effectsLayer.removeAllChildren()
+            boardLayer.position = .zero  // clear any leftover shake offset
             centerCamera()
         }
-        guard viewModel.revision != lastRevision else { return }
-        lastRevision = viewModel.revision
-        rebuild()
+        if viewModel.revision != lastRevision {
+            lastRevision = viewModel.revision
+            rebuild()
+        }
+        // After the board reflects the final state, play the end-game effect
+        // once. No further revisions occur post-end, so this fires exactly once.
+        if let event = viewModel.lastResult, event.id != lastAnimatedResultID {
+            lastAnimatedResultID = event.id
+            playEndGameEffects(event.result)
+        }
     }
 
     private func rebuild() {
@@ -115,6 +138,15 @@ public final class BoardScene: SKScene {
             if cell.isMine { return ("✸", palette.mineGlyph) }
             guard cell.adjacentMines > 0 else { return nil }
             return (String(cell.adjacentMines), palette.number(cell.adjacentMines))
+        }
+    }
+
+    /// Play a one-shot end-game animation (implemented in BoardScene+Effects).
+    func playEndGameEffects(_ result: GameResult) {
+        effectsLayer.removeAllChildren()
+        switch result {
+        case .lost(let at): playLoss(trigger: at, reduceMotion: Self.prefersReducedMotion)
+        case .won: playWin(reduceMotion: Self.prefersReducedMotion)
         }
     }
 
