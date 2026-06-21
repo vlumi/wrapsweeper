@@ -31,7 +31,8 @@ Ship a polished classic Minesweeper on iOS and macOS.
   - [ ] Launch screen
   - [ ] First-run polish: empty-state, win/lose feedback (haptics on iOS, subtle animation)
   - [ ] Accessibility pass (VoiceOver labels for cells, Dynamic Type in chrome)
-  - [ ] Persist last input mode (reveal/flag)
+  - [x] Reset input mode to Reveal on each new game (decided against persisting
+        it — flag mode never makes sense at the start of a game)
   - [ ] Localization / language setting (Settings sheet has room for it)
   - [ ] Tag v0.1.0, signed builds
 

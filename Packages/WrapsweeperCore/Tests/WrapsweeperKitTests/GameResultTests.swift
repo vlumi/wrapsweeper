@@ -72,6 +72,13 @@ final class GameResultTests: XCTestCase {
         XCTAssertEqual(vm.status, .notStarted)
     }
 
+    func testNewGameResetsToRevealMode() {
+        let vm = GameViewModel(config: .classic(.beginner))
+        vm.inputMode = .flag
+        vm.newGame()
+        XCTAssertEqual(vm.inputMode, .reveal, "every game should start in reveal mode")
+    }
+
     func testResultIDIncrementsPerGame() {
         let vm = GameViewModel(config: .classic(.beginner))
         playToEnd(vm)
