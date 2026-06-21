@@ -12,6 +12,20 @@ public enum InputMode: Sendable {
     public mutating func toggle() { self = self == .reveal ? .flag : .reveal }
 }
 
+/// The outcome of a finished game, used to drive end-of-game feedback.
+public enum GameResult: Equatable, Sendable {
+    case won(seconds: Int, config: GameConfig)
+    /// Lost — `at` is the mine that detonated (for a focused loss animation).
+    case lost(at: Coord?)
+}
+
+/// A game result tagged with a monotonic id, so observers fire on every
+/// outcome — even two identical results in a row.
+public struct GameResultEvent: Equatable, Sendable {
+    public let id: Int
+    public let result: GameResult
+}
+
 /// Bridges the pure `Game` value type to SwiftUI/SpriteKit: owns the current
 /// game, the selected difficulty, the timer, and the mine counter, and
 /// republishes whenever the board changes so views and the scene can redraw.
@@ -33,6 +47,12 @@ public final class GameViewModel: ObservableObject {
     /// config it was won on, so a host can record/prompt for a high score.
     /// Cleared on the next new game.
     @Published public private(set) var lastWin: (config: GameConfig, seconds: Int)?
+
+    /// The most recent game outcome, for end-of-game feedback (animation,
+    /// banner, haptics). The `id` makes each result distinct so observers fire
+    /// even on identical consecutive outcomes; cleared on the next new game.
+    @Published public private(set) var lastResult: GameResultEvent?
+    private var resultCounter = 0
 
     /// What a plain tap on a hidden cell does. Toggled from the toolbar so the
     /// player can place flags without risking an accidental reveal.
@@ -77,18 +97,26 @@ public final class GameViewModel: ObservableObject {
         game = Game(config: self.config)
         elapsedSeconds = 0
         lastWin = nil
+        lastResult = nil
         stopTimer()
         gameID &+= 1
         bump()
     }
 
-    /// Stop the clock when the game ends, and capture a win for scoring.
+    /// Stop the clock when the game ends, capture a win for scoring, and publish
+    /// the outcome for end-of-game feedback.
     private func finishIfEnded() {
         guard game.status == .won || game.status == .lost else { return }
         stopTimer()
+        let result: GameResult
         if game.status == .won {
             lastWin = (config: config, seconds: elapsedSeconds)
+            result = .won(seconds: elapsedSeconds, config: config)
+        } else {
+            result = .lost(at: game.lossCoord)
         }
+        resultCounter += 1
+        lastResult = GameResultEvent(id: resultCounter, result: result)
     }
 
     // MARK: Timer
