@@ -102,6 +102,7 @@ public final class GameViewModel: ObservableObject {
         elapsedCentiseconds = 0
         lastWin = nil
         lastResult = nil
+        inputMode = .reveal  // every game starts in reveal mode
         stopTimer()
         gameID &+= 1
         bump()
