@@ -74,6 +74,14 @@ private struct GameContent: View {
             // it to the scene whenever the resolved scheme changes — reliable
             // where .onChange on the SwiftUI side was not.
             BoardView(scene: scene, palette: palette, inputMode: viewModel.inputMode)
+                // Per-cell VoiceOver is a future task (needs a scalable cursor
+                // model for huge boards); for now announce a useful summary.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Board")
+                .accessibilityValue(
+                    "\(viewModel.config.label), "
+                        + "\(viewModel.boardWidth) by \(viewModel.boardHeight), "
+                        + "\(viewModel.flagsRemaining) mines remaining, \(statusDescription)")
         }
         .background(palette.pageBackground)
         .overlay(alignment: .bottom) { resultBanner }
@@ -198,6 +206,20 @@ private struct GameContent: View {
         }
         .buttonStyle(.plain)
         .help("New game")
+        .accessibilityLabel("New game")
+        // Convey, in words, what the icon's colour shows.
+        .accessibilityValue(statusDescription)
+    }
+
+    /// Spoken game state, used as the new-game button's accessibility value and
+    /// the board's status summary.
+    private var statusDescription: String {
+        switch viewModel.status {
+        case .won: return "Won"
+        case .lost: return "Lost"
+        case .playing: return "In progress"
+        case .notStarted: return "Ready"
+        }
     }
 
     private var newGameTint: Color {
@@ -221,6 +243,7 @@ private struct GameContent: View {
         }
         .buttonStyle(.plain)
         .help(help)
+        .accessibilityLabel(help)  // the symbol alone says nothing to VoiceOver
     }
 
     /// Toggle between reveal- and flag-mode for plain taps. The icon shows the
@@ -244,12 +267,16 @@ private struct GameContent: View {
         .help(
             viewModel.inputMode == .flag
                 ? "Flag mode — tap flags (Space)"
-                : "Reveal mode — tap reveals (Space)")
+                : "Reveal mode — tap reveals (Space)"
+        )
+        .accessibilityLabel("Input mode")
+        .accessibilityValue(viewModel.inputMode == .flag ? "Flag" : "Reveal")
+        .accessibilityHint("Toggles between revealing and flagging")
     }
 
     /// Flag/mine count: a fixed 3-digit readout (e.g. `010`).
     private func counter(label: String, value: Int) -> some View {
-        counterLabel(label, String(format: "%03d", max(0, value)))
+        counterLabel(label, String(format: "%03d", max(0, value)), a11y: "Mines remaining")
     }
 
     /// Live toolbar timer: the classic 3-digit whole-second LED (e.g. `047`),
@@ -257,10 +284,10 @@ private struct GameContent: View {
     /// counting past that; precise tenths (`m:ss.t`) appear in results, not here.
     private func timeCounter(label: String, centiseconds: Int) -> some View {
         let seconds = min(999, max(0, centiseconds / 100))
-        return counterLabel(label, String(format: "%03d", seconds))
+        return counterLabel(label, String(format: "%03d", seconds), a11y: "Time, seconds")
     }
 
-    private func counterLabel(_ label: String, _ value: String) -> some View {
+    private func counterLabel(_ label: String, _ value: String, a11y: String) -> some View {
         HStack(spacing: 3) {
             Text(label)
             Text(value)
@@ -272,6 +299,10 @@ private struct GameContent: View {
         .lineLimit(1)
         .minimumScaleFactor(0.5)
         .layoutPriority(1)
+        // The glyph (⚑ / ⏱) is meaningless to VoiceOver; speak a real label.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(a11y)
+        .accessibilityValue(value)
     }
 
     /// The bottom configuration bar: a Classic/Modern mode switch over the

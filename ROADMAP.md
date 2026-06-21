@@ -35,7 +35,11 @@ Ship a polished classic Minesweeper on iOS and macOS.
       it — flag mode never makes sense at the start of a game)
 - [ ] **Remaining for release:**
   - [ ] Launch screen
-  - [ ] Accessibility pass (VoiceOver labels for cells, Dynamic Type in chrome)
+  - [x] Accessibility: chrome is VoiceOver-labelled (buttons, counters, pickers,
+        sheets) and uses Dynamic-Type semantic fonts; the board announces a
+        state summary. **Per-cell board VoiceOver deferred** — it needs a
+        scalable cursor model (swiping 10k cells doesn't work on huge boards),
+        so co-design it with the v0.3 huge-map navigation rather than build twice.
   - [ ] About view: version number + credits
   - [ ] Light-mode app icon variant (current icon is dark-tuned)
   - [x] Window sizing: macOS snaps to a snug fit per board on config change
