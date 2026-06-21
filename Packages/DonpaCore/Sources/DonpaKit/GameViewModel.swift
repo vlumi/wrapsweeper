@@ -86,11 +86,16 @@ public final class GameViewModel: ObservableObject {
     }
 
     public func toggleFlag(_ c: Coord) {
+        guard game.status == .notStarted || game.status == .playing else { return }
         game.toggleFlag(c)
         bump()
     }
 
     public func chord(_ c: Coord) {
+        // Once the game is over, input is inert — chording a revealed cell must
+        // not re-publish the result (which would replay the end-game animation
+        // and panel on every post-loss click).
+        guard game.status == .playing else { return }
         game.chord(c)
         finishIfEnded()
         bump()

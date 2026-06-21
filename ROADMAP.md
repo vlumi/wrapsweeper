@@ -66,6 +66,23 @@ builds on the existing logical solver.
 - [ ] Optional per-config "no-guess" toggle (esp. for the harder densities).
 - [ ] Safe-reveal / question-mark flag cycle (classic third flag state).
 
+## Navigation restructure — title as home / selection off the game screen (planned)
+
+Today the title card dismisses straight into the game, and the board config
+pickers (mode / size / density) live on the game screen — which eats space,
+especially on phone. Direction:
+
+- **Title becomes a home/menu hub** that holds board selection. Flow:
+  Title/Home → (pick mode + size/difficulty) → Game. The game screen sheds the
+  picker bar and shows just the board + minimal chrome.
+- **Split "Restart" from "New Game"**: *Restart* replays the current board
+  (today's new-game button / Cmd-R); *New Game* returns to the selection screen
+  pre-filled with the current selections, then starts fresh. Plus *Return to
+  title* (already shipped: Settings sheet button + macOS Cmd-T / Cmd-R).
+- Groundwork already in place: `Navigator` (DonpaKit) holds `showingTitle` and is
+  injected into `GameView` so any host can drive navigation; the title screen is
+  an always-mounted overlay toggled by it.
+
 ## Session quality-of-life (planned)
 
 Pause and resume — two related features that share a foundation: serializing
@@ -207,9 +224,29 @@ App Store Connect.
 
 ---
 
-## Creative identity & theme (exploring — not committed)
+## Creative identity & theme
 
-Direction under discussion (brainstorm; nothing locked):
+**Shipped:** manga end-of-game result screen (win/loss/new-record panels), the
+interactive title screen, and a manga-style app icon. The manga flavour lives in
+these; the **board itself stays the classic look** (a tried "inked paper" board
+theme wasn't distinct enough from classic to justify itself, so it was dropped —
+revisit only with a genuinely different treatment: real screentone texture,
+heavier ink, custom number styling).
+
+**Ideas to revisit:**
+
+- **Manga-style toolbar icons** — the status-bar chrome (trophy, gear, mode
+  toggle, new-game) still uses plain SF Symbols; matching them to the manga
+  style would tie the in-game look to the panels/title.
+- **Art sources** — current panels/title/icon are DALL·E (commercial-use OK via
+  OpenAI TOS on a personal account; verify before ship). If iterating: keep the
+  *icon* a single bold focal subject, no baked title text, readable at 64px.
+  Alternatives to DALL·E worth a look when commissioning final art: a real manga
+  artist (Fiverr/commission for a consistent character sheet + assets), or other
+  gen tools — but a human pass to replace AI kana with proper typeset lettering
+  is recommended for production regardless.
+
+Direction notes (earlier brainstorm; mostly realized above):
 
 - **Theme**: a cheeky, nostalgic, manga-flavoured take. The signature beat is a
   **comic-book panel** at the end of a game — a dramatic, cheesy *manga* panel

@@ -152,18 +152,25 @@ public final class BoardScene: SKScene {
 
     // MARK: Camera
 
-    /// Largest on-screen cell size (points). Past this the board stops growing
-    /// and is centered with padding instead, so a big/full-screen window doesn't
-    /// blow a small board up into giant cells.
-    private static let maxOnScreenCellSize: CGFloat = 44
+    /// The on-screen cell-size cap is *relative to the window*: a small board may
+    /// grow to fill a big/full-screen window with large cells, but no single cell
+    /// exceeds this fraction of the viewport's smaller side — so a tiny board
+    /// (e.g. 2×2) can't blow up to where a couple of cells fill the screen.
+    private static let maxCellFractionOfViewport: CGFloat = 0.22
+    /// Absolute ceiling so even on a huge display cells stay reasonable.
+    private static let absoluteMaxCellSize: CGFloat = 140
 
     private func centerCamera() {
         let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
         cameraNode.position = CGPoint(x: board.width / 2, y: board.height / 2)
         // Camera scale = world-units-per-point; bigger = more zoomed out.
         // `fitScale` fits the whole board; the floor keeps cells from exceeding
-        // the max on-screen size when the window is larger than the board.
-        let cellFloor = layout.cellSize / Self.maxOnScreenCellSize
+        // the max on-screen size (relative to the window) when the window is
+        // larger than the board.
+        let viewportMin = min(size.width, size.height)
+        let maxCell = min(
+            Self.absoluteMaxCellSize, max(40, viewportMin * Self.maxCellFractionOfViewport))
+        let cellFloor = layout.cellSize / maxCell
         cameraNode.setScale(max(fitScale, cellFloor))
     }
 

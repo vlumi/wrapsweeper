@@ -17,27 +17,46 @@ public struct GameView: View {
     @StateObject private var viewModel: GameViewModel
     @StateObject private var scoreboard: Scoreboard
     @StateObject private var settings: Settings
+    @ObservedObject private var navigator: Navigator
     @State private var scene: BoardScene
 
     public init(config: GameConfig = .classic(.beginner)) {
         self.init(
             viewModel: GameViewModel(config: config),
             scoreboard: Scoreboard(),
-            settings: Settings())
+            settings: Settings(),
+            navigator: Navigator())
     }
 
     /// Use this when the host (e.g. the macOS menu bar) needs to drive the same
-    /// view model that the board renders.
-    public init(viewModel: GameViewModel, scoreboard: Scoreboard, settings: Settings) {
+    /// view model / navigation that the board renders.
+    public init(
+        viewModel: GameViewModel, scoreboard: Scoreboard, settings: Settings,
+        navigator: Navigator
+    ) {
         _viewModel = StateObject(wrappedValue: viewModel)
         _scoreboard = StateObject(wrappedValue: scoreboard)
         _settings = StateObject(wrappedValue: settings)
+        _navigator = ObservedObject(wrappedValue: navigator)
         _scene = State(initialValue: BoardScene(viewModel: viewModel))
     }
 
     public var body: some View {
-        GameContent(viewModel: viewModel, scoreboard: scoreboard, settings: settings, scene: scene)
-            .preferredColorScheme(settings.appearance.colorScheme)
+        ZStack {
+            GameContent(
+                viewModel: viewModel, scoreboard: scoreboard, settings: settings,
+                navigator: navigator, scene: scene)
+            // The title fades out over the (always-mounted) board. The fade is
+            // scoped to this overlay alone via `.animation(_:value:)` — an
+            // imperative `withAnimation` here would also animate the chrome's
+            // first layout underneath, making the status bar visibly settle.
+            TitleScreen { navigator.showingTitle = false }
+                .opacity(navigator.showingTitle ? 1 : 0)
+                .allowsHitTesting(navigator.showingTitle)
+                .animation(.easeInOut(duration: 0.3), value: navigator.showingTitle)
+                .zIndex(1)
+        }
+        .preferredColorScheme(settings.appearance.colorScheme)
     }
 }
 
@@ -48,12 +67,13 @@ private struct GameContent: View {
     @ObservedObject var viewModel: GameViewModel
     @ObservedObject var scoreboard: Scoreboard
     @ObservedObject var settings: Settings
+    @ObservedObject var navigator: Navigator
     let scene: BoardScene
 
     @State private var showingScores = false
     @State private var showingSettings = false
-    @State private var banner: GameResult?
-    @State private var bannerTask: Task<Void, Never>?
+    @State private var panel: MangaPanelView.Kind?
+    @State private var panelTask: Task<Void, Never>?
     @State private var restartPop = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -67,32 +87,45 @@ private struct GameContent: View {
     }
     private var palette: Palette { .resolved(for: scheme) }
 
+    /// A live game (not yet won/lost) — the only time the board takes input and
+    /// so the only time the custom reveal/flag cursor makes sense.
+    private var gameInProgress: Bool {
+        viewModel.status == .notStarted || viewModel.status == .playing
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             statusBar
             // Palette passed as a value: BoardView's updateUIView/NSView pushes
             // it to the scene whenever the resolved scheme changes — reliable
             // where .onChange on the SwiftUI side was not.
-            BoardView(scene: scene, palette: palette, inputMode: viewModel.inputMode)
-                // Per-cell VoiceOver is a future task (needs a scalable cursor
-                // model for huge boards); for now announce a useful summary.
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Board")
-                .accessibilityValue(
-                    "\(viewModel.config.label), "
-                        + "\(viewModel.boardWidth) by \(viewModel.boardHeight), "
-                        + "\(viewModel.flagsRemaining) mines remaining, \(statusDescription)")
+            BoardView(
+                scene: scene, palette: palette, inputMode: viewModel.inputMode,
+                // Custom reveal/flag cursor only during a live game; otherwise
+                // the normal arrow (title screen, result panel, or a finished
+                // board you're just inspecting — where a flag cursor is stale).
+                boardCursorActive: gameInProgress && !navigator.showingTitle
+            )
+            // Per-cell VoiceOver is a future task (needs a scalable cursor
+            // model for huge boards); for now announce a useful summary.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Board")
+            .accessibilityValue(
+                "\(viewModel.config.label), "
+                    + "\(viewModel.boardWidth) by \(viewModel.boardHeight), "
+                    + "\(viewModel.flagsRemaining) mines remaining, \(statusDescription)")
         }
         .background(palette.pageBackground)
-        .overlay(alignment: .bottom) { resultBanner }
+        .overlay { mangaPanel }
         .onAppear {
             // Restore the persisted board selection on launch.
             if viewModel.config != settings.currentConfig {
                 viewModel.newGame(config: settings.currentConfig)
             }
         }
-        .onChange(of: viewModel.lastWin?.centiseconds) { _ in handleWin() }
         .onChange(of: viewModel.lastResult?.id) { _ in handleResult() }
+        // A new game (incl. Space-to-restart) clears any lingering panel.
+        .onChange(of: viewModel.gameID) { _ in dismissPanel() }
         .sheet(isPresented: $showingScores) {
             ScoreboardView(scoreboard: scoreboard)
         }
@@ -101,51 +134,70 @@ private struct GameContent: View {
         }
     }
 
-    // MARK: Result feedback (banner + restart pop + haptics)
+    // MARK: Result feedback (manga result screen + restart pop + haptics)
 
-    @ViewBuilder private var resultBanner: some View {
-        if let banner {
-            Text(bannerText(banner))
-                .font(.headline)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
-                .background(
-                    Capsule().fill(banner.isWin ? Color.green.opacity(0.9) : Color.red.opacity(0.9))
-                )
-                .padding(.bottom, 16)  // float above the difficulty pickers
-                .allowsHitTesting(false)  // never blocks controls
-                .transition(
-                    reduceMotion
-                        ? .opacity
-                        : .move(edge: .bottom).combined(with: .opacity))
+    /// The end-of-game result screen. It blocks the board and stays until the
+    /// player chooses: Continue (also a tap anywhere) dismisses to inspect the
+    /// board; Return to title (also Esc) goes home. Restart is Space / Cmd-R.
+    @ViewBuilder private var mangaPanel: some View {
+        if let panel {
+            MangaPanelView(
+                kind: panel,
+                reduceMotion: reduceMotion,
+                onContinue: { dismissPanel() },
+                onReturnToTitle: { returnToTitleFromPanel() }
+            )
+            .transition(.opacity)
         }
     }
 
-    private func bannerText(_ result: GameResult) -> String {
-        switch result {
-        case .won(let centiseconds, _):
-            return "You win! · \(TimeFormat.mmsst(centiseconds: centiseconds))"
-        case .lost: return "Boom!"
-        }
+    private func returnToTitleFromPanel() {
+        dismissPanel()
+        // Reset the board so starting again from the title gives a fresh game,
+        // not the just-finished one.
+        viewModel.newGame()
+        navigator.showingTitle = true
     }
 
-    /// On any finished game: haptic, transient banner, and a restart-button pop.
+    /// On any finished game: record the time (wins), then haptic, the manga
+    /// result screen, and a restart-button pop. This is the single end-of-game
+    /// hook — it also submits the score, so a new best becomes a record panel
+    /// rather than auto-opening the scoreboard over everything.
     private func handleResult() {
         guard let result = viewModel.lastResult?.result else { return }
         fireHaptic(for: result)
 
-        withAnimation(.easeOut(duration: 0.2)) { banner = result }
+        let kind: MangaPanelView.Kind
+        switch result {
+        case .won(let centiseconds, let config):
+            let isRecord = scoreboard.submit(centiseconds, for: config)
+            kind = isRecord ? .record(centiseconds: centiseconds) : .win
+        case .lost:
+            kind = .loss
+        }
+        showPanel(kind)
+
         if !reduceMotion {
             restartPop = true
             withAnimation(.spring(response: 0.3, dampingFraction: 0.4)) { restartPop = false }
         }
-        bannerTask?.cancel()
-        bannerTask = Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+    }
+
+    /// Slam the result screen in after a short beat — so the board's detonation /
+    /// win ripple plays first rather than being covered immediately. It then
+    /// stays until the player picks Retry or Return to title.
+    private func showPanel(_ kind: MangaPanelView.Kind) {
+        panelTask?.cancel()
+        panelTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)  // let board FX land
             guard !Task.isCancelled else { return }
-            withAnimation(.easeIn(duration: 0.25)) { banner = nil }
+            withAnimation(.easeOut(duration: 0.2)) { panel = kind }
         }
+    }
+
+    private func dismissPanel() {
+        panelTask?.cancel()
+        withAnimation(.easeIn(duration: 0.25)) { panel = nil }
     }
 
     private func fireHaptic(for result: GameResult) {
@@ -153,15 +205,6 @@ private struct GameContent: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(result.isWin ? .success : .error)
         #endif
-    }
-
-    /// When a win lands, record the time (the store keeps it only if it's a
-    /// new best). Opens the scoreboard so the player sees the result.
-    private func handleWin() {
-        guard let win = viewModel.lastWin else { return }
-        if scoreboard.submit(win.centiseconds, for: win.config) {
-            showingScores = true
-        }
     }
 
     // MARK: Status bar

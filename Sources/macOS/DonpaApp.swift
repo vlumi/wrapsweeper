@@ -7,23 +7,34 @@ struct DonpaApp: App {
     @StateObject private var viewModel = GameViewModel()
     @StateObject private var scoreboard = Scoreboard()
     @StateObject private var settings = Settings()
+    @StateObject private var navigator = Navigator()
 
     var body: some Scene {
         WindowGroup {
-            GameView(viewModel: viewModel, scoreboard: scoreboard, settings: settings)
-                .frame(minWidth: 320, minHeight: 420)
-                .onChange(of: viewModel.config) { config in
-                    WindowSizer.snugFit(forBoard: config.width, by: config.height)
-                }
-                .onAppear {
-                    WindowSizer.snugFit(
-                        forBoard: viewModel.config.width, by: viewModel.config.height)
-                }
+            GameView(
+                viewModel: viewModel, scoreboard: scoreboard, settings: settings,
+                navigator: navigator
+            )
+            .frame(minWidth: 320, minHeight: 420)
+            .onChange(of: viewModel.config) { config in
+                WindowSizer.growToFit(forBoard: config.width, by: config.height)
+            }
+            .onAppear {
+                WindowSizer.growToFit(
+                    forBoard: viewModel.config.width, by: viewModel.config.height)
+            }
         }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New Game") { viewModel.newGame() }
-                    .keyboardShortcut("n", modifiers: .command)
+                // Restart replays the same board; the difficulty items below
+                // start a fresh game with a chosen config.
+                Button("Restart Game") { viewModel.newGame() }
+                    .keyboardShortcut("r", modifiers: .command)
+                Button("Title Screen") {
+                    viewModel.newGame()  // returning to title resets the board
+                    navigator.showingTitle = true
+                }
+                .keyboardShortcut("t", modifiers: .command)
             }
             CommandMenu("Game") {
                 Button(

@@ -79,6 +79,38 @@ final class GameResultTests: XCTestCase {
         XCTAssertEqual(vm.inputMode, .reveal, "every game should start in reveal mode")
     }
 
+    /// Regression: after a game ends, any further input (reveal / chord on a
+    /// revealed cell / flag) must be inert — it must not re-publish the result,
+    /// which previously replayed the end-game animation and panel on each click.
+    func testInputIsInertAfterGameEnds() {
+        // Find a lost game so we have a revealed mine to re-click (chord path).
+        var vm = GameViewModel(config: .classic(.beginner))
+        var lost = false
+        for _ in 0..<50 {
+            vm = GameViewModel(config: .classic(.beginner))
+            playToEnd(vm)
+            if vm.status == .lost { lost = true; break }
+        }
+        guard lost else { return }  // see testLostResultCarriesTheLossCoord
+
+        let idAfterEnd = vm.lastResult?.id
+        let statusAfterEnd = vm.status
+
+        // Re-click every cell every way: plain reveal, chord (revealed cells),
+        // and flag. None should change the published result or the status.
+        for y in 0..<vm.boardHeight {
+            for x in 0..<vm.boardWidth {
+                let c = Coord(x, y)
+                vm.reveal(c)
+                vm.chord(c)
+                vm.toggleFlag(c)
+            }
+        }
+
+        XCTAssertEqual(vm.lastResult?.id, idAfterEnd, "input after game-over must not re-publish")
+        XCTAssertEqual(vm.status, statusAfterEnd, "input after game-over must not change status")
+    }
+
     func testResultIDIncrementsPerGame() {
         let vm = GameViewModel(config: .classic(.beginner))
         playToEnd(vm)
