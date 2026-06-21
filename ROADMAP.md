@@ -18,7 +18,7 @@ Ship a polished classic Minesweeper on iOS and macOS.
 - [x] Difficulty presets (Beginner / Intermediate / Expert)
 - [x] SpriteKit board with pan/zoom, board-constrained panning
 - [x] Reveal/Flag mode toggle + long-press alternate action
-- [x] Local best-time scoreboard
+- [x] Local scoreboard: best time + games-cleared count per difficulty
 - [x] iOS + macOS app targets, CI
 - [x] App icon
 - [x] Light / dark / system appearance (settings sheet, persisted)
@@ -30,14 +30,25 @@ Ship a polished classic Minesweeper on iOS and macOS.
   - [ ] Localization / language setting (Settings sheet has room for it)
   - [ ] Tag v0.1.0, signed builds
 
-## v0.2.0 — Custom boards & restraint
+## v0.2.0 — Curated board configs & restraint
 
-Groundwork that later epic features lean on.
+Groundwork that later epic features lean on. Deliberately **not** free-form
+custom boards — too much choice — but two curated axes instead.
 
-- [ ] Custom difficulty (arbitrary width / height / mine count) with validation
+- [ ] **Split size from difficulty into two fixed-set axes:**
+  - **Size** — a curated set (e.g. Small / Medium / Large; Huge later for the
+    epic maps).
+  - **Difficulty** — a curated set of **mine densities** (% of cells), e.g.
+    Easy / Normal / Hard. Size-independent by nature, so the two axes compose
+    cleanly: `mineCount = round(density × width × height)`. Every size is
+    available at every difficulty (difficulty is just a percentage).
+  - The classic Beginner/Intermediate/Expert presets become specific
+    size×density points.
+  - Scoreboards key by the **combination** (e.g. "Medium · Hard"); the existing
+    per-name stats store already supports this once the config name encodes both
+    axes. This replaces the earlier idea of free-form custom difficulty.
 - [ ] "No-guess" board generation option (solvable without guessing)
 - [ ] Safe-reveal / question-mark flag cycle (classic third flag state)
-- [ ] Per-board-config scoreboards (so custom sizes don't pollute classic times)
 
 ## v0.3.0 — Big boards
 

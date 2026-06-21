@@ -90,8 +90,9 @@ when the whole board already fits on screen, panning is disabled.
 
 ## Scores
 
-Best time per difficulty is kept locally (via `UserDefaults`) and shown from
-the 🏆 button. Beating your record opens the scoreboard automatically.
+Per-difficulty stats are kept locally (via `UserDefaults`) and shown from the
+🏆 button: your best time and how many games you've cleared on each difficulty.
+Beating a best time opens the scoreboard automatically.
 
 ## Settings
 
