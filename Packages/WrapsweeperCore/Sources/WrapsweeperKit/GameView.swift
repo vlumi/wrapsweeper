@@ -88,39 +88,66 @@ private struct GameContent: View {
     // MARK: Status bar
 
     private var statusBar: some View {
-        HStack(spacing: 12) {
-            counter(label: "⚑", value: viewModel.flagsRemaining)
-
-            Spacer(minLength: 8)
-
-            modeToggle
-
-            Button(action: { viewModel.newGame() }) {
-                Text(faceGlyph).font(.system(size: 26))
+        // Three equal-width zones keep the new-game button truly centred without
+        // overlapping the side controls on narrow screens. Left zone: flag +
+        // mode. Centre: new game. Right zone: nav group + timer.
+        HStack(spacing: 8) {
+            HStack(spacing: 10) {
+                counter(label: "⚑", value: viewModel.flagsRemaining)
+                modeToggle
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            .help("New game")
+            .frame(maxWidth: .infinity)
 
-            Button(action: { showingScores = true }) {
-                Text("🏆").font(.system(size: 22))
+            newGameButton
+
+            HStack(spacing: 10) {
+                Spacer(minLength: 0)
+                iconButton("trophy", help: "High scores") { showingScores = true }
+                iconButton("gearshape", help: "Settings") { showingSettings = true }
+                counter(label: "⏱", value: viewModel.elapsedSeconds)
             }
-            .buttonStyle(.plain)
-            .help("High scores")
-
-            Button(action: { showingSettings = true }) {
-                Text("⚙️").font(.system(size: 20))
-            }
-            .buttonStyle(.plain)
-            .help("Settings")
-
-            Spacer(minLength: 8)
-
-            counter(label: "⏱", value: viewModel.elapsedSeconds)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .safeAreaInset(edge: .bottom, spacing: 0) { difficultyPicker }
         .background(palette.statusBar)
+    }
+
+    /// New game. A restart symbol tinted by game state (neutral / won / lost),
+    /// so it stays expressive without the emoji face crowding the other icons.
+    private var newGameButton: some View {
+        Button(action: { viewModel.newGame() }) {
+            Image(systemName: "arrow.clockwise.circle.fill")
+                .font(.system(size: 30))
+                .foregroundStyle(newGameTint)
+        }
+        .buttonStyle(.plain)
+        .help("New game")
+    }
+
+    private var newGameTint: Color {
+        // Neutral while idle/playing; colour is reserved for the outcome so it
+        // can't be mistaken for the (red) loss state.
+        switch viewModel.status {
+        case .won: return .green
+        case .lost: return .red
+        case .notStarted, .playing: return .secondary
+        }
+    }
+
+    private func iconButton(_ systemName: String, help: String, action: @escaping () -> Void)
+        -> some View
+    {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     /// Toggle between reveal- and flag-mode for plain taps. The icon shows the
@@ -128,9 +155,10 @@ private struct GameContent: View {
     /// obvious you've armed flagging.
     private var modeToggle: some View {
         Button(action: { viewModel.inputMode.toggle() }) {
-            Text(viewModel.inputMode == .flag ? "🚩" : "⛏️")
-                .font(.system(size: 22))
-                .frame(width: 40, height: 36)
+            Image(systemName: viewModel.inputMode == .flag ? "flag.fill" : "hand.tap.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(viewModel.inputMode == .flag ? Color.orange : .secondary)
+                .frame(width: 40, height: 34)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(
@@ -171,14 +199,6 @@ private struct GameContent: View {
             get: { viewModel.difficulty },
             set: { viewModel.newGame(difficulty: $0) }
         )
-    }
-
-    private var faceGlyph: String {
-        switch viewModel.status {
-        case .won: return "😎"
-        case .lost: return "😵"
-        case .notStarted, .playing: return "🙂"
-        }
     }
 }
 
