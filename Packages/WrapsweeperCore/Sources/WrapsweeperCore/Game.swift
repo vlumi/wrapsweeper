@@ -34,6 +34,19 @@ public struct Game: Sendable {
         self.mineCount = mineCount
     }
 
+    /// Test seam: start a game with a known mine layout already placed, as if
+    /// the first click had happened. Lets tests (and the solver suite) reason
+    /// about specific boards deterministically. Not part of the public API.
+    init(topology: any Topology, mines: Set<Coord>) {
+        self.topology = topology
+        var board = Board(topology: topology)
+        board.placeMines(at: mines)
+        self.board = board
+        self.mineCount = mines.count
+        self.minesPlaced = true
+        self.status = .playing
+    }
+
     public var flagsRemaining: Int { mineCount - board.flagCount }
 
     // MARK: - Reveal

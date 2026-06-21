@@ -19,6 +19,12 @@ let package = Package(
             name: "WrapsweeperKit",
             dependencies: ["WrapsweeperCore"]
         ),
+        // Dev-only tool: simulates the solver over candidate board configs to
+        // pick difficulty tiers. Run with `swift run TierAnalysis`. Not shipped.
+        .executableTarget(
+            name: "TierAnalysis",
+            dependencies: ["WrapsweeperCore"]
+        ),
         .testTarget(
             name: "WrapsweeperCoreTests",
             dependencies: ["WrapsweeperCore"]
