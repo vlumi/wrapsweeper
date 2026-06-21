@@ -25,6 +25,7 @@ ignore:
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardScene+Effects.swift"
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/BoardView.swift"
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/GameView.swift"
+  - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/SheetViews.swift"
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/GameViewModel.swift"
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/Settings.swift"
   - "Packages/WrapsweeperCore/Sources/WrapsweeperKit/Palette.swift"

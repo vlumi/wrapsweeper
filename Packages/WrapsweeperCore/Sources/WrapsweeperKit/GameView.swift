@@ -76,14 +76,14 @@ private struct GameContent: View {
             BoardView(scene: scene, palette: palette, inputMode: viewModel.inputMode)
         }
         .background(palette.pageBackground)
-        .overlay(alignment: .top) { resultBanner }
+        .overlay(alignment: .bottom) { resultBanner }
         .onAppear {
             // Restore the persisted board selection on launch.
             if viewModel.config != settings.currentConfig {
                 viewModel.newGame(config: settings.currentConfig)
             }
         }
-        .onChange(of: viewModel.lastWin?.seconds) { _ in handleWin() }
+        .onChange(of: viewModel.lastWin?.centiseconds) { _ in handleWin() }
         .onChange(of: viewModel.lastResult?.id) { _ in handleResult() }
         .sheet(isPresented: $showingScores) {
             ScoreboardView(scoreboard: scoreboard)
@@ -105,18 +105,19 @@ private struct GameContent: View {
                 .background(
                     Capsule().fill(banner.isWin ? Color.green.opacity(0.9) : Color.red.opacity(0.9))
                 )
-                .padding(.top, 8)
-                .allowsHitTesting(false)  // never blocks the restart button
+                .padding(.bottom, 16)  // float above the difficulty pickers
+                .allowsHitTesting(false)  // never blocks controls
                 .transition(
                     reduceMotion
                         ? .opacity
-                        : .move(edge: .top).combined(with: .opacity))
+                        : .move(edge: .bottom).combined(with: .opacity))
         }
     }
 
     private func bannerText(_ result: GameResult) -> String {
         switch result {
-        case .won(let seconds, _): return "You win! · \(String(format: "%03d", seconds))s"
+        case .won(let centiseconds, _):
+            return "You win! · \(TimeFormat.mmsst(centiseconds: centiseconds))"
         case .lost: return "Boom!"
         }
     }
@@ -150,7 +151,7 @@ private struct GameContent: View {
     /// new best). Opens the scoreboard so the player sees the result.
     private func handleWin() {
         guard let win = viewModel.lastWin else { return }
-        if scoreboard.submit(win.seconds, for: win.config) {
+        if scoreboard.submit(win.centiseconds, for: win.config) {
             showingScores = true
         }
     }
@@ -176,7 +177,7 @@ private struct GameContent: View {
                 Spacer(minLength: 0)
                 iconButton("trophy", help: "High scores") { showingScores = true }
                 iconButton("gearshape", help: "Settings") { showingSettings = true }
-                counter(label: "⏱", value: viewModel.elapsedSeconds)
+                timeCounter(label: "⏱", centiseconds: viewModel.elapsedCentiseconds)
             }
             .frame(maxWidth: .infinity)
         }
@@ -246,10 +247,23 @@ private struct GameContent: View {
                 : "Reveal mode — tap reveals (Space)")
     }
 
+    /// Flag/mine count: a fixed 3-digit readout (e.g. `010`).
     private func counter(label: String, value: Int) -> some View {
+        counterLabel(label, String(format: "%03d", max(0, value)))
+    }
+
+    /// Live toolbar timer: the classic 3-digit whole-second LED (e.g. `047`),
+    /// kept compact and capped at 999 like the original. The stored time keeps
+    /// counting past that; precise tenths (`m:ss.t`) appear in results, not here.
+    private func timeCounter(label: String, centiseconds: Int) -> some View {
+        let seconds = min(999, max(0, centiseconds / 100))
+        return counterLabel(label, String(format: "%03d", seconds))
+    }
+
+    private func counterLabel(_ label: String, _ value: String) -> some View {
         HStack(spacing: 3) {
             Text(label)
-            Text(String(format: "%03d", max(0, value)))
+            Text(value)
                 .font(.system(.title3, design: .monospaced).weight(.bold))
                 .foregroundStyle(palette.counter)
         }
@@ -331,113 +345,4 @@ private struct GameContent: View {
     }
 }
 
-/// The high-score table: clears + best time per config. Classic configs always
-/// show; Modern configs appear once they've been played (to avoid 15 empty
-/// rows). Stored by geometry, so re-tuned tiers would list as separate entries.
-struct ScoreboardView: View {
-    @ObservedObject var scoreboard: Scoreboard
-    @Environment(\.dismiss) private var dismiss
-    @State private var confirmingReset = false
-
-    /// Modern configs the player has actually cleared at least once.
-    private var playedModern: [GameConfig] {
-        GameConfig.modernConfigs.filter { scoreboard.wins(for: $0) > 0 }
-    }
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("High Scores").font(.title2.bold())
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    section("Classic", configs: GameConfig.classicConfigs)
-                    if !playedModern.isEmpty {
-                        section("Modern", configs: playedModern)
-                    }
-                }
-            }
-            .frame(maxHeight: 360)
-
-            HStack {
-                Button("Reset", role: .destructive) { confirmingReset = true }
-                Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(24)
-        .frame(minWidth: 320)
-        .confirmationDialog("Clear all high scores?", isPresented: $confirmingReset) {
-            Button("Clear scores", role: .destructive) { scoreboard.reset() }
-            Button("Cancel", role: .cancel) {}
-        }
-    }
-
-    private func section(_ title: String, configs: [GameConfig]) -> some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(title).font(.caption.bold()).foregroundStyle(.secondary)
-                Spacer()
-                Text("Cleared").font(.caption).foregroundStyle(.secondary)
-                    .frame(width: 70, alignment: .trailing)
-                Text("Best").font(.caption).foregroundStyle(.secondary)
-                    .frame(width: 60, alignment: .trailing)
-            }
-            .padding(.vertical, 4)
-
-            ForEach(configs, id: \.self) { config in
-                row(config)
-                if config != configs.last { Divider() }
-            }
-        }
-    }
-
-    private func row(_ config: GameConfig) -> some View {
-        HStack {
-            Text(config.label)
-            Spacer()
-            Text("\(scoreboard.wins(for: config))")
-                .font(.body.monospaced())
-                .frame(width: 70, alignment: .trailing)
-            Group {
-                if let best = scoreboard.best(for: config) {
-                    Text(String(format: "%03ds", best)).font(.body.monospaced().bold())
-                } else {
-                    Text("—").foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 60, alignment: .trailing)
-        }
-        .padding(.vertical, 10)
-    }
-}
-
-/// App settings. Currently just appearance; more rows (e.g. language) slot in
-/// under the same VStack later.
-struct SettingsView: View {
-    @ObservedObject var settings: Settings
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Settings").font(.title2.bold())
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Appearance").font(.headline)
-                Picker("Appearance", selection: $settings.appearance) {
-                    ForEach(AppearancePreference.allCases) { pref in
-                        Text(pref.label).tag(pref)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
-
-            HStack {
-                Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(24)
-        .frame(minWidth: 320)
-    }
-}
+// ScoreboardView and SettingsView (the sheets) live in SheetViews.swift.

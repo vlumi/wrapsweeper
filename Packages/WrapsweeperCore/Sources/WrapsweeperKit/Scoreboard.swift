@@ -1,16 +1,16 @@
 import Foundation
 import WrapsweeperCore
 
-/// Per-difficulty stats: how many games have been cleared, and the best time.
+/// Per-config stats: how many games have been cleared, and the best time.
 public struct ScoreRecord: Codable, Equatable, Sendable {
-    /// Total games cleared on this difficulty.
+    /// Total games cleared on this config.
     public var wins: Int
-    /// Fastest winning time in seconds, or nil if none recorded yet.
-    public var bestSeconds: Int?
+    /// Fastest winning time in centiseconds (hundredths), or nil if none yet.
+    public var bestCentiseconds: Int?
 
-    public init(wins: Int = 0, bestSeconds: Int? = nil) {
+    public init(wins: Int = 0, bestCentiseconds: Int? = nil) {
         self.wins = wins
-        self.bestSeconds = bestSeconds
+        self.bestCentiseconds = bestCentiseconds
     }
 }
 
@@ -42,28 +42,29 @@ public final class Scoreboard: ObservableObject {
         records[config.storageKey]
     }
 
+    /// Best time for this config, in centiseconds.
     public func best(for config: GameConfig) -> Int? {
-        records[config.storageKey]?.bestSeconds
+        records[config.storageKey]?.bestCentiseconds
     }
 
     public func wins(for config: GameConfig) -> Int {
         records[config.storageKey]?.wins ?? 0
     }
 
-    /// True if `seconds` would beat (or set) the best time for this config.
-    public func isNewRecord(_ seconds: Int, for config: GameConfig) -> Bool {
-        guard let best = records[config.storageKey]?.bestSeconds else { return true }
-        return seconds < best
+    /// True if `centiseconds` would beat (or set) the best time for this config.
+    public func isNewRecord(_ centiseconds: Int, for config: GameConfig) -> Bool {
+        guard let best = records[config.storageKey]?.bestCentiseconds else { return true }
+        return centiseconds < best
     }
 
     /// Record a win: always bumps the clear count, and updates the best time if
-    /// `seconds` beats it. Returns true if it set a new best time.
+    /// `centiseconds` beats it. Returns true if it set a new best time.
     @discardableResult
-    public func submit(_ seconds: Int, for config: GameConfig) -> Bool {
+    public func submit(_ centiseconds: Int, for config: GameConfig) -> Bool {
         var record = records[config.storageKey] ?? ScoreRecord()
         record.wins += 1
-        let isBest = record.bestSeconds.map { seconds < $0 } ?? true
-        if isBest { record.bestSeconds = seconds }
+        let isBest = record.bestCentiseconds.map { centiseconds < $0 } ?? true
+        if isBest { record.bestCentiseconds = centiseconds }
         records[config.storageKey] = record
         persist()
         return isBest
