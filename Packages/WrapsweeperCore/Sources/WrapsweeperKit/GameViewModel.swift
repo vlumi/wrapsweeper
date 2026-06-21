@@ -17,6 +17,8 @@ public enum GameResult: Equatable, Sendable {
     case won(seconds: Int, config: GameConfig)
     /// Lost — `at` is the mine that detonated (for a focused loss animation).
     case lost(at: Coord?)
+
+    public var isWin: Bool { if case .won = self { return true } else { return false } }
 }
 
 /// A game result tagged with a monotonic id, so observers fire on every

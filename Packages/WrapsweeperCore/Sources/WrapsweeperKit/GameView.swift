@@ -2,6 +2,10 @@ import SpriteKit
 import SwiftUI
 import WrapsweeperCore
 
+#if os(iOS)
+import UIKit
+#endif
+
 /// The full game surface: a status bar over a pannable/zoomable SpriteKit board.
 /// Hosts a single long-lived `BoardScene`, which owns all board input (tap,
 /// flag, chord, pan, zoom) natively; this view only renders chrome.
@@ -48,7 +52,11 @@ private struct GameContent: View {
 
     @State private var showingScores = false
     @State private var showingSettings = false
+    @State private var banner: GameResult?
+    @State private var bannerTask: Task<Void, Never>?
+    @State private var restartPop = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// One resolved scheme for both the chrome and the scene. Driven by the
     /// user's setting; `.system` reads the real OS appearance (see
@@ -68,6 +76,7 @@ private struct GameContent: View {
             BoardView(scene: scene, palette: palette, inputMode: viewModel.inputMode)
         }
         .background(palette.pageBackground)
+        .overlay(alignment: .top) { resultBanner }
         .onAppear {
             // Restore the persisted board selection on launch.
             if viewModel.config != settings.currentConfig {
@@ -75,12 +84,66 @@ private struct GameContent: View {
             }
         }
         .onChange(of: viewModel.lastWin?.seconds) { _ in handleWin() }
+        .onChange(of: viewModel.lastResult?.id) { _ in handleResult() }
         .sheet(isPresented: $showingScores) {
             ScoreboardView(scoreboard: scoreboard)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(settings: settings)
         }
+    }
+
+    // MARK: Result feedback (banner + restart pop + haptics)
+
+    @ViewBuilder private var resultBanner: some View {
+        if let banner {
+            Text(bannerText(banner))
+                .font(.headline)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule().fill(banner.isWin ? Color.green.opacity(0.9) : Color.red.opacity(0.9))
+                )
+                .padding(.top, 8)
+                .allowsHitTesting(false)  // never blocks the restart button
+                .transition(
+                    reduceMotion
+                        ? .opacity
+                        : .move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private func bannerText(_ result: GameResult) -> String {
+        switch result {
+        case .won(let seconds, _): return "You win! · \(String(format: "%03d", seconds))s"
+        case .lost: return "Boom!"
+        }
+    }
+
+    /// On any finished game: haptic, transient banner, and a restart-button pop.
+    private func handleResult() {
+        guard let result = viewModel.lastResult?.result else { return }
+        fireHaptic(for: result)
+
+        withAnimation(.easeOut(duration: 0.2)) { banner = result }
+        if !reduceMotion {
+            restartPop = true
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.4)) { restartPop = false }
+        }
+        bannerTask?.cancel()
+        bannerTask = Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeIn(duration: 0.25)) { banner = nil }
+        }
+    }
+
+    private func fireHaptic(for result: GameResult) {
+        #if os(iOS)
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(result.isWin ? .success : .error)
+        #endif
     }
 
     /// When a win lands, record the time (the store keeps it only if it's a
@@ -130,6 +193,7 @@ private struct GameContent: View {
             Image(systemName: "arrow.clockwise.circle.fill")
                 .font(.system(size: 30))
                 .foregroundStyle(newGameTint)
+                .scaleEffect(restartPop ? 1.35 : 1.0)  // one-shot pop on game end
         }
         .buttonStyle(.plain)
         .help("New game")
