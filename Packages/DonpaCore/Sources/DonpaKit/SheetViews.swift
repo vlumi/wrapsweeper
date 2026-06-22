@@ -140,6 +140,17 @@ struct SettingsView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
+                Text("Toggle side", bundle: .module).font(.headline)
+                Picker("Toggle side", selection: $settings.handedness) {
+                    ForEach(Handedness.allCases) { h in
+                        Text(verbatim: h.label).tag(h)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Language", bundle: .module).font(.headline)
                 Picker("Language", selection: $settings.language) {
                     ForEach(LanguagePreference.allCases) { lang in

@@ -103,21 +103,7 @@ private struct GameContent: View {
     var body: some View {
         VStack(spacing: 0) {
             statusBar
-            // Palette passed as a value: BoardView's updateUIView/NSView pushes
-            // it to the scene whenever the resolved scheme changes — reliable
-            // where .onChange on the SwiftUI side was not.
-            BoardView(
-                scene: scene, palette: palette, inputMode: viewModel.inputMode,
-                // Custom reveal/flag cursor only during a live game; otherwise
-                // the normal arrow (title screen, result panel, or a finished
-                // board you're just inspecting — where a flag cursor is stale).
-                boardCursorActive: gameInProgress && !navigator.showingTitle
-            )
-            // Per-cell VoiceOver is a future task (needs a scalable cursor
-            // model for huge boards); for now announce a useful summary.
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Board", bundle: .module))
-            .accessibilityValue(boardSummary)
+            boardArea
         }
         .background(palette.pageBackground)
         .overlay { mangaPanel }
@@ -225,6 +211,69 @@ private struct GameContent: View {
         #endif
     }
 
+    // MARK: Board + mode toggle
+
+    /// Where the toggle sits within its strip: hugging the handed bottom corner
+    /// (thumb-reachable). In a bottom strip this picks the left/right end; in a
+    /// side strip it sits at the bottom of that side.
+    private var toggleAlignment: Alignment {
+        settings.handedness == .right ? .bottomTrailing : .bottomLeading
+    }
+
+    /// The board plus the floating reveal/flag toggle, arranged so the toggle
+    /// never overlaps the grid: a strip *below* the board when the space is tall,
+    /// *beside* it when wide. The board takes the remaining room and the
+    /// SpriteKit scene fits/centres the grid within it, so it simply shrinks in
+    /// tight cases rather than being covered or clipped.
+    private var boardArea: some View {
+        GeometryReader { geo in
+            // Put the strip wherever the *board* leaves the most room: compare
+            // the window's aspect to the board's. If the window is proportionally
+            // wider than the board, there's spare width → strip on the side; else
+            // spare height → strip at the bottom. (A wide board like Expert in a
+            // wide window still gets the strip at the bottom.)
+            let windowAspect = geo.size.width / max(geo.size.height, 1)
+            let boardAspect = CGFloat(viewModel.boardWidth) / CGFloat(max(viewModel.boardHeight, 1))
+            let sideStrip = windowAspect > boardAspect
+            let strip: CGFloat = gameInProgress ? 84 : 0
+
+            if sideStrip {
+                HStack(spacing: 0) {
+                    board
+                    if gameInProgress {
+                        modeToggle.padding(12).frame(width: strip, alignment: toggleAlignment)
+                    }
+                }
+            } else {
+                VStack(spacing: 0) {
+                    board
+                    if gameInProgress {
+                        modeToggle.padding(12).frame(height: strip, alignment: toggleAlignment)
+                    }
+                }
+            }
+        }
+    }
+
+    private var board: some View {
+        // Palette passed as a value: BoardView's updateUIView/NSView pushes it to
+        // the scene whenever the resolved scheme changes — reliable where
+        // .onChange on the SwiftUI side was not.
+        BoardView(
+            scene: scene, palette: palette, inputMode: viewModel.inputMode,
+            // Custom reveal/flag cursor only during a live game; otherwise the
+            // normal arrow (title screen, result panel, or a finished board
+            // you're just inspecting — where a flag cursor is stale).
+            boardCursorActive: gameInProgress && !navigator.showingTitle
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Per-cell VoiceOver is a future task (needs a scalable cursor model for
+        // huge boards); for now announce a useful summary.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Board", bundle: .module))
+        .accessibilityValue(boardSummary)
+    }
+
     // MARK: Status bar
 
     private var statusBar: some View {
@@ -235,7 +284,6 @@ private struct GameContent: View {
         HStack(spacing: 6) {
             HStack(spacing: 8) {
                 counter(label: "⚑", value: viewModel.flagsRemaining)
-                modeToggle
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity)
@@ -323,17 +371,17 @@ private struct GameContent: View {
     /// CURRENT mode (what a tap will do), tinted when in flag mode so it's
     /// obvious you've armed flagging.
     private var modeToggle: some View {
-        Button(action: { viewModel.inputMode.toggle() }) {
-            Image(systemName: viewModel.inputMode == .flag ? "flag.fill" : "hand.tap.fill")
-                .font(.system(size: 18))
-                .foregroundStyle(viewModel.inputMode == .flag ? Color.orange : .secondary)
-                .frame(width: 40, height: 34)
+        let flagging = viewModel.inputMode == .flag
+        return Button(action: { viewModel.inputMode.toggle() }) {
+            Image(systemName: flagging ? "flag.fill" : "hand.tap.fill")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(flagging ? .white : .primary)
+                .frame(width: 60, height: 60)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            viewModel.inputMode == .flag
-                                ? palette.modeFlagTint : palette.modeRevealTint)
+                    Circle().fill(flagging ? Color.orange : palette.statusBar)
                 )
+                .overlay(Circle().stroke(.primary.opacity(0.15), lineWidth: 1))
+                .shadow(color: .black.opacity(0.3), radius: 5, y: 2)
         }
         .buttonStyle(.plain)
         .keyboardShortcut(.space, modifiers: [])

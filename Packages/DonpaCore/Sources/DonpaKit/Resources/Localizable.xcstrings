@@ -940,6 +940,57 @@
           }
         }
       }
+    },
+    "Right": {
+      "comment": "Handedness: floating toggle on the right. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Oikea"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "右"
+          }
+        }
+      }
+    },
+    "Left": {
+      "comment": "Handedness: floating toggle on the left. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Vasen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "左"
+          }
+        }
+      }
+    },
+    "Toggle side": {
+      "comment": "Settings header for the floating toggle’s corner. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Painikkeen puoli"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "切替ボタンの位置"
+          }
+        }
+      }
     }
   },
   "version": "1.1"
