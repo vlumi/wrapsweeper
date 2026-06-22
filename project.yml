@@ -4,7 +4,7 @@ options:
   bundleIdPrefix: fi.misaki
   deploymentTarget:
     iOS: "16.0"
-    macOS: "13.0"
+    macOS: "14.0"
   createIntermediateGroups: true
   developmentLanguage: en
 

@@ -6,73 +6,10 @@ import SwiftUI
 import UIKit
 #endif
 
-/// The full game surface: a status bar over a pannable/zoomable SpriteKit board.
-/// Hosts a single long-lived `BoardScene`, which owns all board input (tap,
-/// flag, chord, pan, zoom) natively; this view only renders chrome.
-/// Thin wrapper that owns the stores and applies the user's appearance choice.
-/// `.preferredColorScheme` is applied HERE so the descendant `GameContent` reads
-/// the resolved scheme via `@Environment(\.colorScheme)` — a view cannot observe
-/// a scheme it forces on itself, so the read must happen below the modifier.
-public struct GameView: View {
-    @StateObject private var viewModel: GameViewModel
-    @StateObject private var scoreboard: Scoreboard
-    @StateObject private var settings: Settings
-    @ObservedObject private var navigator: Navigator
-    @State private var scene: BoardScene
-
-    public init(config: GameConfig = .classic(.beginner)) {
-        self.init(
-            viewModel: GameViewModel(config: config),
-            scoreboard: Scoreboard(),
-            settings: Settings(),
-            navigator: Navigator())
-    }
-
-    /// Use this when the host (e.g. the macOS menu bar) needs to drive the same
-    /// view model / navigation that the board renders.
-    public init(
-        viewModel: GameViewModel, scoreboard: Scoreboard, settings: Settings,
-        navigator: Navigator
-    ) {
-        _viewModel = StateObject(wrappedValue: viewModel)
-        _scoreboard = StateObject(wrappedValue: scoreboard)
-        _settings = StateObject(wrappedValue: settings)
-        _navigator = ObservedObject(wrappedValue: navigator)
-        _scene = State(initialValue: BoardScene(viewModel: viewModel))
-    }
-
-    public var body: some View {
-        ZStack {
-            GameContent(
-                viewModel: viewModel, scoreboard: scoreboard, settings: settings,
-                navigator: navigator, scene: scene)
-            // The title fades out over the (always-mounted) board. The fade is
-            // scoped to this overlay alone via `.animation(_:value:)` — an
-            // imperative `withAnimation` here would also animate the chrome's
-            // first layout underneath, making the status bar visibly settle.
-            TitleScreen(
-                settings: settings,
-                onStart: {
-                    // Start a fresh game with the hub's current selection.
-                    viewModel.newGame(config: settings.currentConfig)
-                    navigator.showingTitle = false
-                },
-                onSettings: { navigator.showingSettings = true },
-                onScores: { navigator.showingScores = true }
-            )
-            .opacity(navigator.showingTitle ? 1 : 0)
-            .allowsHitTesting(navigator.showingTitle)
-            .animation(.easeInOut(duration: 0.3), value: navigator.showingTitle)
-            .zIndex(1)
-        }
-        .preferredColorScheme(settings.appearance.colorScheme)
-    }
-}
-
 /// The actual game surface. Lives below `GameView`'s `.preferredColorScheme`, so
 /// its `@Environment(\.colorScheme)` is the effective appearance for all of
 /// system/light/dark — the single source the chrome and the SKScene both use.
-private struct GameContent: View {
+struct GameContent: View {
     @ObservedObject var viewModel: GameViewModel
     @ObservedObject var scoreboard: Scoreboard
     @ObservedObject var settings: Settings
@@ -106,15 +43,17 @@ private struct GameContent: View {
             boardArea
         }
         .background(palette.pageBackground)
-        .overlay { mangaPanel }
         .onAppear {
             // Restore the persisted board selection on launch.
             if viewModel.config != settings.currentConfig {
                 viewModel.newGame(config: settings.currentConfig)
             }
         }
+        // The single-arg `onChange` closure keeps iOS-16 support (the zero/two-arg
+        // forms are iOS 17 / macOS 14 only); the deprecation note on newer OSes
+        // is harmless.
         .onChange(of: viewModel.lastResult?.id) { _ in handleResult() }
-        // A new game (incl. Space-to-restart) clears any lingering panel.
+        // Any new game (New Game / Retry / ⌘R) clears a lingering panel.
         .onChange(of: viewModel.gameID) { _ in dismissPanel() }
         .sheet(isPresented: $navigator.showingScores) {
             ScoreboardView(scoreboard: scoreboard)
@@ -126,30 +65,19 @@ private struct GameContent: View {
 
     // MARK: Result feedback (manga result screen + restart pop + haptics)
 
-    /// The end-of-game result screen. It blocks the board and stays until the
-    /// player chooses: Continue (also a tap anywhere) dismisses to inspect the
-    /// board; Return to title (also Esc) goes home. Restart is Space / Cmd-R.
+    /// The end-of-game result screen, overlaid on the BOARD only so the control
+    /// strip's actions (New Game / Retry / Home) stay live — the panel itself
+    /// carries no buttons. It dims the board and stays until dismissed (the X, a
+    /// tap anywhere, or Esc) to inspect the finished board.
     @ViewBuilder private var mangaPanel: some View {
         if let panel {
             MangaPanelView(
                 kind: panel,
                 reduceMotion: reduceMotion,
-                onContinue: { dismissPanel() },
-                onRestart: { restartFromPanel() },
-                onReturnToTitle: { returnToTitleFromPanel() }
+                onContinue: { dismissPanel() }
             )
             .transition(.opacity)
         }
-    }
-
-    private func restartFromPanel() {
-        dismissPanel()
-        viewModel.newGame()
-    }
-
-    private func returnToTitleFromPanel() {
-        dismissPanel()
-        goHome()
     }
 
     /// Return to the home hub. Resets the board so picking/starting from the hub
@@ -211,48 +139,72 @@ private struct GameContent: View {
         #endif
     }
 
-    // MARK: Board + mode toggle
+    // MARK: Board + control strip
 
-    /// Where the toggle sits within its strip: hugging the handed bottom corner
-    /// (thumb-reachable). In a bottom strip this picks the left/right end; in a
-    /// side strip it sits at the bottom of that side.
-    private var toggleAlignment: Alignment {
-        settings.handedness == .right ? .bottomTrailing : .bottomLeading
-    }
+    private var leftHanded: Bool { settings.handedness == .left }
 
-    /// The board plus the floating reveal/flag toggle, arranged so the toggle
-    /// never overlaps the grid: a strip *below* the board when the space is tall,
-    /// *beside* it when wide. The board takes the remaining room and the
-    /// SpriteKit scene fits/centres the grid within it, so it simply shrinks in
-    /// tight cases rather than being covered or clipped.
+    /// The board plus the control strip (centered actions + the flag toggle in
+    /// the handed corner). The strip never overlaps the grid: it sits *below* the
+    /// board when the board leaves vertical room, or *beside* it (on the handed
+    /// side) when it leaves horizontal room. The board takes the remaining space
+    /// and the SpriteKit scene fits/centres the grid, so it shrinks in tight
+    /// cases rather than being covered. The strip stays visible after the game
+    /// ends so New Game / Retry / Home remain reachable (the flag toggle hides,
+    /// since a finished board takes no input).
     private var boardArea: some View {
         GeometryReader { geo in
-            // Put the strip wherever the *board* leaves the most room: compare
-            // the window's aspect to the board's. If the window is proportionally
-            // wider than the board, there's spare width → strip on the side; else
-            // spare height → strip at the bottom. (A wide board like Expert in a
-            // wide window still gets the strip at the bottom.)
+            // Put the strip wherever the *board* leaves the most room: compare the
+            // window's aspect to the board's. Proportionally wider than the board
+            // → spare width → side strip; else spare height → bottom strip. (A wide
+            // board like Expert in a wide window still gets a bottom strip.)
             let windowAspect = geo.size.width / max(geo.size.height, 1)
             let boardAspect = CGFloat(viewModel.boardWidth) / CGFloat(max(viewModel.boardHeight, 1))
             let sideStrip = windowAspect > boardAspect
-            let strip: CGFloat = gameInProgress ? 84 : 0
 
             if sideStrip {
                 HStack(spacing: 0) {
+                    if leftHanded { sideControlStrip.frame(width: 96) }
                     board
-                    if gameInProgress {
-                        modeToggle.padding(12).frame(width: strip, alignment: toggleAlignment)
-                    }
+                    if !leftHanded { sideControlStrip.frame(width: 96) }
                 }
             } else {
                 VStack(spacing: 0) {
                     board
-                    if gameInProgress {
-                        modeToggle.padding(12).frame(height: strip, alignment: toggleAlignment)
-                    }
+                    bottomControlStrip.frame(height: 84)
                 }
             }
         }
+    }
+
+    /// The flag toggle, shown only during a live game (a finished board is inert).
+    @ViewBuilder private var toggleIfLive: some View {
+        if gameInProgress { modeToggle }
+    }
+
+    /// Bottom strip: actions centered, flag toggle pinned to the handed end so
+    /// it's under the thumb. A ZStack so the centered actions stay truly centered
+    /// regardless of the toggle's side.
+    private var bottomControlStrip: some View {
+        ZStack {
+            actionButtons(vertical: false)
+            HStack {
+                if leftHanded { toggleIfLive; Spacer() } else { Spacer(); toggleIfLive }
+            }
+        }
+        .padding(.horizontal, 12)
+    }
+
+    /// Side strip (on the handed side): actions centered in the column, the flag
+    /// toggle pinned to the bottom for thumb reach.
+    private var sideControlStrip: some View {
+        ZStack {
+            actionButtons(vertical: true)
+            VStack {
+                Spacer()
+                toggleIfLive
+            }
+        }
+        .padding(.vertical, 12)
     }
 
     private var board: some View {
@@ -272,51 +224,70 @@ private struct GameContent: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Board", bundle: .module))
         .accessibilityValue(boardSummary)
+        // Result screen dims the board ONLY, leaving the control strip live.
+        .overlay { mangaPanel }
+        .clipped()  // keep the dimmed backdrop within the board's bounds
     }
 
     // MARK: Status bar
 
+    /// The thin top strip: read-only metrics grouped on the left (mines, the live
+    /// clear %, the timer), with the trophy (High Scores) alone in the right
+    /// corner. Kept just tall enough for the numbers; all actions live in the
+    /// board-side strip.
     private var statusBar: some View {
-        // Three equal-width zones keep the new-game button truly centred without
-        // overlapping the side controls. Counters get layout priority so they
-        // shrink (never vanish) when the window gets very narrow; the icon
-        // buttons hold a fixed size.
-        HStack(spacing: 6) {
-            HStack(spacing: 8) {
-                counter(label: "⚑", value: viewModel.flagsRemaining)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity)
-
-            newGameButton
-
-            HStack(spacing: 8) {
-                Spacer(minLength: 0)
-                // Settings/Scores live on the home hub now; Home returns there.
-                iconButton("house", help: "Home") { goHome() }
-                timeCounter(label: "⏱", centiseconds: viewModel.elapsedCentiseconds)
-            }
-            .frame(maxWidth: .infinity)
+        HStack(spacing: 14) {
+            CounterReadout.mines(viewModel.flagsRemaining, tint: palette.counter)
+            // `game.progress` re-renders on every reveal via the @Published revision.
+            ProgressReadout(progress: viewModel.game.progress, tint: palette.counter)
+            CounterReadout.time(
+                centiseconds: viewModel.elapsedCentiseconds, tint: palette.counter)
+            Spacer(minLength: 8)
+            // High Scores sits apart on the right — same read-only character. (On
+            // the title screen it stays on the art; this is its in-game home.)
+            iconButton("trophy", help: "High Scores") { navigator.showingScores = true }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
         .background(palette.statusBar)
     }
 
-    /// New game. A restart symbol tinted by game state (neutral / won / lost),
-    /// so it stays expressive without the emoji face crowding the other icons.
-    private var newGameButton: some View {
-        Button(action: { viewModel.newGame() }) {
-            Image(systemName: "arrow.clockwise.circle.fill")
+    /// The centered in-game actions: start a different game (opens the config
+    /// popup), retry the same board, and go home. These are the prominent
+    /// controls; they share the board-side strip with the flag toggle. Laid out
+    /// along the strip's long axis — a row in the bottom strip, a column in the
+    /// narrow side strip.
+    @ViewBuilder
+    private func actionButtons(vertical: Bool) -> some View {
+        let layout =
+            vertical
+            ? AnyLayout(VStackLayout(spacing: 18)) : AnyLayout(HStackLayout(spacing: 18))
+        layout {
+            actionButton("plus.circle.fill", help: "New game") {
+                navigator.showingNewGame = true
+            }
+            .scaleEffect(restartPop ? 1.25 : 1.0)
+            actionButton("arrow.clockwise.circle.fill", help: "Retry", tint: newGameTint) {
+                viewModel.newGame()
+            }
+            actionButton("house.fill", help: "Home") { goHome() }
+        }
+    }
+
+    private func actionButton(
+        _ systemName: String, help: LocalizedStringKey, tint: Color = .secondary,
+        action: @escaping () -> Void
+    ) -> some View {
+        let label = Text(help, bundle: .module)
+        return Button(action: action) {
+            Image(systemName: systemName)
                 .font(.system(size: 30))
-                .foregroundStyle(newGameTint)
-                .scaleEffect(restartPop ? 1.35 : 1.0)  // one-shot pop on game end
+                .foregroundStyle(tint)
+                .frame(width: 44, height: 44)
         }
         .buttonStyle(.plain)
-        .help(Text("New game", bundle: .module))
-        .accessibilityLabel(Text("New game", bundle: .module))
-        // Convey, in words, what the icon's colour shows.
-        .accessibilityValue(statusDescription)
+        .help(label)
+        .accessibilityLabel(label)
     }
 
     /// Spoken game state, used as the new-game button's accessibility value and
@@ -397,39 +368,6 @@ private struct GameContent: View {
                 : Text("Reveal", bundle: .module)
         )
         .accessibilityHint(Text("Toggles between revealing and flagging", bundle: .module))
-    }
-
-    /// Flag/mine count: a fixed 3-digit readout (e.g. `010`).
-    private func counter(label: String, value: Int) -> some View {
-        counterLabel(label, String(format: "%03d", max(0, value)), a11y: "Mines remaining")
-    }
-
-    /// Live toolbar timer: the classic 3-digit whole-second LED (e.g. `047`),
-    /// kept compact and capped at 999 like the original. The stored time keeps
-    /// counting past that; precise tenths (`m:ss.t`) appear in results, not here.
-    private func timeCounter(label: String, centiseconds: Int) -> some View {
-        let seconds = min(999, max(0, centiseconds / 100))
-        return counterLabel(label, String(format: "%03d", seconds), a11y: "Time, seconds")
-    }
-
-    private func counterLabel(_ label: String, _ value: String, a11y: LocalizedStringKey)
-        -> some View
-    {
-        HStack(spacing: 3) {
-            Text(verbatim: label)  // glyph (⚑ / ⏱)
-            Text(verbatim: value)
-                .font(.system(.title3, design: .monospaced).weight(.bold))
-                .foregroundStyle(palette.counter)
-        }
-        // Shrink to fit very narrow windows rather than clipping or pushing the
-        // timer out of the bar entirely.
-        .lineLimit(1)
-        .minimumScaleFactor(0.5)
-        .layoutPriority(1)
-        // The glyph (⚑ / ⏱) is meaningless to VoiceOver; speak a real label.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(a11y, bundle: .module))
-        .accessibilityValue(Text(verbatim: value))
     }
 
 }

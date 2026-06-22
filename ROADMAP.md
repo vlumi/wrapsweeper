@@ -33,10 +33,14 @@ Ship a polished classic Minesweeper on iOS and macOS.
       bottom result banner (PRs #20–24) was **replaced** by the manga
       end-of-game result screen (PR #33) — see "Start and end of a game".
 - [x] Manga title screen on launch + comic end-of-game result screen
-      (win/loss/new-record), with Continue / Title (Esc) and Space/⌘R restart
-      (PR #33)
+      (win/loss/new-record). The result panel dims the board only; New Game /
+      Retry / Home stay live on the control strip, and X / tap / Esc dismiss it
+      to inspect the board. (PR #33; reworked in the navigation restructure.)
 - [x] Precise wall-clock timing; m:ss.t results, classic LED toolbar
-- [x] macOS: Space restarts after a game ends
+- [x] macOS keyboard: Space toggles mode while playing; ⌘R restarts the current
+      board; ⌘N opens the New Game popup. (Space-to-restart was dropped in the
+      navigation restructure — the result panel now holds focus once a game
+      ends, and ⌘R covers it.)
 - [x] Reset input mode to Reveal on each new game (decided against persisting
       it — flag mode never makes sense at the start of a game)
 - [ ] **Remaining for release:**
@@ -97,29 +101,46 @@ Done in phases (each its own PR):
       menu (`⇧⌘S`); both removed from the macOS toolbar. Sheet state lifted to
       `Navigator` so the menu bar can drive it. (iOS toolbar buttons kept until
       Phase 2.)
-- [ ] **Phase 2 — title home hub.** The title screen holds game-type selection
-      (Classic/Modern + size/difficulty) + Settings + High Scores. The game
-      screen drops the bottom difficulty-picker bar and the iOS settings/
-      scoreboard buttons, and gains a persistent **Home** affordance (you reach
-      everything via the title now, so getting back matters more). Likely also
-      **split Restart from New Game**: Restart replays the current board
-      (button / Space / ⌘R); New Game → back to the hub to pick.
+- [x] **Phase 2 — title home hub.** The title screen became the home hub (PR
+      #46): game-type selection + Settings + High Scores, with a persistent
+      **Home** affordance in-game. (Superseded by Phase 4's New Game popup —
+      the inline picker on the title moved into a shared modal.)
 - [x] **Phase 3 — mode toggle.** The reveal/flag toggle is now a **floating
-      circular button** in a thumb-reachable bottom corner of the board, with a
+      circular button** in a thumb-reachable corner of the board, with a
       **handedness setting** (`Settings.handedness`, left/right) — out of the
-      toolbar entirely.
-- [ ] **Phase 4 — top-bar rework.** With the toggle gone, rethink the top bar
-      (currently the inherited classic counter-left / face-center / timer-right).
-      Options to try: a **bottom action-bar** (new-game/Home grouped, maybe with
-      the toggle), **group-by-kind** (actions one side, metrics the other), or
-      floating metrics. Also slot in a **live progress-% indicator** (always
-      shown; the `revealedSafeCount` metric) wherever it lands. Experiment once
-      the toggle is floating (done) — don't fixate on the classic layout.
+      toolbar entirely. The toggle lives in a **board-aware strip** (below or
+      beside the board, whichever the board's shape leaves room for) that never
+      overlaps the grid.
+- [x] **Phase 4 — top-bar rework + New Game popup.** Settled the layout:
+      - **Thin top metrics strip** — flag counter, **live clear-%** (always
+        shown), timer, and the trophy (High Scores) — read-only, glanceable.
+      - **Control strip** (shares the toggle's board-aware strip): centered
+        **New Game / Retry / Home** actions, flag toggle in the handed corner.
+        Stays visible after the game ends so actions remain reachable.
+      - **New Game popup** (`NewGamePopup`): the single config chooser
+        (Classic/Modern + size/difficulty + Start), reached from the in-game
+        New Game button, the title art ("press start"), the result screen, and
+        `⌘N`. Dimmed-overlay style with X / tap-outside / Esc to dismiss;
+        keyboard-drivable on macOS (arrows choose, Return starts).
+      - **Result screen** dims the **board only** — the toolbar stays live, so
+        the panel carries no duplicate buttons (just the art + badges + X).
+      - macOS Esc handled via `.onExitCommand` on the focusable overlays (a
+        menu key-equivalent for Escape isn't delivered by AppKit); the board
+        cursor switched from cursor-rects to a tracking-area + `NSCursor.set()`.
 
 Groundwork: `Navigator` (DonpaKit) holds `showingTitle` / `showingScores` /
-`showingSettings`, injected into `GameView` so any host (macOS menu bar, title
-hub) can drive navigation. The toolbar now fits small windows/phones without
-the raised-min-size stopgap doing the work.
+`showingSettings` / `showingNewGame`, injected into `GameView` so any host
+(macOS menu bar, title hub) can drive navigation. The toolbar now fits small
+windows/phones without the raised-min-size stopgap doing the work.
+
+### Navigation backlog (post-Phase-4 polish)
+
+- [ ] **macOS `⌘1/2/3`** (classic presets) jump straight into a Classic game,
+      jarringly switching mode mid-play. Rethink: should they pre-select in the
+      New Game popup instead of starting immediately? Or be Modern-aware?
+- [ ] Decide whether the New Game popup's **Modern *size*** should also be
+      keyboard-cyclable (currently only mode + difficulty are; size is
+      mouse-only to keep one clear left/right axis).
 
 ## Session quality-of-life (planned — pause/persist wanted sooner for mobile)
 
@@ -248,6 +269,24 @@ How the apps reach the stores once a paid Apple Developer account exists:
   purchase" is a deliberate Catalyst/SwiftUI-app setup, not automatic.)
 - **App age rating**: 4+ / PEGI 3 (set via the App Store Connect questionnaire;
   nothing in the feature set pushes it higher).
+- [ ] **AI-generated disclosure (open question).** Decide how/whether to mark
+      the app as AI-assisted. The App Store has **no dedicated "AI-generated"
+      flag** today; relevant levers are the description text, and — for any
+      AI-generated *art* — whether to credit/label it. Code being AI-written is
+      not something Apple asks about. Action: revisit near submission; likely a
+      short note in the description + the repo README rather than a store field.
+      (Tie in with the art-licensing question below if art ends up AI-made.)
+- [ ] **Art assets — repo/licensing strategy (open question).** When better
+      graphics arrive, decide where they live and under what terms. Options:
+      (a) **same repo, split license** — code stays open (current license),
+      art under a separate, more-restrictive license file (e.g. CC-BY-NC or
+      all-rights-reserved) with a clear `ASSETS-LICENSE` and per-folder note;
+      (b) **separate private repo** for source art, with only export-ready
+      assets vendored into this repo (keeps WIP/source files private);
+      (c) **git submodule** referencing a private art repo. Leaning (a) for
+      simplicity unless the source files are large/sensitive, then (b). Decide
+      before importing non-AI or commissioned art (provenance matters for the
+      AI-disclosure question above).
 
 **Decision: stay with two native targets (no Mac Catalyst).** Catalyst would
 simplify publishing (one universal-purchase record) but at the cost of the
@@ -341,8 +380,8 @@ Direction notes (earlier brainstorm; mostly realized above):
   and a smaller triumphant panel on **win**. The melodrama is the joke; it
   evolves the existing detonation/banner. No persistent story required ("stories
   might be too much") — the comic *style* carries the flavour.
-  - **Panel size is responsive / try-it-out**: likely full-screen-ish on phone,
-    a non-blocking overlay on Mac (must not break the snappy Space-to-restart).
+  - **Panel size is responsive / try-it-out**: the panel dims the board area
+    only (the control strip stays live), so its actions never need duplicating.
   - **Build split — code vs art**: the panel *framing and FX* (speed-lines,
     halftone/screentone, kana SFX lettering, flash, border) are procedural —
     buildable in SpriteKit/CoreGraphics, no drawn assets, crisp at any size, no

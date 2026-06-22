@@ -3,7 +3,7 @@
 [![CI](https://github.com/vlumi/donpa/actions/workflows/ci.yml/badge.svg)](https://github.com/vlumi/donpa/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/vlumi/donpa/branch/main/graph/badge.svg)](https://codecov.io/gh/vlumi/donpa)
 
-**Donpa Squad** (ドンパ隊) — a Minesweeper game for Apple platforms (iOS 16+ and macOS 13+). Classic mode
+**Donpa Squad** (ドンパ隊) — a Minesweeper game for Apple platforms (iOS 16+ and macOS 14+). Classic mode
 ships first; the architecture is built for "epic" variants from day one —
 huge zoomable maps, wrapped/torus edges, and hex grids — added later without
 touching the game logic.
@@ -66,7 +66,9 @@ up the dependencies. To work in Xcode instead, `make generate && open Donpa.xcod
 
 ## Modes
 
-A **Classic / Modern** switch in the bottom bar chooses the board:
+A **Classic / Modern** switch in the **New Game popup** chooses the board (open
+it from the title art, the in-game **New Game** button, the result screen, or
+`⌘N`):
 
 - **Classic** — the original Beginner / Intermediate / Expert presets.
 - **Modern** — pick a **Size** (Small 9×9 · Medium 16×16 · Large 25×25) and a
@@ -74,12 +76,22 @@ A **Classic / Modern** switch in the bottom bar chooses the board:
   density, so it composes with any size; Insane is the deliberately brutal,
   near-unguessable tier. The chosen mode and selections are remembered.
 
+On macOS the popup is keyboard-drivable: **↑/↓** move between the rows (Mode /
+Size / Difficulty), **←/→** cycle the selection within the highlighted row,
+**Return** starts, **Esc** closes.
+
 ## Controls
 
-A toolbar toggle switches a tap/click between **Reveal mode** and **Flag mode**,
-so you can place flags without risking an accidental reveal. A tap on a revealed
-number always chords in either mode, and a long-press is always the opposite
-primary action.
+A floating **toggle** in a thumb-reachable corner of the board switches a
+tap/click between **Reveal mode** and **Flag mode**, so you can place flags
+without risking an accidental reveal. Its corner follows the **Toggle side**
+setting (left/right) for your grip. A tap on a revealed number always chords in
+either mode, and a long-press is always the opposite primary action.
+
+The board chrome is split in two: a thin top strip shows read-only metrics —
+the flag counter, a live **clear-%**, the timer, and the 🏆 High Scores button —
+while a strip beside or below the board (whichever the board's shape leaves room
+for) holds the **New Game / Retry / Home** actions plus the flag toggle.
 
 | Action            | Reveal mode   | Flag mode     |
 | ----------------- | ------------- | ------------- |
@@ -102,34 +114,37 @@ fits on screen, panning is disabled.
 
 | Key    | Action                                               |
 | ------ | ---------------------------------------------------- |
-| Space  | Toggle mode while playing; restart after a game ends |
+| Space  | Toggle mode while playing                            |
+| ⌘N     | New Game (opens the config popup, macOS menu)        |
 | ⌘R     | Restart the current board (macOS menu)               |
 | ⌘T     | Return to the title screen (macOS menu)              |
 | ⌘F     | Toggle mode (macOS menu)                             |
 | ⌘1/2/3 | Beginner / Intermediate / Expert (macOS menu)        |
+| Esc    | Close the New Game popup or the result panel         |
 
 ## Start and end of a game
 
-The app opens on a **title screen**; tap it (or press Space / Return on macOS)
-to start. You can return to it any time from the end-of-game screen, or via the
-**Title Screen** menu item (⌘T) on macOS.
+The app opens on a **title screen** that doubles as the home hub: tapping the
+art opens the **New Game popup** to pick a board and start. The 🏆 High Scores
+and ⚙️ Settings buttons sit on the art's corner. You can return to the title any
+time from the in-game **Home** button or the **Title Screen** menu item (⌘T) on
+macOS.
 
-When a game ends, a comic **result panel** slides in over the board — a
+When a game ends, a comic **result panel** slides in over the **board** — a
 triumphant one on a win, a dramatic one on a loss, with a "new record" flourish
-when you beat your best time. It stays until you choose:
+when you beat your best time. It dims only the board, so the toolbar stays live:
 
-- **Continue** (or tap anywhere / Return) — dismiss it to look over the finished
-  board.
-- **Title** (or Esc) — go back to the title screen.
-- **Restart** the same board instantly with **Space** or **⌘R** — no need to
-  dismiss the panel first.
+- **New Game / Retry / Home** remain usable on the strip — no need to dismiss
+  the panel first. Retry replays the same board; New Game opens the popup.
+- Dismiss the panel to inspect the finished board via the **X**, a tap anywhere,
+  or **Esc**.
 
 ## Scores
 
 Per-board stats are kept locally (via `UserDefaults`) and shown from the 🏆
-button in Classic and Modern sections: your best time and how many games you've
-cleared on each board. A new best is celebrated on the result panel; the full
-table is always available from the 🏆 button.
+button (in the top strip in-game, or on the title art): your best time and how
+many games you've cleared on each board. A new best is celebrated on the result
+panel; the full table is always available from the 🏆 button.
 
 Stats are keyed by board geometry, not by tier name, so the format stays stable
 toward the "epic" variants: adding wrapped or hex boards — or re-tuning a tier —

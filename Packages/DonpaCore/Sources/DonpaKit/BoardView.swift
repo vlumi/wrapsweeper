@@ -53,19 +53,56 @@ final class ScrollForwardingSKView: SKView {
     var inputMode: InputMode = .reveal {
         didSet {
             guard inputMode != oldValue else { return }
-            window?.invalidateCursorRects(for: self)
+            refreshCursor()
         }
     }
     /// When false (result panel up), show the normal arrow over the board.
     var boardCursorActive: Bool = true {
         didSet {
             guard boardCursorActive != oldValue else { return }
-            window?.invalidateCursorRects(for: self)
+            refreshCursor()
         }
     }
 
-    override func resetCursorRects() {
-        addCursorRect(bounds, cursor: cursor(for: inputMode))
+    /// Whether the pointer is currently over the board, so a mode/state change
+    /// only re-applies the cursor when it would actually be visible.
+    private var pointerInside = false
+
+    // Cursor handling uses a tracking area + an explicit `NSCursor.set()` rather
+    // than `addCursorRect`: `SKView` manages its own drawing/loop and cursor
+    // rects proved unreliable inside the SwiftUI-hosted scene (the custom cursor
+    // never showed), whereas `mouseEntered`/`mouseMoved` + `set()` are immune to
+    // responder-chain and cursor-rect timing.
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(
+            NSTrackingArea(
+                rect: bounds,
+                options: [.activeInKeyWindow, .mouseEnteredAndExited, .mouseMoved, .inVisibleRect],
+                owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        pointerInside = true
+        cursor(for: inputMode).set()
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        // Re-assert each move: AppKit otherwise resets to the arrow as the pointer
+        // travels, and a stale cursor from a sibling view can win without this.
+        cursor(for: inputMode).set()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        pointerInside = false
+        NSCursor.arrow.set()
+    }
+
+    /// Re-apply the cursor for the current mode/state if the pointer is over us.
+    private func refreshCursor() {
+        guard pointerInside else { return }
+        cursor(for: inputMode).set()
     }
 
     private func cursor(for mode: InputMode) -> NSCursor {

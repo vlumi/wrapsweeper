@@ -7,8 +7,9 @@ AI coding agents working in this repo.
 
 ## Project facts
 
-- **Platforms:** iOS 16+ and macOS 13+. (An older Intel Mac was intentionally
-  dropped — its macOS ceiling forced obsolete SwiftUI APIs.)
+- **Platforms:** iOS 16+ and macOS 14+. (Intel Macs are out of scope — Apple-
+  silicon only — so the macOS floor tracks a recent OS and current SwiftUI APIs;
+  macOS 13 was dropped when focus/keyboard APIs there proved unreliable.)
 - **Toolchain:** Xcode 16+ / Swift 6, XcodeGen.
 - **Bundle id:** `fi.misaki.donpa`. **License:** MIT. No monetization.
 - The `.xcodeproj` is a **generated artifact** (gitignored) — never edit or

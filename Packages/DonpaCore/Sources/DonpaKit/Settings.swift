@@ -54,7 +54,10 @@ public enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// Which bottom corner the floating reveal/flag toggle sits in, so it suits the
-/// player's grip. `.trailing` (right) is the default.
+/// player's grip. `.left` is the default: a right-handed player taps the board
+/// with the right hand and reaches the toggle with the *other* (left) hand, so
+/// the left corner is the natural place for it. Left-handed players (or anyone
+/// who prefers it) can switch the toggle to the right in Settings.
 public enum Handedness: String, CaseIterable, Identifiable, Sendable {
     case right
     case left
@@ -172,7 +175,7 @@ public final class Settings: ObservableObject {
         classicPreset =
             defaults.string(forKey: presetKey).flatMap(ClassicPreset.init(rawValue:)) ?? .beginner
         handedness =
-            defaults.string(forKey: handednessKey).flatMap(Handedness.init(rawValue:)) ?? .right
+            defaults.string(forKey: handednessKey).flatMap(Handedness.init(rawValue:)) ?? .left
         language =
             defaults.string(forKey: languageKey).flatMap(LanguagePreference.init(rawValue:))
             ?? .system

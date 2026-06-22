@@ -12,6 +12,10 @@ public final class Navigator: ObservableObject {
     @Published public var showingScores = false
     /// Whether the settings sheet is presented.
     @Published public var showingSettings = false
+    /// Whether the New Game config popup is presented. Opened both by the in-game
+    /// "New Game" action and by tapping the title art ("press start"); picking a
+    /// config and confirming starts a fresh game and dismisses the title.
+    @Published public var showingNewGame = false
 
     public init(showingTitle: Bool = true) {
         self.showingTitle = showingTitle

@@ -19,7 +19,7 @@ struct DonpaApp: App {
             // Min size keeps the end-of-game result panel (square art + buttons)
             // from being clipped when the user shrinks the window.
             .frame(minWidth: 420, minHeight: 560)
-            .onChange(of: viewModel.config) { config in
+            .onChange(of: viewModel.config) { _, config in
                 WindowSizer.growToFit(forBoard: config.width, by: config.height)
             }
             .onAppear {
@@ -40,8 +40,11 @@ struct DonpaApp: App {
                     .keyboardShortcut(",", modifiers: .command)
             }
             CommandGroup(replacing: .newItem) {
-                // Restart replays the same board; the difficulty items below
-                // start a fresh game with a chosen config.
+                // New Game opens the config popup (pick mode/size, then Start);
+                // Restart replays the same board; the difficulty items below jump
+                // straight to a fresh game with a chosen classic config.
+                Button("New Game…") { navigator.showingNewGame = true }
+                    .keyboardShortcut("n", modifiers: .command)
                 Button("Restart Game") { viewModel.newGame() }
                     .keyboardShortcut("r", modifiers: .command)
                 Button("Title Screen") {

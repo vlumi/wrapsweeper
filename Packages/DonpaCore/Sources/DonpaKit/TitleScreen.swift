@@ -2,9 +2,10 @@ import DonpaCore
 import SwiftUI
 
 /// The home hub, shown on launch and whenever you leave a game. The manga
-/// "ドンパ隊 / DONPA SQUAD" splash heads it; below sit the board-type selection
-/// (the only place you choose the game now) and entries into Settings and High
-/// Scores. Start begins a game with the current selection.
+/// "ドンパ隊 / DONPA SQUAD" splash *is* the Start button — tapping it opens the
+/// New Game config popup (the single place you choose a game). High Scores and
+/// Settings stay as round buttons on the art's top-right corner; a "Tap to
+/// start" hint makes the primary action obvious.
 ///
 /// The art is a single drop-in PNG in the `Panels` asset catalog. It's black ink
 /// on a white page shown on a white plate in both appearances (the screentone
@@ -19,75 +20,46 @@ struct TitleScreen: View {
 
     var body: some View {
         GeometryReader { geo in
-            // The art is portrait, so it gets the most room stacked (full height).
-            // Only go side-by-side when the window is genuinely wide — otherwise
-            // a square-ish window should stack so the tall art can grow.
-            let sideBySide = geo.size.width > geo.size.height * 1.4
             ZStack {
                 Palette.resolved(for: colorScheme).pageBackground
                     .ignoresSafeArea()
 
-                if sideBySide {
-                    // Art + controls locked side-by-side, the pair centered.
-                    let controlsW: CGFloat = min(360, max(240, geo.size.width * 0.28))
-                    HStack(spacing: 20) {
-                        art.frame(maxHeight: geo.size.height - 48)
-                        controls.frame(width: controlsW)
-                    }
-                    .padding(24)
-                } else {
-                    // Art + controls locked together as one block, centered (art
-                    // capped to leave room for the controls — no gap between).
-                    VStack(spacing: 16) {
-                        art.frame(maxHeight: geo.size.height - 240)
-                        controls.frame(maxWidth: 460)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                }
+                // The art is the whole hub now — no separate picker column — so it
+                // simply grows to fill, centered, never wasting horizontal space.
+                startArt
+                    .frame(maxHeight: geo.size.height - 32)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
 
-    /// The manga splash (the hero), with the secondary actions — High Scores and
-    /// Settings — as small round buttons tucked into its top-right corner.
-    private var art: some View {
-        Image("TitleScreen", bundle: .module)
-            .resizable()
-            .interpolation(.high)
-            .antialiased(true)
-            .scaledToFit()
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .shadow(color: .black.opacity(0.35), radius: 16, y: 5)
-            .overlay(alignment: .topTrailing) {
-                HStack(spacing: 8) {
-                    roundIcon("trophy.fill", label: "High Scores", action: onScores)
-                    roundIcon("gearshape.fill", label: "Settings", action: onSettings)
-                }
-                .padding(10)
+    /// The manga splash, tappable as the primary "press start" action (the whole
+    /// image is the button — no extra hint needed; it opens the New Game popup).
+    /// The secondary actions (High Scores, Settings) stay as small round buttons
+    /// in the top-right corner.
+    private var startArt: some View {
+        Button(action: onStart) {
+            Image("TitleScreen", bundle: .module)
+                .resizable()
+                .interpolation(.high)
+                .antialiased(true)
+                .scaledToFit()
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .shadow(color: .black.opacity(0.35), radius: 16, y: 5)
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.defaultAction)
+        .accessibilityLabel(Text("Start", bundle: .module))
+        // Secondary actions overlaid on the corner — kept off the tappable art
+        // body so they fire their own action, not Start.
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 8) {
+                roundIcon("trophy.fill", label: "High Scores", action: onScores)
+                roundIcon("gearshape.fill", label: "Settings", action: onSettings)
             }
-    }
-
-    /// Just the board selection + Start — the secondary actions live on the art.
-    private var controls: some View {
-        VStack(spacing: 14) {
-            BoardSelectionPicker(settings: settings)
-
-            Button(action: onStart) {
-                Label {
-                    Text("Start", bundle: .module)
-                } icon: {
-                    Image(systemName: "play.fill")
-                }
-                .font(.title3.weight(.bold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.accentColor, in: Capsule())
-                .foregroundStyle(.white)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.defaultAction)  // Return / Space-ish start
+            .padding(26)
         }
     }
 
@@ -99,28 +71,11 @@ struct TitleScreen: View {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 38, height: 38)
+                .frame(width: 40, height: 40)
                 .background(.black.opacity(0.55), in: Circle())
                 .overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(label, bundle: .module))
-    }
-
-    private func hubButton(_ title: LocalizedStringKey, icon: String, action: @escaping () -> Void)
-        -> some View
-    {
-        Button(action: action) {
-            Label {
-                Text(title, bundle: .module)
-            } icon: {
-                Image(systemName: icon)
-            }
-            .font(.callout.weight(.semibold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(.secondary.opacity(0.18), in: Capsule())
-        }
-        .buttonStyle(.plain)
     }
 }

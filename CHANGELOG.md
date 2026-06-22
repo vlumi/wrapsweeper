@@ -68,6 +68,19 @@ Work toward the first release, **v0.1.0** (classic Minesweeper on iOS and macOS)
 - The toolbar holds up on very narrow widths: counters shrink instead of
   pushing the timer out, and the difficulty picker's label is hidden (it
   wrapped). macOS window minimum lowered to 320×420.
+- **Navigation restructure.** Game configuration moved to a single **New Game
+  popup** (Classic/Modern + size/difficulty + Start), opened from the title art
+  ("press start"), the in-game **New Game** button, the result screen, or `⌘N`;
+  keyboard-drivable on macOS (arrows choose, Return starts, Esc closes). The
+  in-game chrome split into a thin read-only top strip (flag counter, live
+  clear-%, timer, 🏆) and a board-aware control strip (**New Game / Retry /
+  Home** + the flag toggle, with a left/right **handedness** setting). The
+  title screen became a home hub (its art is the start button; 🏆/⚙️ on the
+  corner). The result panel now dims the **board only**, leaving those actions
+  live, so it carries no buttons. Settings/High Scores moved to the macOS menus
+  (`⌘,` / `⇧⌘S`) and the title hub.
+- Minimum macOS raised to **14 (Sonoma)** — Apple-silicon only; enables current
+  focus/keyboard APIs. Space now only toggles mode; restart is `⌘R`.
 
 ### Fixed
 

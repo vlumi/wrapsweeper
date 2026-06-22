@@ -2,10 +2,10 @@ import DonpaCore
 import SwiftUI
 
 /// The end-of-game result screen: a dramatic comic frame that slams in over the
-/// board on win/loss and *stays* until the player chooses. It dims and blocks
-/// the board; a tap anywhere that isn't the "Title" button dismisses it (to
-/// inspect the finished board), with explicit Continue / Title buttons under the
-/// art. Restarting the same board is Space / Cmd-R, not a button here.
+/// board on win/loss and *stays* until dismissed. It dims the **board only** —
+/// the control strip stays live — so the panel carries no buttons of its own
+/// (New Game / Retry / Home live on the strip). A tap anywhere, the corner X, or
+/// Esc dismisses it to inspect the finished board.
 ///
 /// The art is a single drop-in PNG (border included, transparent outside the
 /// panel shape) in the `Panels` asset catalog. The framing/FX here are
@@ -62,44 +62,49 @@ struct MangaPanelView: View {
 
     let kind: Kind
     let reduceMotion: Bool
-    /// Dismiss the result screen to inspect the finished board (also the
-    /// tap-anywhere action).
+    /// Dismiss the result screen to inspect the finished board (the X, a tap
+    /// anywhere, or Esc). The game actions (New Game / Retry / Home) live on the
+    /// still-visible control strip, so the panel carries no buttons of its own.
     let onContinue: () -> Void
-    /// Replay the same board (also Space / Cmd-R).
-    let onRestart: () -> Void
-    /// Back to the title screen.
-    let onReturnToTitle: () -> Void
 
     @State private var appeared = false
+    #if os(macOS)
+    @FocusState private var focused: Bool
+    #endif
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Dimmed backdrop: blocks the board and, tapped, retries.
+                // Dimmed backdrop over the BOARD AREA only (this view is overlaid
+                // on the board, not the whole window), so the toolbar/control
+                // strip stay live. Tapped, it dismisses to inspect the board.
                 Color.black.opacity(appeared ? 0.45 : 0)
-                    .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture { onContinue() }
                     .accessibilityHidden(true)
 
-                VStack(spacing: 14) {
-                    // Cap the art's height so the buttons always have room — on a
-                    // short/small window the art shrinks instead of pushing the
-                    // buttons off-screen.
-                    panelImage
-                        .frame(maxWidth: panelWidth(in: geo.size))
-                    buttons
-                }
-                // Whole panel fits within the window (minus margins), so nothing
-                // is clipped at the macOS minimum size or on a small phone.
-                .frame(
-                    maxWidth: min(panelWidth(in: geo.size), geo.size.width - 24),
-                    maxHeight: geo.size.height - 24
-                )
-                .scaleEffect(scale)
-                .opacity(appeared ? 1 : 0)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The art, sized to fit the board area (minus a margin) so it's
+                // never clipped on a small board region or window.
+                panelImage
+                    .frame(
+                        maxWidth: min(panelWidth(in: geo.size), geo.size.width - 24),
+                        maxHeight: geo.size.height - 24
+                    )
+                    .scaleEffect(scale)
+                    .opacity(appeared ? 1 : 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            #if os(macOS)
+            // Hold keyboard focus (ring suppressed) so Esc closes the panel
+            // even though the SpriteKit board would otherwise keep first
+            // responder. `.onExitCommand` is the proper Escape hook — an
+            // Escape menu key-equivalent isn't delivered by AppKit.
+            .focusable()
+            .focused($focused)
+            .focusEffectDisabled()
+            .onAppear { focused = true }
+            .onExitCommand { onContinue() }
+            #endif
         }
         .onAppear { animateIn() }
     }
@@ -136,35 +141,7 @@ struct MangaPanelView: View {
             .accessibilityAddTraits(.isImage)
     }
 
-    /// Two icon buttons under the panel: Home and Retry. (Closing is the corner
-    /// X, tapping anywhere, Return, or Esc — so there's no "continue" button.)
-    private var buttons: some View {
-        HStack(spacing: 20) {
-            roundButton("house.fill", label: "Home", action: onReturnToTitle)
-                .keyboardShortcut(.cancelAction)  // Esc → home
-            roundButton("arrow.clockwise", label: "Restart", tint: kind.accent, action: onRestart)
-                .keyboardShortcut(.defaultAction)  // Return → restart
-        }
-    }
-
-    private func roundButton(
-        _ icon: String, label: LocalizedStringKey, tint: Color = Color(white: 0.92),
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(tint == Color(white: 0.92) ? Color.black : .white)
-                .frame(width: 60, height: 60)
-                .background(tint, in: Circle())
-                .overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 1))
-                .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(label, bundle: .module))
-    }
-
-    /// Top-right X to dismiss (also tap-anywhere / Return / Esc).
+    /// Top-right X to dismiss the panel (also tap-anywhere or Esc).
     private var closeButton: some View {
         Button(action: onContinue) {
             Image(systemName: "xmark.circle.fill")
