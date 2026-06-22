@@ -8,6 +8,7 @@ struct DonpaApp: App {
     @StateObject private var scoreboard = Scoreboard()
     @StateObject private var settings = Settings()
     @StateObject private var navigator = Navigator()
+    @State private var showingAbout = false
 
     var body: some Scene {
         WindowGroup {
@@ -23,8 +24,13 @@ struct DonpaApp: App {
                 WindowSizer.growToFit(
                     forBoard: viewModel.config.width, by: viewModel.config.height)
             }
+            .sheet(isPresented: $showingAbout) { AboutView() }
         }
         .commands {
+            // Replace the standard "About <app>" with our own panel.
+            CommandGroup(replacing: .appInfo) {
+                Button("About Donpa Squad") { showingAbout = true }
+            }
             CommandGroup(replacing: .newItem) {
                 // Restart replays the same board; the difficulty items below
                 // start a fresh game with a chosen config.

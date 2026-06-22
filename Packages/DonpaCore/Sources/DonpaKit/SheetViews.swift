@@ -96,6 +96,7 @@ struct ScoreboardView: View {
 struct SettingsView: View {
     @ObservedObject var settings: Settings
     @Environment(\.dismiss) private var dismiss
+    @State private var showingAbout = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -112,6 +113,16 @@ struct SettingsView: View {
                 .labelsHidden()
             }
 
+            // macOS surfaces About via the app menu ("About Donpa Squad"); iOS
+            // has no such menu, so expose it here in Settings.
+            #if os(iOS)
+            Button {
+                showingAbout = true
+            } label: {
+                Label("About Donpa Squad", systemImage: "info.circle")
+            }
+            #endif
+
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
@@ -119,5 +130,8 @@ struct SettingsView: View {
         }
         .padding(24)
         .frame(minWidth: 320)
+        .sheet(isPresented: $showingAbout) {
+            AboutView()
+        }
     }
 }
