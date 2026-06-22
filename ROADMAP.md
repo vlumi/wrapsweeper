@@ -48,7 +48,8 @@ Ship a polished classic Minesweeper on iOS and macOS.
         state summary. **Per-cell board VoiceOver deferred** — it needs a
         scalable cursor model (swiping 10k cells doesn't work on huge boards),
         so co-design it with the v0.3 huge-map navigation rather than build twice.
-  - [ ] About view: version number + credits
+  - [x] About view: version + credits (PR #36) — shared view; macOS app menu +
+        iOS Settings row; bundle version, MIT/copyright, GitHub link.
   - [ ] Final app icon: a title-free, single-focal-subject manga icon to
         replace the PR #33 placeholder (see "Creative identity & theme"). The
         light/dark question is moot now the icon is B/W manga on a flat field.
@@ -75,15 +76,10 @@ builds on the existing logical solver.
       foundation — generation just resamples until solvable).
 - [ ] Optional per-config "no-guess" toggle (esp. for the harder densities).
 - [ ] Safe-reveal / question-mark flag cycle (classic third flag state).
-- [ ] **Progress-% scoring**: track % of safe (non-mine) tiles revealed
-      (`revealedSafeCount / (cellCount − mineCount)`; 100% == win) and keep a
-      **best-% record per board** in the scoreboard, so the brutal/insane tiers
-      — where actually clearing for a time is near-impossible — still have a
-      meaningful score. Submit on loss (win is trivially 100%). Introduces the
-      incremental `revealedSafeCount` counter the v0.3 perf work also needs;
-      add the record as a new optional, backward-compatible scoreboard field
-      (the format is geometry-keyed + "no migrations"). Show best-% in the
-      scoreboard rows and on the loss result panel ("cleared 87%").
+- [x] **Progress-% scoring** — *shipped early in v0.1.0 (PR #35).* Best-% of
+      safe tiles cleared per board (loss consolation for the brutal/insane
+      tiers); `Game.revealedSafeCount` made win detection O(1); backward-compatible
+      `bestLossProgress` scoreboard field; shown in the scoreboard + loss panel.
 
 ## Navigation restructure — title as home / selection off the game screen (planned)
 
@@ -200,6 +196,14 @@ Everything composes: square **or** hex, bounded **or** wrapped, any size.
 - [ ] Documentation + screenshots for each mode
 - [ ] Performance validated on the largest supported boards
 - [ ] Release builds for iOS + macOS
+- [ ] **UI smoke tests (XCUITest)** — a small happy-path suite (launch →
+      start → board, win → result panel, About opens, restart) as a
+      pre-release regression guard. Deferred from v0.1: needs a new CI job that
+      builds the `.xcodeproj` and boots a simulator (today CI only runs the SPM
+      `swift test`), plus accessibility IDs on key elements; not worth the
+      flakiness/maintenance mid-iteration. Logic is already unit-tested at the
+      `Game`/`Scoreboard`/`MangaPanelView.Kind` seams; visual issues are caught
+      by running the app. Revisit when the app is feature-stable near 1.0.
 
 ## Publishing & distribution (planned — gated on a paid account)
 
