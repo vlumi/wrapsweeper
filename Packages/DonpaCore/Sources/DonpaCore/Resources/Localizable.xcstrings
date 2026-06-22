@@ -133,7 +133,7 @@
         "ja": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "しんぺい"
+            "value": "新兵"
           }
         }
       }
@@ -150,7 +150,7 @@
         "ja": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "こうへい"
+            "value": "工兵"
           }
         }
       }
@@ -167,7 +167,7 @@
         "ja": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "ベテラン"
+            "value": "古参兵"
           }
         }
       }
@@ -184,7 +184,7 @@
         "ja": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "エース"
+            "value": "達人"
           }
         }
       }
@@ -201,7 +201,7 @@
         "ja": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "でんせつ"
+            "value": "伝説"
           }
         }
       }

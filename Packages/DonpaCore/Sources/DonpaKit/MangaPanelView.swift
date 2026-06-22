@@ -151,15 +151,20 @@ struct MangaPanelView: View {
     }
 
     private func capsuleButton(
-        _ title: String, icon: String, fill: Color, text: Color, action: @escaping () -> Void
+        _ title: LocalizedStringKey, icon: String, fill: Color, text: Color,
+        action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.headline)
-                .foregroundStyle(text)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(fill, in: Capsule())
+            Label {
+                Text(title, bundle: .module)
+            } icon: {
+                Image(systemName: icon)
+            }
+            .font(.headline)
+            .foregroundStyle(text)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(fill, in: Capsule())
         }
         .buttonStyle(.plain)
     }
