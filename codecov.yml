@@ -28,6 +28,7 @@ ignore:
   - "Packages/DonpaCore/Sources/DonpaKit/SheetViews.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/MangaPanelView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/TitleScreen.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/AboutView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/Navigator.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/GameViewModel.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/Settings.swift"
