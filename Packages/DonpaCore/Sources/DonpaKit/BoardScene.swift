@@ -13,7 +13,7 @@ public final class BoardScene: SKScene {
     // Accessible to the BoardScene+Effects extension (same module).
     let viewModel: GameViewModel
     let layout: any CellLayout
-    private let cameraNode = SKCameraNode()
+    let cameraNode = SKCameraNode()  // internal: pan/zoom lives in BoardScene+Pan
     let boardLayer = SKNode()
     /// End-of-game effects live here, a sibling of `boardLayer`, so `rebuild()`
     /// (which clears `boardLayer`, including on every palette push) never wipes
@@ -160,7 +160,8 @@ public final class BoardScene: SKScene {
     /// Absolute ceiling so even on a huge display cells stay reasonable.
     private static let absoluteMaxCellSize: CGFloat = 140
 
-    private func centerCamera() {
+    // Internal so BoardScene+Pan (which owns pan/zoom/clamp) can reach them.
+    func centerCamera() {
         let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
         cameraNode.position = CGPoint(x: board.width / 2, y: board.height / 2)
         // Camera scale = world-units-per-point; bigger = more zoomed out.
@@ -172,6 +173,16 @@ public final class BoardScene: SKScene {
             Self.absoluteMaxCellSize, max(40, viewportMin * Self.maxCellFractionOfViewport))
         let cellFloor = layout.cellSize / maxCell
         cameraNode.setScale(max(fitScale, cellFloor))
+    }
+
+    /// Smallest scale that still fits the whole board (the zoomed-out limit).
+    var fitScale: CGFloat {
+        let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
+        guard size.width > 0, size.height > 0,
+            board.width > 0, board.height > 0
+        else { return 1 }
+        let margin: CGFloat = 1.1
+        return max(board.width * margin / size.width, board.height * margin / size.height)
     }
 
     public override func didChangeSize(_ oldSize: CGSize) {
@@ -262,6 +273,7 @@ public final class BoardScene: SKScene {
         if g.state == .began { lastPan = .zero }
         pan(byTranslation: CGPoint(x: t.x - lastPan.x, y: t.y - lastPan.y))
         lastPan = t
+        if g.state == .ended || g.state == .cancelled { panEnded() }
     }
 
     @objc private func handlePinch(_ g: UIPinchGestureRecognizer) {
@@ -293,6 +305,8 @@ public final class BoardScene: SKScene {
         pan(
             byTranslation: CGPoint(
                 x: event.scrollingDeltaX * step, y: event.scrollingDeltaY * step))
+        // Spring back when the trackpad gesture (and its momentum) finishes.
+        if event.phase == .ended || event.momentumPhase == .ended { panEnded() }
     }
 
     // Left mouse: a press that stays put is a click (reveal/flag/chord); a press
@@ -333,6 +347,7 @@ public final class BoardScene: SKScene {
     }
 
     public override func mouseUp(with event: NSEvent) {
+        if didDragInScene { panEnded() }  // spring back if the drag overshot the edge
         guard !didDragInScene else { return }  // a real drag panned; don't also click
         let p = event.location(in: self)
         if NSEvent.modifierFlags.contains(.control) {
@@ -360,63 +375,4 @@ public final class BoardScene: SKScene {
         viewModel.inputMode.toggle()
     }
     #endif
-
-    // MARK: Pan / zoom
-
-    /// Smallest scale that still fits the whole board (the zoomed-out limit).
-    private var fitScale: CGFloat {
-        let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
-        guard size.width > 0, size.height > 0,
-            board.width > 0, board.height > 0
-        else { return 1 }
-        let margin: CGFloat = 1.1
-        return max(board.width * margin / size.width, board.height * margin / size.height)
-    }
-
-    /// Pan the camera by a view-space translation delta (recognizer units, which
-    /// share the scene's point system under `.resizeFill`).
-    public func pan(byTranslation delta: CGPoint) {
-        let scale = cameraNode.xScale
-        cameraNode.position = clampedCameraPosition(
-            CGPoint(
-                x: cameraNode.position.x - delta.x * scale,
-                y: cameraNode.position.y + delta.y * scale
-            ))
-    }
-
-    /// Multiply the current zoom by `factor` (>1 zooms in). Never zooms out past
-    /// the whole board fitting on screen, and caps how far in you can go.
-    public func zoom(by factor: CGFloat) {
-        let next = cameraNode.xScale / factor
-        cameraNode.setScale(min(max(next, 0.1), fitScale))
-        // A smaller scale shows more board, which may pull empty space into
-        // view; re-clamp so the board edge stays flush with the viewport.
-        cameraNode.position = clampedCameraPosition(cameraNode.position)
-    }
-
-    /// Clamp a proposed camera centre so the viewport never extends past the
-    /// board. On an axis where the board is smaller than the viewport (e.g. when
-    /// fully zoomed out), the camera locks to the board centre — so a stray drag
-    /// can't nudge a board that already fits, and clicks aren't lost to it.
-    private func clampedCameraPosition(_ proposed: CGPoint) -> CGPoint {
-        let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
-        let scale = cameraNode.xScale
-        let halfViewW = size.width / 2 * scale
-        let halfViewH = size.height / 2 * scale
-
-        func clamp(center: CGFloat, halfBoard: CGFloat, halfView: CGFloat) -> CGFloat {
-            // Slack = how far the centre can move off board-centre each way.
-            let slack = halfBoard - halfView
-            if slack <= 0 { return halfBoard }  // board fits this axis → lock to centre
-            return min(max(center, halfView), 2 * halfBoard - halfView)
-        }
-
-        return CGPoint(
-            x: clamp(center: proposed.x, halfBoard: board.width / 2, halfView: halfViewW),
-            y: clamp(center: proposed.y, halfBoard: board.height / 2, halfView: halfViewH)
-        )
-    }
-
-    /// Reset camera to fit and center the whole board (e.g. on new game).
-    public func resetCamera() { centerCamera() }
 }

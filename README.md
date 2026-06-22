@@ -106,8 +106,9 @@ for) holds the **New Game / Retry / Home** actions plus the flag toggle.
 | Zoom            | Pinch | Pinch (trackpad)             |
 
 On macOS the pointer reflects the mode while a game is in progress — a crosshair
-to reveal, a flag to flag (a plain arrow otherwise). Panning is constrained to
-the board, so you can never scroll past its edges; when the whole board already
+to reveal, a flag to flag (a plain arrow otherwise). Panning is bounded to the
+board: it rests with a little breathing room past each edge, and pulling further
+rubber-bands with resistance before springing back. When the whole board already
 fits on screen, panning is disabled.
 
 ### Keyboard shortcuts

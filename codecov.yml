@@ -23,6 +23,7 @@ comment:
 ignore:
   - "Packages/DonpaCore/Sources/DonpaKit/BoardScene.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/BoardScene+Effects.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/BoardScene+Pan.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/BoardView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/GameView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/SheetViews.swift"
