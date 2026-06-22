@@ -53,6 +53,22 @@ public enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// Which bottom corner the floating reveal/flag toggle sits in, so it suits the
+/// player's grip. `.trailing` (right) is the default.
+public enum Handedness: String, CaseIterable, Identifiable, Sendable {
+    case right
+    case left
+
+    public var id: String { rawValue }
+    public var label: String {
+        self == .right
+            ? String(localized: "Right", bundle: .module)
+            : String(localized: "Left", bundle: .module)
+    }
+    /// SwiftUI alignment for the floating toggle's corner.
+    public var alignment: Alignment { self == .right ? .bottomTrailing : .bottomLeading }
+}
+
 /// Which board-config flavour the picker offers.
 public enum GameMode: String, CaseIterable, Identifiable, Sendable {
     case classic
@@ -118,6 +134,10 @@ public final class Settings: ObservableObject {
     @Published public var classicPreset: ClassicPreset {
         didSet { defaults.set(classicPreset.rawValue, forKey: presetKey) }
     }
+    /// Which bottom corner the floating reveal/flag toggle sits in.
+    @Published public var handedness: Handedness {
+        didSet { defaults.set(handedness.rawValue, forKey: handednessKey) }
+    }
     /// Language override. Persisted as our own preference *and* written to
     /// `AppleLanguages` so the system picks it up on the next launch.
     @Published public var language: LanguagePreference {
@@ -137,6 +157,7 @@ public final class Settings: ObservableObject {
     private let sizeKey = "donpa.modernSize"
     private let densityKey = "donpa.modernDensity"
     private let presetKey = "donpa.classicPreset"
+    private let handednessKey = "donpa.handedness"
     private let languageKey = "donpa.language"
 
     public init(defaults: UserDefaults = .standard) {
@@ -150,6 +171,8 @@ public final class Settings: ObservableObject {
             defaults.string(forKey: densityKey).flatMap(Density.init(rawValue:)) ?? .normal
         classicPreset =
             defaults.string(forKey: presetKey).flatMap(ClassicPreset.init(rawValue:)) ?? .beginner
+        handedness =
+            defaults.string(forKey: handednessKey).flatMap(Handedness.init(rawValue:)) ?? .right
         language =
             defaults.string(forKey: languageKey).flatMap(LanguagePreference.init(rawValue:))
             ?? .system

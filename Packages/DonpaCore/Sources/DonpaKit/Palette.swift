@@ -9,8 +9,6 @@ public struct Palette {
     let pageBackground: Color
     let statusBar: Color
     let counter: Color
-    let modeFlagTint: Color
-    let modeRevealTint: Color
 
     // Board (SpriteKit)
     let sceneBackground: SKColor
@@ -26,8 +24,6 @@ public struct Palette {
         pageBackground: Color(white: 0.08),
         statusBar: Color(white: 0.14),
         counter: Color(red: 1, green: 0.45, blue: 0.3),
-        modeFlagTint: Color.orange.opacity(0.35),
-        modeRevealTint: Color.white.opacity(0.08),
         sceneBackground: SKColor(white: 0.12, alpha: 1),
         hiddenTile: SKColor(white: 0.32, alpha: 1),
         revealedTile: SKColor(white: 0.2, alpha: 1),
@@ -50,8 +46,6 @@ public struct Palette {
         pageBackground: Color(white: 0.96),
         statusBar: Color(white: 0.90),
         counter: Color(red: 0.80, green: 0.25, blue: 0.15),
-        modeFlagTint: Color.orange.opacity(0.30),
-        modeRevealTint: Color.black.opacity(0.06),
         sceneBackground: SKColor(white: 0.88, alpha: 1),
         hiddenTile: SKColor(white: 0.70, alpha: 1),
         revealedTile: SKColor(white: 0.82, alpha: 1),

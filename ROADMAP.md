@@ -104,14 +104,22 @@ Done in phases (each its own PR):
       everything via the title now, so getting back matters more). Likely also
       **split Restart from New Game**: Restart replays the current board
       (button / Space / ⌘R); New Game → back to the hub to pick.
-- [ ] **Phase 3 — mode toggle.** Move the reveal/flag toggle out of the toolbar
-      to a **floating bottom-corner button**, with a **handedness setting
-      (left/right corner)** so it suits the user's grip/preference.
+- [x] **Phase 3 — mode toggle.** The reveal/flag toggle is now a **floating
+      circular button** in a thumb-reachable bottom corner of the board, with a
+      **handedness setting** (`Settings.handedness`, left/right) — out of the
+      toolbar entirely.
+- [ ] **Phase 4 — top-bar rework.** With the toggle gone, rethink the top bar
+      (currently the inherited classic counter-left / face-center / timer-right).
+      Options to try: a **bottom action-bar** (new-game/Home grouped, maybe with
+      the toggle), **group-by-kind** (actions one side, metrics the other), or
+      floating metrics. Also slot in a **live progress-% indicator** (always
+      shown; the `revealedSafeCount` metric) wherever it lands. Experiment once
+      the toggle is floating (done) — don't fixate on the classic layout.
 
 Groundwork: `Navigator` (DonpaKit) holds `showingTitle` / `showingScores` /
 `showingSettings`, injected into `GameView` so any host (macOS menu bar, title
-hub) can drive navigation. Once done, the toolbar fits small windows/phones
-without the raised-min-size stopgap.
+hub) can drive navigation. The toolbar now fits small windows/phones without
+the raised-min-size stopgap doing the work.
 
 ## Session quality-of-life (planned — pause/persist wanted sooner for mobile)
 
