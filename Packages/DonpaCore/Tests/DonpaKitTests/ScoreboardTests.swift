@@ -128,6 +128,20 @@ final class ScoreboardTests: XCTestCase {
         XCTAssertEqual(second.bestProgress(for: .expert) ?? 0, 0.42, accuracy: 1e-9)
     }
 
+    /// A loss-only board (never won) still has a record, so the scoreboard view
+    /// can list it to show its best %. A 0% loss records nothing (not a score).
+    func testLossOnlyBoardHasARecord() {
+        let board = Scoreboard(defaults: defaults)
+        XCTAssertNil(board.record(for: .expert), "untouched board has no record")
+
+        XCTAssertFalse(board.submitLossProgress(0, for: .expert))
+        XCTAssertNil(board.record(for: .expert), "a 0% loss records nothing")
+
+        board.submitLossProgress(0.3, for: .expert)
+        XCTAssertNotNil(board.record(for: .expert), "a partial loss creates a record")
+        XCTAssertEqual(board.wins(for: .expert), 0, "without a win")
+    }
+
     // MARK: Persistence
 
     func testStatsPersistAcrossInstances() {

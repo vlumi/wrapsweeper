@@ -9,9 +9,10 @@ struct ScoreboardView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingReset = false
 
-    /// Modern configs the player has actually cleared at least once.
+    /// Modern configs the player has played at all — has a win *or* a recorded
+    /// best progress from a loss (so partially-cleared hard boards still show).
     private var playedModern: [GameConfig] {
-        GameConfig.modernConfigs.filter { scoreboard.wins(for: $0) > 0 }
+        GameConfig.modernConfigs.filter { scoreboard.record(for: $0) != nil }
     }
 
     var body: some View {
