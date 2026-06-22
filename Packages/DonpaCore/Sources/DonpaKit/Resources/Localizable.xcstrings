@@ -889,6 +889,57 @@
           }
         }
       }
+    },
+    "Start": {
+      "comment": "Home hub: begin a game with the current selection. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Aloita"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "スタート"
+          }
+        }
+      }
+    },
+    "Home": {
+      "comment": "Toolbar button: return to the home hub. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Alkuun"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ホーム"
+          }
+        }
+      }
+    },
+    "Close": {
+      "comment": "Result screen: dismiss the panel. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sulje"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "閉じる"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

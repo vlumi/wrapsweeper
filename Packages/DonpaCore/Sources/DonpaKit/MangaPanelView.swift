@@ -123,6 +123,7 @@ struct MangaPanelView: View {
             // rounded corners show the dimmed board through, as intended.
             .overlay(alignment: .topLeading) { recordBadge }
             .overlay(alignment: .topLeading) { bestLossPill }
+            .overlay(alignment: .topTrailing) { closeButton }
             // Coloured accent glow — the roadmap's "accent applied in code over
             // the mono art", kept subtle so it frames rather than tints.
             .shadow(color: kind.accent.opacity(0.7), radius: 28)
@@ -135,66 +136,45 @@ struct MangaPanelView: View {
             .accessibilityAddTraits(.isImage)
     }
 
+    /// Two icon buttons under the panel: Home and Retry. (Closing is the corner
+    /// X, tapping anywhere, Return, or Esc — so there's no "continue" button.)
     private var buttons: some View {
-        // Title (labeled) · Restart (icon-only, matching the toolbar's new-game
-        // button) · Continue (accent). Continue dismisses to inspect the board;
-        // Restart replays (also Space / Cmd-R). ViewThatFits lays them out in a
-        // row when there's width, and stacks them vertically when the window is
-        // too narrow (small iPhone / minimum macOS window) so nothing is clipped.
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 14) { buttonRow }.frame(maxWidth: 400)
-            VStack(spacing: 10) { buttonRow }.frame(maxWidth: 280)
+        HStack(spacing: 20) {
+            roundButton("house.fill", label: "Home", action: onReturnToTitle)
+                .keyboardShortcut(.cancelAction)  // Esc → home
+            roundButton("arrow.clockwise", label: "Restart", tint: kind.accent, action: onRestart)
+                .keyboardShortcut(.defaultAction)  // Return → restart
         }
     }
 
-    @ViewBuilder private var buttonRow: some View {
-        capsuleButton(
-            "Title", icon: "house.fill", fill: Color(white: 0.92), text: .black,
-            action: onReturnToTitle
-        )
-        .keyboardShortcut(.cancelAction)  // Esc returns to title
-
-        restartButton
-
-        capsuleButton(
-            "Continue", icon: "checkmark", fill: kind.accent, text: .white,
-            action: onContinue
-        )
-        .keyboardShortcut(.defaultAction)  // Return also continues
-    }
-
-    /// Icon-only replay button (mirrors the toolbar's new-game icon). A
-    /// VoiceOver label still names it since the glyph alone says nothing.
-    private var restartButton: some View {
-        Button(action: onRestart) {
-            Image(systemName: "arrow.clockwise")
-                .font(.headline)
-                .foregroundStyle(.black)
-                .frame(width: 52)
-                .padding(.vertical, 12)
-                .background(Color(white: 0.92), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("Restart", bundle: .module))
-    }
-
-    private func capsuleButton(
-        _ title: LocalizedStringKey, icon: String, fill: Color, text: Color,
+    private func roundButton(
+        _ icon: String, label: LocalizedStringKey, tint: Color = Color(white: 0.92),
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Label {
-                Text(title, bundle: .module)
-            } icon: {
-                Image(systemName: icon)
-            }
-            .font(.headline)
-            .foregroundStyle(text)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(fill, in: Capsule())
+            Image(systemName: icon)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(tint == Color(white: 0.92) ? Color.black : .white)
+                .frame(width: 60, height: 60)
+                .background(tint, in: Circle())
+                .overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 1))
+                .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text(label, bundle: .module))
+    }
+
+    /// Top-right X to dismiss (also tap-anywhere / Return / Esc).
+    private var closeButton: some View {
+        Button(action: onContinue) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.title)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, .black.opacity(0.4))
+                .padding(8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Close", bundle: .module))
     }
 
     /// Code-drawn "new record" flourish — a compact tilted ribbon tucked into the

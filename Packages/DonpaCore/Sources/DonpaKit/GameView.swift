@@ -50,11 +50,20 @@ public struct GameView: View {
             // scoped to this overlay alone via `.animation(_:value:)` — an
             // imperative `withAnimation` here would also animate the chrome's
             // first layout underneath, making the status bar visibly settle.
-            TitleScreen { navigator.showingTitle = false }
-                .opacity(navigator.showingTitle ? 1 : 0)
-                .allowsHitTesting(navigator.showingTitle)
-                .animation(.easeInOut(duration: 0.3), value: navigator.showingTitle)
-                .zIndex(1)
+            TitleScreen(
+                settings: settings,
+                onStart: {
+                    // Start a fresh game with the hub's current selection.
+                    viewModel.newGame(config: settings.currentConfig)
+                    navigator.showingTitle = false
+                },
+                onSettings: { navigator.showingSettings = true },
+                onScores: { navigator.showingScores = true }
+            )
+            .opacity(navigator.showingTitle ? 1 : 0)
+            .allowsHitTesting(navigator.showingTitle)
+            .animation(.easeInOut(duration: 0.3), value: navigator.showingTitle)
+            .zIndex(1)
         }
         .preferredColorScheme(settings.appearance.colorScheme)
     }
@@ -154,8 +163,12 @@ private struct GameContent: View {
 
     private func returnToTitleFromPanel() {
         dismissPanel()
-        // Reset the board so starting again from the title gives a fresh game,
-        // not the just-finished one.
+        goHome()
+    }
+
+    /// Return to the home hub. Resets the board so picking/starting from the hub
+    /// gives a fresh game rather than the just-played one.
+    private func goHome() {
         viewModel.newGame()
         navigator.showingTitle = true
     }
@@ -231,19 +244,14 @@ private struct GameContent: View {
 
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
-                // macOS reaches Settings/Scoreboard from the menu bar; iOS keeps
-                // toolbar buttons (until the title home-hub move in Phase 2).
-                #if os(iOS)
-                iconButton("trophy", help: "High scores") { navigator.showingScores = true }
-                iconButton("gearshape", help: "Settings") { navigator.showingSettings = true }
-                #endif
+                // Settings/Scores live on the home hub now; Home returns there.
+                iconButton("house", help: "Home") { goHome() }
                 timeCounter(label: "⏱", centiseconds: viewModel.elapsedCentiseconds)
             }
             .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .safeAreaInset(edge: .bottom, spacing: 0) { difficultyPicker }
         .background(palette.statusBar)
     }
 
@@ -376,75 +384,6 @@ private struct GameContent: View {
         .accessibilityValue(Text(verbatim: value))
     }
 
-    /// The bottom configuration bar: a Classic/Modern mode switch over the
-    /// matching board picker (3 classic presets, or Size × Density for Modern).
-    /// Changing any control starts a new game with the implied config.
-    private var difficultyPicker: some View {
-        VStack(spacing: 8) {
-            Picker("Mode", selection: modeBinding) {
-                ForEach(GameMode.allCases) { Text(verbatim: $0.label).tag($0) }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-
-            switch settings.mode {
-            case .classic:
-                Picker("Difficulty", selection: classicBinding) {
-                    ForEach(ClassicPreset.allCases, id: \.self) { Text(verbatim: $0.label).tag($0) }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-            case .modern:
-                Picker("Size", selection: sizeBinding) {
-                    ForEach(BoardSize.allCases, id: \.self) { Text(verbatim: $0.label).tag($0) }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                Picker("Difficulty", selection: densityBinding) {
-                    ForEach(Density.allCases, id: \.self) { Text(verbatim: $0.label).tag($0) }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
-    }
-
-    // Each binding writes the Settings selection, then starts a new game on the
-    // resulting config so the board reflects the choice immediately.
-    private var modeBinding: Binding<GameMode> {
-        Binding(
-            get: { settings.mode },
-            set: {
-                settings.mode = $0
-                viewModel.newGame(config: settings.currentConfig)
-            })
-    }
-    private var classicBinding: Binding<ClassicPreset> {
-        Binding(
-            get: { settings.classicPreset },
-            set: {
-                settings.classicPreset = $0
-                viewModel.newGame(config: settings.currentConfig)
-            })
-    }
-    private var sizeBinding: Binding<BoardSize> {
-        Binding(
-            get: { settings.modernSize },
-            set: {
-                settings.modernSize = $0
-                viewModel.newGame(config: settings.currentConfig)
-            })
-    }
-    private var densityBinding: Binding<Density> {
-        Binding(
-            get: { settings.modernDensity },
-            set: {
-                settings.modernDensity = $0
-                viewModel.newGame(config: settings.currentConfig)
-            })
-    }
 }
 
 // ScoreboardView and SettingsView (the sheets) live in SheetViews.swift.
