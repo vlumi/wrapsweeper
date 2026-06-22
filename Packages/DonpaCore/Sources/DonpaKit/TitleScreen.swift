@@ -14,8 +14,6 @@ struct TitleScreen: View {
     let onStart: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulse = false
 
     var body: some View {
         ZStack {
@@ -33,16 +31,6 @@ struct TitleScreen: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
                 .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
                 .padding(12)
-                // Gentle breathing so the baked-in "PRESS START" reads as live.
-                // The repeating animation is bound to `pulse` *here* (not via an
-                // imperative withAnimation) so it can't leak into the surrounding
-                // background/opacity and make the whole screen pulse.
-                .scaleEffect(pulse ? 1.012 : 1.0)
-                .animation(
-                    reduceMotion
-                        ? nil
-                        : .easeInOut(duration: 1.1).repeatForever(autoreverses: true),
-                    value: pulse)
         }
         .contentShape(Rectangle())
         .onTapGesture { onStart() }
@@ -52,10 +40,6 @@ struct TitleScreen: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("Donpa Squad")
         .accessibilityHint("Tap to start")
-        .onAppear {
-            guard !reduceMotion else { return }
-            pulse = true
-        }
     }
 }
 

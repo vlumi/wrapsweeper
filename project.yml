@@ -22,6 +22,14 @@ targets:
       path: Sources/iOS/Info.plist
       properties:
         CFBundleDisplayName: Donpa Squad
+        # Track the version build settings so MARKETING_VERSION is the single
+        # source of truth (was hardcoded to 1.0).
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # No encryption → declare it so every TestFlight/App Store upload skips
+        # the export-compliance prompt.
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.puzzle
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -48,11 +56,19 @@ targets:
       path: Sources/macOS/Info.plist
       properties:
         CFBundleDisplayName: Donpa Squad
+        CFBundleName: Donpa Squad  # menu-bar app name (else PRODUCT_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.puzzle
         LSMinimumSystemVersion: "13.0"
         NSHighResolutionCapable: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa
+        # Distinct from iOS: the Mac app is a separate native App Store Connect
+        # record, so it needs its own bundle ID. Locked in before registering
+        # IDs with Apple (changing it afterward is painful).
+        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa.mac
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
