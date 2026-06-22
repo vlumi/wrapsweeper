@@ -39,6 +39,9 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa
+        # User-visible app/bundle name; without this it'd be the target name
+        # "Donpa-iOS". Module name stays Donpa_iOS (PRODUCT_MODULE_NAME).
+        PRODUCT_NAME: Donpa Squad
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO

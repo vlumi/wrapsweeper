@@ -20,3 +20,6 @@ coverage.lcov
 
 # Local-only scratch (notes, brainstorms) — never committed
 .local/
+
+# Local Xcode build output (Makefile/Scripts run targets)
+.build-xcode/

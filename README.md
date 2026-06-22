@@ -46,14 +46,23 @@ Requires Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`). The `.xcodeproj` is a generated artifact and is not
 checked in.
 
-```sh
-# Run the logic test suite (no Xcode needed)
-cd Packages/DonpaCore && swift test
+A `Makefile` drives everything from the command line, so you never have to open
+Xcode just to run the app (the generated project regenerates only when
+`project.yml` or an `Info.plist` changes):
 
-# Generate the Xcode project, then open it
-./Scripts/generate.sh
-open Donpa.xcodeproj
+```sh
+make            # list the available targets
+make run-mac    # build + launch the macOS app
+make run-ios    # build + launch in an iOS simulator (newest iOS 16+ iPhone)
+make build-mac  # build the macOS app
+make build-ios  # build the iOS app (simulator)
+make test       # run the package logic tests (no Xcode project needed)
+make generate   # regenerate Donpa.xcodeproj from project.yml (if stale)
+make clean      # remove the generated project + local build output
 ```
+
+The targets delegate to `Scripts/*.sh` (each does one step); the Makefile wires
+up the dependencies. To work in Xcode instead, `make generate && open Donpa.xcodeproj`.
 
 ## Modes
 
