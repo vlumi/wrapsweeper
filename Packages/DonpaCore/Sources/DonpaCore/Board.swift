@@ -22,6 +22,13 @@ public struct Board: Sendable {
     public let topology: any Topology
     private var cells: [Coord: Cell]
 
+    /// Mines on the board — set once in `placeMines`. Tracked rather than scanned
+    /// so it's O(1) (matters on huge boards).
+    public private(set) var mineCount: Int = 0
+    /// Flagged cells — maintained incrementally as cell state changes (every
+    /// mutation goes through the subscript), so it's O(1) per query.
+    public private(set) var flagCount: Int = 0
+
     public init(topology: any Topology) {
         self.topology = topology
         var cells: [Coord: Cell] = [:]
@@ -34,7 +41,16 @@ public struct Board: Sendable {
 
     public subscript(_ c: Coord) -> Cell {
         get { cells[c] ?? Cell() }
-        set { cells[c] = newValue }
+        set {
+            // Keep flagCount in step with any state change — all cell mutation
+            // funnels through here, so the counter can't drift.
+            let was = cells[c]?.state
+            if was != newValue.state {
+                if was == .flagged { flagCount -= 1 }
+                if newValue.state == .flagged { flagCount += 1 }
+            }
+            cells[c] = newValue
+        }
     }
 
     public var allCoords: AnySequence<Coord> { topology.allCoords() }
@@ -51,13 +67,6 @@ public struct Board: Sendable {
             }
             cells[c]?.adjacentMines = count
         }
-    }
-
-    public var mineCount: Int {
-        cells.values.reduce(0) { $0 + ($1.isMine ? 1 : 0) }
-    }
-
-    public var flagCount: Int {
-        cells.values.reduce(0) { $0 + ($1.state == .flagged ? 1 : 0) }
+        mineCount = mineCoords.count
     }
 }
