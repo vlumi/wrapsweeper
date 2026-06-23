@@ -25,6 +25,51 @@ struct ScoreboardView: View {
     }
 
     var body: some View {
+        sheetChrome
+            .confirmationDialog(
+                Text("Clear all high scores?", bundle: .module), isPresented: $confirmingReset
+            ) {
+                Button(role: .destructive) {
+                    scoreboard.reset()
+                } label: {
+                    Text("Clear scores", bundle: .module)
+                }
+                Button(role: .cancel) {
+                } label: {
+                    Text("Cancel", bundle: .module)
+                }
+            }
+    }
+
+    /// iOS: a NavigationStack with Reset / Done as nav-bar items (chrome, not
+    /// content) over the scrolling list. macOS: the inline title + bottom buttons,
+    /// window-sized so the sheet grows with the window without overflowing.
+    @ViewBuilder private var sheetChrome: some View {
+        #if os(iOS)
+        NavigationStack {
+            scoreList
+                .padding(.vertical, 8)
+                .padding(.horizontal, 14)
+                .navigationTitle(Text("High Scores", bundle: .module))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .destructiveAction) {
+                        Button(role: .destructive) {
+                            confirmingReset = true
+                        } label: {
+                            Text("Reset", bundle: .module)
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Text("Done", bundle: .module)
+                        }
+                    }
+                }
+        }
+        #else
         VStack(spacing: 16) {
             Text("High Scores", bundle: .module).font(.title2.bold())
 
@@ -54,32 +99,17 @@ struct ScoreboardView: View {
         // its content, so we drive the height explicitly rather than fill.)
         .frame(maxWidth: sheetWidth, maxHeight: sheetHeight)
         .frame(minWidth: min(340, sheetWidth), minHeight: min(360, sheetHeight))
-        .confirmationDialog(
-            Text("Clear all high scores?", bundle: .module), isPresented: $confirmingReset
-        ) {
-            Button(role: .destructive) {
-                scoreboard.reset()
-            } label: {
-                Text("Clear scores", bundle: .module)
-            }
-            Button(role: .cancel) {
-            } label: {
-                Text("Cancel", bundle: .module)
-            }
-        }
+        #endif
     }
 
+    #if os(macOS)
     /// Container size to bound against: the presenting window, or the screen as a
-    /// fallback before the window size is known.
+    /// fallback before the window size is known. (macOS only — iOS uses a
+    /// NavigationStack sheet that sizes itself.)
     private var container: CGSize {
         if available != .zero { return available }
-        #if os(macOS)
         let h = NSScreen.main?.visibleFrame.height ?? 800
         let w = NSScreen.main?.visibleFrame.width ?? 1000
-        #else
-        let h = UIScreen.main.bounds.height
-        let w = UIScreen.main.bounds.width
-        #endif
         return CGSize(width: w, height: h)
     }
 
@@ -87,6 +117,7 @@ struct ScoreboardView: View {
     private var sheetHeight: CGFloat { min(760, max(360, container.height * 0.85)) }
     /// Likewise for width, so a narrow window can't push the sheet off the sides.
     private var sheetWidth: CGFloat { min(440, max(300, container.width * 0.9)) }
+    #endif
 
     /// Gutter reserved to the right of the whole table so the scroll indicator
     /// sits clear of it — rows *and* their divider hairlines end before the bar.
@@ -184,12 +215,23 @@ struct SettingsView: View {
         launchLanguage != nil && settings.language != launchLanguage
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Settings", bundle: .module).font(.title2.bold())
+    /// Measured natural height of the content, used to size the iOS sheet to fit
+    /// (a compact card) rather than the default near-fullscreen page sheet.
+    @State private var contentHeight: CGFloat = 0
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Appearance", bundle: .module).font(.headline)
+    var body: some View {
+        sheetChrome
+            .sheet(isPresented: $showingAbout) {
+                AboutView()
+            }
+            .onAppear { launchLanguage = settings.language }
+            .animation(.easeInOut(duration: 0.2), value: languageChanged)
+    }
+
+    /// The settings rows, shared by both platforms.
+    private var settingsList: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            settingRow("Appearance") {
                 Picker("Appearance", selection: $settings.appearance) {
                     ForEach(AppearancePreference.allCases) { pref in
                         Text(verbatim: pref.label).tag(pref)  // label localized in Settings
@@ -199,8 +241,7 @@ struct SettingsView: View {
                 .labelsHidden()
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Toggle side", bundle: .module).font(.headline)
+            settingRow("Toggle side") {
                 Picker("Toggle side", selection: $settings.handedness) {
                     ForEach(Handedness.allCases) { h in
                         Text(verbatim: h.label).tag(h)
@@ -210,8 +251,7 @@ struct SettingsView: View {
                 .labelsHidden()
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Language", bundle: .module).font(.headline)
+            settingRow("Language") {
                 Picker("Language", selection: $settings.language) {
                     ForEach(LanguagePreference.allCases) { lang in
                         Text(verbatim: lang.label).tag(lang)
@@ -236,7 +276,39 @@ struct SettingsView: View {
                 }
             }
             #endif
+        }
+    }
 
+    /// iOS wraps the rows in a NavigationStack with a "Done" toolbar item (reads
+    /// as chrome, not content) and a fit-content detent. macOS keeps the inline
+    /// title + bottom Done button, which look right in a macOS sheet.
+    @ViewBuilder private var sheetChrome: some View {
+        #if os(iOS)
+        NavigationStack {
+            settingsList
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(heightReader)
+                .navigationTitle(Text("Settings", bundle: .module))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Text("Done", bundle: .module)
+                        }
+                    }
+                }
+        }
+        // Size the sheet to its content (compact card) instead of the default
+        // near-fullscreen page sheet. +64 leaves room for the nav bar + grabber.
+        .presentationDetents(contentHeight > 0 ? [.height(contentHeight + 64)] : [.medium])
+        #else
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Settings", bundle: .module).font(.title2.bold())
+            settingsList
+            Divider()
             HStack {
                 Spacer()
                 Button {
@@ -249,11 +321,25 @@ struct SettingsView: View {
         }
         .padding(24)
         .frame(minWidth: 320)
-        .sheet(isPresented: $showingAbout) {
-            AboutView()
+        #endif
+    }
+
+    /// A labelled settings row: a headline over its control(s).
+    private func settingRow<Content: View>(
+        _ title: LocalizedStringKey, @ViewBuilder _ content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title, bundle: .module).font(.headline)
+            content()
         }
-        .onAppear { launchLanguage = settings.language }
-        .animation(.easeInOut(duration: 0.2), value: languageChanged)
+    }
+
+    /// Reports the content's natural height (for the iOS fit-content detent).
+    private var heightReader: some View {
+        GeometryReader { geo in
+            Color.clear.onAppear { contentHeight = geo.size.height }
+                .onChange(of: geo.size.height) { contentHeight = $0 }
+        }
     }
 
     /// Prominent notice shown once the language picker is changed: a tinted
