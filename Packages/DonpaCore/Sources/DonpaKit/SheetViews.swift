@@ -66,6 +66,7 @@ struct ScoreboardView: View {
                         } label: {
                             Text("Done", bundle: .module)
                         }
+                        .accessibilityIdentifier("sheet.done")
                     }
                 }
         }
@@ -298,6 +299,7 @@ struct SettingsView: View {
                         } label: {
                             Text("Done", bundle: .module)
                         }
+                        .accessibilityIdentifier("sheet.done")
                     }
                 }
         }

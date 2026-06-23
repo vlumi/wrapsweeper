@@ -49,6 +49,12 @@ build-ios: Donpa.xcodeproj  ## Build the iOS app (simulator)
 test:  ## Run the package logic tests (no Xcode project needed)
 	@Scripts/test.sh
 
+# UI tests are local-only (CI never runs `xcodebuild test`); they drive the
+# built iOS app in a simulator.
+.PHONY: uitest
+uitest: Donpa.xcodeproj  ## Run the local-only iOS UI tests (simulator)
+	@Scripts/uitest.sh
+
 .PHONY: clean
 clean:  ## Remove the generated project + local build output
 	@rm -rf Donpa.xcodeproj .build-xcode

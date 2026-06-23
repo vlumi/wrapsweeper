@@ -35,8 +35,12 @@ struct TitleScreen: View {
             // which may or may not overlap the art depending on its size).
             .overlay(alignment: .topTrailing) {
                 HStack(spacing: 8) {
-                    roundIcon("trophy.fill", label: "High Scores", action: onScores)
-                    roundIcon("gearshape.fill", label: "Settings", action: onSettings)
+                    roundIcon(
+                        "trophy.fill", label: "High Scores", id: "title.highScores",
+                        action: onScores)
+                    roundIcon(
+                        "gearshape.fill", label: "Settings", id: "title.settings",
+                        action: onSettings)
                 }
                 .padding(16)
             }
@@ -59,12 +63,13 @@ struct TitleScreen: View {
         .buttonStyle(.plain)
         .keyboardShortcut(.defaultAction)
         .accessibilityLabel(Text("Start", bundle: .module))
+        .accessibilityIdentifier("title.start")
     }
 
     /// Small round overlay button for a secondary action in the corner.
-    private func roundIcon(_ icon: String, label: LocalizedStringKey, action: @escaping () -> Void)
-        -> some View
-    {
+    private func roundIcon(
+        _ icon: String, label: LocalizedStringKey, id: String, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
@@ -75,5 +80,6 @@ struct TitleScreen: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(label, bundle: .module))
+        .accessibilityIdentifier(id)
     }
 }

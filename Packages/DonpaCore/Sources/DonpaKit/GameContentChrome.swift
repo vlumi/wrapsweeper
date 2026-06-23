@@ -90,6 +90,7 @@ extension GameContent {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Board", bundle: .module))
         .accessibilityValue(boardSummary)
+        .accessibilityIdentifier("game.board")
         // Result screen dims the board ONLY, leaving the control strip live.
         .overlay { mangaPanel }
         .overlay { pauseOverlay }
@@ -121,6 +122,7 @@ extension GameContent {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(Text("Paused", bundle: .module))
             .accessibilityHint(Text("Tap to resume", bundle: .module))
+            .accessibilityIdentifier("game.paused")
         }
     }
 
@@ -168,8 +170,10 @@ extension GameContent {
             // Pause only makes sense during a live game.
             if viewModel.status == .playing {
                 actionButton("pause.circle.fill", help: "Pause") { viewModel.pause() }
+                    .accessibilityIdentifier("game.pause")
             }
             actionButton("house.fill", help: "Home") { goHome() }
+                .accessibilityIdentifier("game.home")
         }
     }
 

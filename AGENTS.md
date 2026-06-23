@@ -65,10 +65,17 @@ cd Packages/DonpaCore && swift build
 ./Scripts/generate.sh
 xcodebuild -project Donpa.xcodeproj -scheme Donpa-macOS -destination 'platform=macOS' build
 xcodebuild -project Donpa.xcodeproj -scheme Donpa-iOS  -destination 'generic/platform=iOS Simulator' build
+
+# Local-only UI regression tests (XCUITest) — drive the iOS app in a simulator.
+make uitest   # NOT run by CI (CI does `swift test` + `xcodebuild build` only)
 ```
 
 `swift build` on macOS only compiles the `#if os(macOS)` branch of platform
 code — build the iOS target via `xcodebuild` to exercise the iOS branch.
+
+UI tests live in `Tests/UITests/` and query stable `accessibilityIdentifier`s
+(e.g. `title.start`, `newgame.start`, `game.home`, `game.pause`, `sheet.done`).
+They run only locally via `make uitest`; CI never invokes `xcodebuild test`.
 
 ### Lint & format
 

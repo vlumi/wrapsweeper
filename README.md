@@ -57,6 +57,7 @@ make run-ios    # build + launch in an iOS simulator (newest iOS 16+ iPhone)
 make build-mac  # build the macOS app
 make build-ios  # build the iOS app (simulator)
 make test       # run the package logic tests (no Xcode project needed)
+make uitest     # run the iOS UI tests in a simulator (local only; not on CI)
 make generate   # regenerate Donpa.xcodeproj from project.yml (if stale)
 make clean      # remove the generated project + local build output
 ```

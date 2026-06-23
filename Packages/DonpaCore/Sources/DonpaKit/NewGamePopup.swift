@@ -98,6 +98,7 @@ struct NewGamePopup: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier("newgame.start")
         }
         .padding(24)
         .frame(maxWidth: 460)

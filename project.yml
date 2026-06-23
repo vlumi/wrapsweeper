@@ -54,6 +54,26 @@ targets:
     dependencies:
       - package: DonpaCore
         product: DonpaKit
+    scheme:
+      # Wire the UI tests into the iOS app's scheme so `xcodebuild test
+      # -scheme Donpa-iOS` runs them (used by `make uitest`, locally only).
+      testTargets:
+        - Donpa-iOSUITests
+
+  # Local-only UI regression tests. CI runs `swift test` (the package logic
+  # suite) and `xcodebuild build` only — never `xcodebuild test` — so this
+  # target is built but its tests run solely via `make uitest` on a dev machine.
+  Donpa-iOSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/UITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa.uitests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Donpa-iOS
 
   Donpa-macOS:
     type: application
