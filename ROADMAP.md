@@ -66,8 +66,10 @@ Ship a polished classic Minesweeper on iOS and macOS.
         viewport so small boards fill big windows without blowing up. **Revisit
         for v0.3 huge maps / v0.4 wrapping** — this still assumes a board that
         fits a window, which huge/edgeless boards reject (panned, not framed).
-  - [ ] Localization: Japanese + Finnish + English (Settings has a language row;
-        also affects the App Store listing)
+  - [x] Localization: Japanese + Finnish + English (Settings has a language row;
+        also affects the App Store listing). **Considered done for 0.1** — JA/FI
+        are my drafts (`needs_review`); revisit if native/test-audience feedback
+        comes in, not blocking.
   - [ ] Tag v0.1.0, signed builds — note: any version string is fine for the
         App Store (no "must be 1.0"); the build number must increment per
         upload. Currently `MARKETING_VERSION = 0.1.0` (not marked pre-release;
