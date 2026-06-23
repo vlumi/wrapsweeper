@@ -38,6 +38,7 @@ ignore:
   - "Packages/DonpaCore/Sources/DonpaKit/StatusReadouts.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/AboutView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/Navigator.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/OnChangeCompat.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/GameViewModel.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/Settings.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/Palette.swift"

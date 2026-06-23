@@ -56,22 +56,19 @@ struct GameContent: View {
             GeometryReader { geo in
                 Color.clear
                     .onAppear { windowSize = geo.size }
-                    .onChange(of: geo.size) { windowSize = $0 }
+                    .onChangeCompat(of: geo.size) { windowSize = $0 }
             }
         )
         .onAppear { onLaunch() }
-        // The single-arg `onChange` closure keeps iOS-16 support (the zero/two-arg
-        // forms are iOS 17 / macOS 14 only); the deprecation note on newer OSes
-        // is harmless.
-        .onChange(of: viewModel.lastResult?.id) { _ in handleResult() }
+        .onChangeCompat(of: viewModel.lastResult?.id) { _ in handleResult() }
         // Any new game (New Game / Retry / ⌘R) clears a lingering panel.
-        .onChange(of: viewModel.gameID) { _ in dismissPanel() }
+        .onChangeCompat(of: viewModel.gameID) { _ in dismissPanel() }
         // Autosave on every state change while playing (crash protection); clear
         // the save once the game is no longer in progress.
-        .onChange(of: viewModel.revision) { _ in autosave() }
+        .onChangeCompat(of: viewModel.revision) { _ in autosave() }
         // Leaving the foreground auto-pauses and saves; the atomic write means a
         // background-kill can't corrupt the save.
-        .onChange(of: scenePhase) { phase in
+        .onChangeCompat(of: scenePhase) { phase in
             if phase != .active {
                 viewModel.pause()
                 autosave()

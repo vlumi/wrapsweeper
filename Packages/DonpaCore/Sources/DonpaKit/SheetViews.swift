@@ -340,7 +340,7 @@ struct SettingsView: View {
     private var heightReader: some View {
         GeometryReader { geo in
             Color.clear.onAppear { contentHeight = geo.size.height }
-                .onChange(of: geo.size.height) { contentHeight = $0 }
+                .onChangeCompat(of: geo.size.height) { contentHeight = $0 }
         }
     }
 
