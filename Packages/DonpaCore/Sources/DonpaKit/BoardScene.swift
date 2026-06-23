@@ -19,9 +19,21 @@ public final class BoardScene: SKScene {
     /// (which clears `boardLayer`, including on every palette push) never wipes
     /// an in-flight animation.
     let effectsLayer = SKNode()
+    /// Mode-glow hint (teal dig / orange flag) washed over the unopened tiles, a
+    /// sibling above `boardLayer` so it tints over the tiles, below `effectsLayer`
+    /// so end-game effects win. Never wiped by `rebuild()`.
+    let glowLayer = SKNode()
     private var lastRevision = -1
     private var lastGameID = -1
     private var lastAnimatedResultID = -1
+    // Mode-glow state, compared each frame so the glow only rebuilds on change.
+    // Internal so the +Effects extension (which owns the glow) can read/write.
+    var lastGlowMode: InputMode?
+    var lastGlowLive: Bool?
+    var lastGlowRevision = -1
+    /// Cached halftone wash textures, keyed by mode + a cell-size/appearance tag,
+    /// so the screentone is built once and reused across every hidden tile.
+    var glowTextureCache: [String: SKTexture] = [:]
 
     /// The active color palette. Set by the host when the system appearance
     /// changes; updating it recolors the background and rebuilds the cells.
@@ -29,6 +41,7 @@ public final class BoardScene: SKScene {
         didSet {
             backgroundColor = palette.sceneBackground
             rebuild()
+            lastGlowMode = nil  // force the glow to recolor from the new palette
         }
     }
 
@@ -39,7 +52,8 @@ public final class BoardScene: SKScene {
         scaleMode = .resizeFill
         backgroundColor = palette.sceneBackground
         addChild(boardLayer)
-        addChild(effectsLayer)
+        addChild(glowLayer)  // above tiles…
+        addChild(effectsLayer)  // …but below end-game effects
         addChild(cameraNode)
         camera = cameraNode
     }
@@ -61,6 +75,7 @@ public final class BoardScene: SKScene {
 
     public override func update(_ currentTime: TimeInterval) {
         rebuildIfNeeded()
+        refreshModeGlow()
     }
 
     // MARK: Rendering

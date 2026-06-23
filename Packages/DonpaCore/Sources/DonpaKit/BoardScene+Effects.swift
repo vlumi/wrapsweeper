@@ -96,6 +96,174 @@ extension BoardScene {
         return node
     }
 
+    // MARK: Mode glow
+
+    /// A faint manga *screentone* over the *unopened* tiles, signalling which tool
+    /// a tap will use — without touching the revealed numbers. The cue is the
+    /// PATTERN, not colour: dig = Ben-Day dots, flag = diagonal hatch, both in a
+    /// single neutral ink. Distinguishable by texture alone (fully colour-blind
+    /// safe) and a nod to the manga theme. Rebuilt only when the mode, the board
+    /// revision, or live/visibility changes (not every frame).
+    func refreshModeGlow() {
+        // Shown whenever the board is visible (not paused — the pause overlay
+        // blurs the board anyway). It persists after win/loss, frozen at the last
+        // mode, so a finished board keeps its texture instead of going flat.
+        let visible = !viewModel.isPaused
+        let mode = viewModel.inputMode
+        // The board revision changes as cells open, so the wash tracks which
+        // tiles are still hidden.
+        guard
+            mode != lastGlowMode || visible != lastGlowLive
+                || viewModel.revision != lastGlowRevision
+        else { return }
+        lastGlowMode = mode
+        lastGlowLive = visible
+        lastGlowRevision = viewModel.revision
+        glowLayer.removeAllChildren()
+        guard visible else { return }
+
+        let texture = screentoneTexture(for: mode)
+        let size = layout.cellSize
+        let inset: CGFloat = 1
+        let side = size - inset * 2
+        for c in viewModel.game.board.allCoords
+        where viewModel.game.board[c].state == .hidden || viewModel.game.board[c].state == .flagged
+        {
+            let tile = SKShapeNode(
+                rect: CGRect(x: -side / 2, y: -side / 2, width: side, height: side),
+                cornerRadius: 3)
+            tile.position = layout.center(of: c)
+            tile.fillColor = .white  // the texture carries the ink; no extra tint
+            tile.fillTexture = texture
+            tile.strokeColor = .clear
+            tile.isUserInteractionEnabled = false
+            glowLayer.addChild(tile)
+        }
+    }
+
+    /// A cached, cell-sized screentone texture for a mode: Ben-Day dots for dig,
+    /// diagonal hatch for flag, in a single faint neutral ink (the cue is the
+    /// pattern, not colour). Cached per mode + cell size so it's built once.
+    func screentoneTexture(for mode: InputMode) -> SKTexture {
+        let px = max(8, Int(layout.cellSize.rounded()))
+        let ink = palette.screentoneInk
+        // Key by ink too: the colour differs by appearance, so light/dark must not
+        // share a cached texture (otherwise switching theme reuses the stale one).
+        let key = "\(mode)-\(px)-\(ink)"
+        if let cached = glowTextureCache[key] { return cached }
+
+        let dim = px * 2  // supersample for crisp dots/lines, then SKTexture downscales
+        let cs = CGColorSpace(name: CGColorSpace.sRGB)!
+        let ctx = CGContext(
+            data: nil, width: dim, height: dim, bitsPerComponent: 8, bytesPerRow: 0,
+            space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.clear(CGRect(x: 0, y: 0, width: dim, height: dim))
+        ctx.setFillColor(ink.cgColor)
+        ctx.setStrokeColor(ink.cgColor)
+        drawScreentonePattern(ctx, mode: mode, dim: dim)
+        // Balance the average brightness: the ink only pushes one way (lighter on
+        // the dark board, darker on the light board), which would shift the mean
+        // tile brightness away from the bare tile. Measure the mean ink coverage
+        // and lay a faint OPPOSITE-sign wash underneath at the same average, so a
+        // screentoned tile averages back to the original tile colour.
+        guard let inked = ctx.makeImage() else { return SKTexture() }
+        let coverage = meanAlpha(of: inked, dim: dim)  // 0…1 average opacity of the ink
+        let comp = compensatingTexture(inkWhite: inkWhite(ink), coverage: coverage, dim: dim)
+        // Draw compensation first, then the ink on top.
+        ctx.clear(CGRect(x: 0, y: 0, width: dim, height: dim))
+        if let comp { ctx.draw(comp, in: CGRect(x: 0, y: 0, width: dim, height: dim)) }
+        ctx.draw(inked, in: CGRect(x: 0, y: 0, width: dim, height: dim))
+
+        let texture = SKTexture(cgImage: ctx.makeImage()!)
+        texture.filteringMode = .linear
+        glowTextureCache[key] = texture
+        return texture
+    }
+
+    /// Stroke/fill the mode's screentone pattern into `ctx` (already set up with
+    /// the ink colour): fine staggered Ben-Day dots that shrink toward the tile
+    /// centre for dig, narrow diagonal hatch that thickens toward the centre for
+    /// flag — opposite vignettes so the two modes read as plainly different.
+    private func drawScreentonePattern(_ ctx: CGContext, mode: InputMode, dim: Int) {
+        let f = CGFloat(dim)
+        let mid = f / 2, maxDist = f / 2 * 1.414  // centre→corner
+        switch mode {
+        case .reveal:
+            let gap = f * 0.20, baseR = f * 0.055
+            var row = 0
+            var y = gap / 2
+            while y < f + gap {
+                let offset = row.isMultiple(of: 2) ? 0 : gap / 2
+                var x = gap / 2 - gap + offset
+                while x < f + gap {
+                    let dist = hypot(x - mid, y - mid) / maxDist  // 0 centre → 1 corner
+                    let r = baseR * (0.55 + 0.45 * dist)  // smaller centre, fuller edges
+                    ctx.fillEllipse(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
+                    x += gap
+                }
+                y += gap * 0.86
+                row += 1
+            }
+        case .flag:
+            let gap = f * 0.18
+            var d = -f
+            while d < f {
+                let lineMid = d + f / 2
+                let dist = abs(lineMid - mid) / mid  // 0 centre → 1 edge
+                ctx.setLineWidth(f * (0.075 - 0.045 * min(1, dist)))  // thicker centre
+                ctx.move(to: CGPoint(x: d, y: 0))
+                ctx.addLine(to: CGPoint(x: d + f, y: f))
+                ctx.strokePath()
+                d += gap
+            }
+        }
+    }
+
+    /// The ink's white value (0 = black ink on the light board, 1 = white ink on
+    /// the dark board).
+    private func inkWhite(_ color: SKColor) -> CGFloat {
+        var w: CGFloat = 0, a: CGFloat = 0
+        #if os(macOS)
+        (color.usingColorSpace(.genericGray) ?? color).getWhite(&w, alpha: &a)
+        #else
+        color.getWhite(&w, alpha: &a)
+        #endif
+        return w
+    }
+
+    /// Mean alpha (0…1) of a premultiplied-RGBA image — how much of the tile the
+    /// ink pattern covers on average.
+    private func meanAlpha(of image: CGImage, dim: Int) -> CGFloat {
+        let bpr = dim * 4
+        var buf = [UInt8](repeating: 0, count: bpr * dim)
+        let cs = CGColorSpace(name: CGColorSpace.sRGB)!
+        let c = CGContext(
+            data: &buf, width: dim, height: dim, bitsPerComponent: 8, bytesPerRow: bpr,
+            space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        c.draw(image, in: CGRect(x: 0, y: 0, width: dim, height: dim))
+        var total = 0
+        for i in stride(from: 3, to: buf.count, by: 4) { total += Int(buf[i]) }
+        return CGFloat(total) / CGFloat(dim * dim) / 255
+    }
+
+    /// A flat wash of the OPPOSITE luminance to the ink, at the alpha needed so its
+    /// brightness contribution cancels the ink's average — keeping the mean tile
+    /// brightness neutral. Returns nil if no compensation is needed.
+    private func compensatingTexture(inkWhite: CGFloat, coverage: CGFloat, dim: Int) -> CGImage? {
+        guard coverage > 0.001 else { return nil }
+        // Ink shifts brightness by (inkWhite - 0.5) over `coverage` of the area;
+        // a full-area opposite wash at this alpha restores the mean.
+        let opposite: CGFloat = inkWhite > 0.5 ? 0 : 1
+        let alpha = min(1, coverage)  // equal-area, opposite colour → mean ≈ neutral
+        let cs = CGColorSpace(name: CGColorSpace.sRGB)!
+        let c = CGContext(
+            data: nil, width: dim, height: dim, bitsPerComponent: 8, bytesPerRow: 0,
+            space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        c.setFillColor(red: opposite, green: opposite, blue: opposite, alpha: alpha)
+        c.fill(CGRect(x: 0, y: 0, width: dim, height: dim))
+        return c.makeImage()
+    }
+
     static var prefersReducedMotion: Bool {
         #if os(iOS)
         return UIAccessibility.isReduceMotionEnabled
