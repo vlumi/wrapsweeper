@@ -47,9 +47,10 @@ Ship a polished classic Minesweeper on iOS and macOS.
 - [x] Reset input mode to Reveal on each new game (decided against persisting
       it — flag mode never makes sense at the start of a game)
 - [ ] **Remaining for release:**
-  - [x] Launch / title screen (the manga title card on launch, PR #33 — covers
-        this; a separate instant-flash `UILaunchScreen` is still the empty `{}`
-        if a pre-title splash is ever wanted)
+  - [x] Launch / title screen: the manga title card (PR #33) plus an iOS
+        `UILaunchScreen` showing the B&W (`--mono`) burst-mine on a charcoal
+        ground (`make-icon.swift --launch` → LaunchImage/LaunchBackground assets).
+        (macOS has no launch screen — it appears instantly.)
   - [x] Accessibility: chrome is VoiceOver-labelled (buttons, counters, pickers,
         sheets) and uses Dynamic-Type semantic fonts; the board announces a
         state summary. **Per-cell board VoiceOver deferred** — it needs a

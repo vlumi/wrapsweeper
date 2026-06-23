@@ -3,6 +3,11 @@
 // App icon: a detonating mine in a halftone comic burst, at every catalog size.
 // Pure CoreGraphics. `--mono` renders the grayscale treatment.
 //   swift Scripts/make-icon.swift <outDir> [--mono]
+//
+// `--launch` instead emits the launch-screen image — the mono burst-mine on a
+// transparent background (it sits on the launch screen's charcoal bg colour) at
+// @1x/@2x/@3x: launch.png, launch@2x.png, launch@3x.png.
+//   swift Scripts/make-icon.swift <outDir> --launch
 
 import CoreGraphics
 import Foundation
@@ -12,6 +17,7 @@ import UniformTypeIdentifiers
 let args = CommandLine.arguments
 let outDir = args.count > 1 && !args[1].hasPrefix("--") ? args[1] : "."
 let mono = args.contains("--mono")
+let launch = args.contains("--launch")
 
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
@@ -80,7 +86,9 @@ func drawMine(_ ctx: CGContext, c: CGPoint, r: CGFloat, fill: CGColor) {
         in: CGRect(x: c.x - r * 0.45, y: c.y + r * 0.1, width: r * 0.5, height: r * 0.5))
 }
 
-func renderIcon(size: Int, palette pal: Palette) -> CGImage {
+/// `transparentBackground` skips the gradient ground (for the launch image,
+/// which composites on the launch screen's background colour).
+func renderIcon(size: Int, palette pal: Palette, transparentBackground: Bool = false) -> CGImage {
     guard
         let ctx = CGContext(
             data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
@@ -90,9 +98,12 @@ func renderIcon(size: Int, palette pal: Palette) -> CGImage {
     let s = CGFloat(size)
     let c = CGPoint(x: s / 2, y: s / 2)
 
-    let bg = CGGradient(
-        colorsSpace: space, colors: [pal.bgTop, pal.bgBottom] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(bg, start: CGPoint(x: 0, y: s), end: CGPoint(x: 0, y: 0), options: [])
+    if !transparentBackground {
+        let bg = CGGradient(
+            colorsSpace: space, colors: [pal.bgTop, pal.bgBottom] as CFArray, locations: [0, 1])!
+        ctx.drawLinearGradient(
+            bg, start: CGPoint(x: 0, y: s), end: CGPoint(x: 0, y: 0), options: [])
+    }
 
     let burst = burstPath(c: c, rOuter: s * 0.46, rInner: s * 0.30, spikes: 14, phase: 0.16)
     ctx.addPath(burst)
@@ -131,9 +142,18 @@ func writePNG(_ image: CGImage, to path: String) {
     print("Wrote \(path)")
 }
 
-// Every pixel size the asset catalog references: iOS 1024 plus the macOS
-// 16/32/128/256/512 set at @1x and @2x. Keys match the Contents.json filenames.
-let palette = mono ? Palette.mono : Palette.color
-for px in [16, 32, 64, 128, 256, 512, 1024] {
-    writePNG(renderIcon(size: px, palette: palette), to: "\(outDir)/icon-\(px).png")
+if launch {
+    // Launch image: mono burst-mine, transparent bg, @1x/@2x/@3x. 256pt base.
+    for (scale, suffix) in [(1, ""), (2, "@2x"), (3, "@3x")] {
+        let image = renderIcon(
+            size: 256 * scale, palette: .mono, transparentBackground: true)
+        writePNG(image, to: "\(outDir)/launch\(suffix).png")
+    }
+} else {
+    // Every pixel size the catalog references: iOS 1024 plus the macOS
+    // 16/32/128/256/512 set at @1x and @2x. Keys match the Contents.json names.
+    let palette = mono ? Palette.mono : Palette.color
+    for px in [16, 32, 64, 128, 256, 512, 1024] {
+        writePNG(renderIcon(size: px, palette: palette), to: "\(outDir)/icon-\(px).png")
+    }
 }

@@ -32,6 +32,7 @@ ignore:
   - "Packages/DonpaCore/Sources/DonpaKit/TitleScreen.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/BoardSelectionPicker.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/GameViewRoot.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/SplashView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/KeyCatcher.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/NewGamePopup.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/StatusReadouts.swift"

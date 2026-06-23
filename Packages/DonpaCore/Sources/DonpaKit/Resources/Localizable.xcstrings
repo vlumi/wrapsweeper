@@ -65,23 +65,6 @@
         }
       }
     },
-    "App name": {
-      "comment": "The app's display name. Japanese uses the kana ドンパ隊; other languages use the romaji brand.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Donpa Squad"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ドンパ隊"
-          }
-        }
-      }
-    },
     "Appearance": {
       "comment": "Settings section: light/dark/system. NEEDS REVIEW: ja/fi.",
       "localizations": {

@@ -15,6 +15,10 @@ public struct GameView: View {
     @StateObject private var settings: Settings
     @ObservedObject private var navigator: Navigator
     @State private var scene: BoardScene
+    /// Brief in-app splash on first launch, mirroring the OS launch image so its
+    /// hand-off into the title is seamless. (The OS launch screen itself can't be
+    /// delayed — it's pre-process — so this app-controlled splash is what lingers.)
+    @State private var showSplash = true
 
     public init(config: GameConfig = .classic(.beginner)) {
         self.init(
@@ -73,6 +77,18 @@ public struct GameView: View {
                 )
                 .transition(.opacity)
                 .zIndex(2)
+            }
+
+            // The in-app splash sits on top of everything (zIndex 3) and fades
+            // out after a beat, revealing the title beneath.
+            if showSplash {
+                SplashView()
+                    .transition(.opacity)
+                    .zIndex(3)
+                    .task {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        withAnimation(.easeOut(duration: 0.4)) { showSplash = false }
+                    }
             }
         }
         .preferredColorScheme(settings.appearance.colorScheme)

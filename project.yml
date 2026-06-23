@@ -31,7 +31,12 @@ targets:
         # the export-compliance prompt.
         ITSAppUsesNonExemptEncryption: false
         LSApplicationCategoryType: public.app-category.puzzle
-        UILaunchScreen: {}
+        # Launch screen: the mono burst-mine centered on a charcoal ground (both
+        # asset-catalog entries), matching the app's "interior-page" B&W look.
+        UILaunchScreen:
+          UIImageName: LaunchImage
+          UIImageRespectsSafeAreaInsets: true
+          UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

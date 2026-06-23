@@ -31,13 +31,20 @@ struct TitleScreen: View {
                     .padding(16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            // Secondary actions in the SCREEN's top-right corner (over the page,
+            // which may or may not overlap the art depending on its size).
+            .overlay(alignment: .topTrailing) {
+                HStack(spacing: 8) {
+                    roundIcon("trophy.fill", label: "High Scores", action: onScores)
+                    roundIcon("gearshape.fill", label: "Settings", action: onSettings)
+                }
+                .padding(16)
+            }
         }
     }
 
     /// The manga splash, tappable as the primary "press start" action (the whole
     /// image is the button — no extra hint needed; it opens the New Game popup).
-    /// The secondary actions (High Scores, Settings) stay as small round buttons
-    /// in the top-right corner.
     private var startArt: some View {
         Button(action: onStart) {
             Image("TitleScreen", bundle: .module)
@@ -52,18 +59,9 @@ struct TitleScreen: View {
         .buttonStyle(.plain)
         .keyboardShortcut(.defaultAction)
         .accessibilityLabel(Text("Start", bundle: .module))
-        // Secondary actions overlaid on the corner — kept off the tappable art
-        // body so they fire their own action, not Start.
-        .overlay(alignment: .topTrailing) {
-            HStack(spacing: 8) {
-                roundIcon("trophy.fill", label: "High Scores", action: onScores)
-                roundIcon("gearshape.fill", label: "Settings", action: onSettings)
-            }
-            .padding(26)
-        }
     }
 
-    /// Small round overlay button for a secondary action on the art corner.
+    /// Small round overlay button for a secondary action in the corner.
     private func roundIcon(_ icon: String, label: LocalizedStringKey, action: @escaping () -> Void)
         -> some View
     {

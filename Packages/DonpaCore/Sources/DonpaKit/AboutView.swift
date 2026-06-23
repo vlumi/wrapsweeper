@@ -17,9 +17,17 @@ public struct AboutView: View {
         return "\(short) (\(build))"
     }
 
-    /// The localized app name (ドンパ隊 in Japanese, "Donpa Squad" elsewhere),
-    /// used to decide whether to also show the kana subtitle.
-    private var appName: String { String(localized: "App name", bundle: .module) }
+    /// Whether the UI is in Japanese. The app name and author name are the same
+    /// entities written in two scripts (not translated text), so both pick their
+    /// form from this rather than going through the string catalog.
+    private var isJapanese: Bool {
+        Bundle.module.preferredLocalizations.first?.hasPrefix("ja") ?? false
+    }
+
+    /// App name and author name in the script matching the UI: kana/kanji in
+    /// Japanese, romaji elsewhere. Symmetric local choices, not catalog strings.
+    private var appName: String { isJapanese ? "ドンパ隊" : "Donpa Squad" }
+    private var authorName: String { isJapanese ? "三﨑ヴィッレ" : "Ville Misaki" }
 
     public var body: some View {
         VStack(spacing: 16) {
@@ -29,10 +37,9 @@ public struct AboutView: View {
                 .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
 
             VStack(spacing: 4) {
-                // Localized name: ドンパ隊 in Japanese, "Donpa Squad" elsewhere.
-                Text("App name", bundle: .module).font(.title2.bold())
+                Text(verbatim: appName).font(.title2.bold())
                 // Show the kana subtitle only when the title isn't already kana.
-                if appName != "ドンパ隊" {
+                if !isJapanese {
                     Text(verbatim: "ドンパ隊").font(.title3).foregroundStyle(.secondary)
                 }
             }
@@ -49,7 +56,7 @@ public struct AboutView: View {
             Divider().frame(maxWidth: 220)
 
             VStack(spacing: 6) {
-                Text(verbatim: "© 2026 Ville Misaki").font(.footnote)
+                Text(verbatim: "© 2026 \(authorName)").font(.footnote)
                 Text(verbatim: "MIT License").font(.footnote).foregroundStyle(.secondary)
                 Link(destination: URL(string: "https://github.com/vlumi/donpa")!) {
                     Label {
