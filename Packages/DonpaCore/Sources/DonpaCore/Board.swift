@@ -62,6 +62,11 @@ public struct Board: Sendable {
     public var revealedCoords: Set<Coord> { coords { $0.state == .revealed } }
     public var flaggedCoords: Set<Coord> { coords { $0.state == .flagged } }
 
+    /// Count of revealed non-mine cells — the source of truth for progress/win,
+    /// derived from the actual board (so a restored game can recompute it rather
+    /// than trust a persisted number).
+    public var revealedSafeCount: Int { coords { $0.state == .revealed && !$0.isMine }.count }
+
     private func coords(where match: (Cell) -> Bool) -> Set<Coord> {
         var result: Set<Coord> = []
         for (c, cell) in cells where match(cell) { result.insert(c) }
@@ -71,10 +76,15 @@ public struct Board: Sendable {
     /// Rebuild a board from a saved layout: place `mines` (recomputing adjacency),
     /// then set the given cells revealed / flagged. Used to restore a persisted
     /// in-progress game without re-randomizing the (first-click-safe) mines.
+    ///
+    /// Coordinates are filtered to in-bounds cells, so a corrupt or tampered save
+    /// with off-board coords can't insert phantom cells or skew the mine count —
+    /// it just yields a (possibly odd but valid) board, never a broken one.
     public mutating func restore(mines: Set<Coord>, revealed: Set<Coord>, flagged: Set<Coord>) {
-        placeMines(at: mines)
-        for c in revealed { self[c].state = .revealed }
-        for c in flagged { self[c].state = .flagged }
+        let onBoard = Set(topology.allCoords())
+        placeMines(at: mines.intersection(onBoard))
+        for c in revealed where onBoard.contains(c) { self[c].state = .revealed }
+        for c in flagged where onBoard.contains(c) { self[c].state = .flagged }
     }
 
     /// Places mines on the given coordinates and recomputes every adjacency count.

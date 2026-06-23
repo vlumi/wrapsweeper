@@ -81,9 +81,11 @@ public struct Game: Sendable {
     public static func restored(from s: GameSnapshot) -> Game {
         var game = Game(topology: s.config.topology, mineCount: s.config.mineCount)
         game.board.restore(mines: s.mines, revealed: s.revealed, flagged: s.flagged)
-        game.minesPlaced = !s.mines.isEmpty
+        game.minesPlaced = !game.board.mineCoords.isEmpty
         game.status = s.status
-        game.revealedSafeCount = s.revealedSafeCount
+        // Derive from the actual restored board rather than trusting the saved
+        // number, so a corrupt/tampered save can't skew progress or win detection.
+        game.revealedSafeCount = game.board.revealedSafeCount
         game.lossCoord = s.lossCoord
         return game
     }
