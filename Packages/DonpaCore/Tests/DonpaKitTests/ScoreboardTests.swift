@@ -210,4 +210,58 @@ final class ScoreboardTests: XCTestCase {
         XCTAssertNil(reloaded.best(for: .beginner))
         XCTAssertEqual(reloaded.wins(for: .beginner), 0)
     }
+
+    // MARK: Format compatibility / resilience
+
+    private let storeKey = "donpa.stats.v1"
+
+    private func writeRaw(_ json: String) {
+        defaults.set(Data(json.utf8), forKey: storeKey)
+    }
+
+    /// One corrupt/incompatible record must NOT wipe the whole table — the good
+    /// rows survive, only the bad row is dropped.
+    func testOneBadRecordDoesNotWipeTheTable() {
+        let good = GameConfig.beginner.storageKey
+        let bad = GameConfig.expert.storageKey
+        writeRaw(
+            """
+            {"version":1,"records":{
+              "\(good)":{"wins":3,"bestCentiseconds":1234},
+              "\(bad)":{"wins":"not-a-number"}
+            }}
+            """)
+        let board = Scoreboard(defaults: defaults)
+        XCTAssertEqual(board.wins(for: .beginner), 3, "the valid record survived")
+        XCTAssertEqual(board.best(for: .beginner), 1234)
+        XCTAssertNil(board.record(for: .expert), "only the bad record was dropped")
+    }
+
+    /// A legacy bare `[String: ScoreRecord]` (the pre-envelope format) still loads.
+    func testReadsLegacyBareDictFormat() {
+        let key = GameConfig.intermediate.storageKey
+        writeRaw(#"{"\#(key)":{"wins":2,"bestCentiseconds":900}}"#)
+        let board = Scoreboard(defaults: defaults)
+        XCTAssertEqual(board.wins(for: .intermediate), 2)
+        XCTAssertEqual(board.best(for: .intermediate), 900)
+    }
+
+    /// A save from a *newer* app (version > current) is not mis-read; rather than
+    /// risk corrupting it we start empty (and a later write re-stamps it).
+    func testRejectsNewerEnvelopeVersion() {
+        let key = GameConfig.beginner.storageKey
+        writeRaw(#"{"version":999,"records":{"\#(key)":{"wins":5}}}"#)
+        let board = Scoreboard(defaults: defaults)
+        XCTAssertEqual(board.wins(for: .beginner), 0, "a newer-version store isn't read")
+    }
+
+    /// Round-trips through the versioned envelope across instances.
+    func testEnvelopeRoundTrips() {
+        let first = Scoreboard(defaults: defaults)
+        first.submit(50, for: .beginner)
+        first.submitLossProgress(0.6, for: .expert)
+        let second = Scoreboard(defaults: defaults)
+        XCTAssertEqual(second.best(for: .beginner), 50)
+        XCTAssertEqual(second.bestProgress(for: .expert) ?? 0, 0.6, accuracy: 1e-9)
+    }
 }

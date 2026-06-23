@@ -77,23 +77,42 @@ documented at its call site:
 
 ## Persistence: compact, tagged, atomic, tolerant
 
-`GameSnapshot` (Codable, versioned) persists an in-progress game by storing the
-**`GameConfig`** (which *carries* the topology kind + params — the `any Topology`
-existential is never encoded) plus the exact first-click-safe mine layout and
-the revealed/flagged cells as **coordinate sets**, not the full cell dict (a
-1000² board would be huge otherwise; this dovetails with the v0.3 flat-storage
-rework). `SaveStore` writes **atomically** (temp file + rename, so a mid-save
-crash can't corrupt the save) and loads **tolerantly** (missing / unreadable /
-wrong-version / out-of-bounds → discarded, never a crash or a broken board).
+The in-progress-game save (`GameSnapshot`) and the scoreboard (`Scoreboard`) are
+the two persisted stores. Both follow the same compatibility rules so an app
+update never costs a player their data — the scoreboard especially (losing a
+mid-game is a shrug; losing your records is not).
 
-## Scores are geometry-keyed and never migrated
+- **Compact + tagged.** `GameSnapshot` stores the **`GameConfig`** (which
+  *carries* the topology kind + params — the `any Topology` existential is never
+  encoded) plus the first-click-safe mine layout and the revealed/flagged cells
+  as **coordinate sets**, not the full cell dict (a 1000² board would be huge
+  otherwise; dovetails with the v0.3 flat-storage rework). The scoreboard is a
+  `[storageKey: ScoreRecord]` map (see below).
+- **Atomic.** `SaveStore` writes the game save with `Data.write(.atomic)` (temp
+  file + rename), so a crash mid-save can't corrupt it — the prior save survives.
+- **Versioned + additive.** Each store has a format `version`. New fields are
+  added **optional-with-default**, so an older save still decodes in a newer app
+  (the common, non-breaking case is free — no migration needed). A save from a
+  *newer* app (`version > current`) is refused rather than mis-read.
+- **Migration seam, migrations later.** Each store routes loads through a
+  `migrated(…)` step (identity today — there are no breaking changes yet). When a
+  truly breaking change lands, add one versioned transform there with a
+  fixture-based test, rather than re-architecting. Same forward-compatible
+  instinct as `storageKey`; don't build speculative migration code before a real
+  migration exists.
+- **Per-entry resilience (scoreboard).** Records decode **independently** — one
+  corrupt or incompatible row is dropped, never failing the whole table. (The
+  game save is a single object, so it's all-or-nothing by nature: a bad save is
+  discarded and you start fresh.)
+- **Never a crash or a broken state.** Anything unreadable / wrong-version /
+  out-of-bounds is discarded; a restored game also filters out-of-bounds coords
+  and recomputes its safe-cell count from the board.
 
-`GameConfig.storageKey` is a versioned, geometry-bearing token
-(`v1|modern|sq|bounded|16x16|m41`) that names future shape/edges axes with
-defaults. Adding wrapped/hex boards or re-tuning difficulty tiers creates *new*
-scoreboard entries rather than corrupting old ones — so there's never a
-migration. Scores are local and user-editable by design (no anti-cheat; lean on
-Game Center's server-side validation if leaderboards ever land).
+`GameConfig.storageKey` (`v1|modern|sq|bounded|16x16|m41`) is itself a versioned,
+geometry-bearing token naming future shape/edges axes with defaults, so adding
+wrapped/hex boards or re-tuning tiers creates **new** scoreboard entries rather
+than colliding with old ones. Scores are local and user-editable by design (no
+anti-cheat; lean on Game Center's server-side validation if leaderboards land).
 
 ## Assets are generated, not hand-drawn-in-repo
 

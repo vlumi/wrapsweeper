@@ -65,8 +65,9 @@ final class SaveStoreTests: XCTestCase {
         XCTAssertNil(store.load())
     }
 
-    func testLoadRejectsWrongVersion() throws {
-        // A future/newer save version is ignored rather than mis-decoded.
+    func testLoadRejectsNewerVersion() throws {
+        // A save from a *newer* app (version > current) may rely on a breaking
+        // change this build predates, so it's discarded rather than mis-read.
         let url = dir.appendingPathComponent(filename)
         let json =
             #"{"version":999,"config":{"classic":{"_0":"beginner"}},"mines":[],"#
@@ -74,5 +75,16 @@ final class SaveStoreTests: XCTestCase {
             + #""elapsedCentiseconds":0}"#
         try Data(json.utf8).write(to: url)
         XCTAssertNil(store.load(), "a version this build doesn't understand is discarded")
+    }
+
+    func testLoadAcceptsOlderVersion() throws {
+        // The format is additive: a save at or below currentVersion still loads
+        // (an in-progress game survives a compatible app upgrade).
+        let url = dir.appendingPathComponent(filename)
+        let json = #"{"version":0,"config":{"classic":{"_0":"beginner"}},"mines":[[0,0]]}"#
+        try Data(json.utf8).write(to: url)
+        let loaded = store.load()
+        XCTAssertNotNil(loaded, "an older, compatible save is preserved across upgrade")
+        XCTAssertEqual(loaded?.config, .classic(.beginner))
     }
 }

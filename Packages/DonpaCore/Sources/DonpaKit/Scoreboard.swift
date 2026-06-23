@@ -34,20 +34,69 @@ public final class Scoreboard: ObservableObject {
     @Published public private(set) var recentRecord: String?
 
     private let defaults: UserDefaults
-    // Key bumped from the old name-keyed store; entries are now keyed by
-    // `GameConfig.storageKey` (geometry-bearing, versioned). Pre-release, so the
-    // old store is simply not read — no migration by design.
     private let key = "donpa.stats.v1"
+
+    /// On-disk envelope: a format `version` wrapping the keyed records, so a
+    /// breaking change can be detected and migrated (rather than mis-read or
+    /// silently dropped). Records are keyed by `GameConfig.storageKey`
+    /// (geometry-bearing), so new board variants add keys without colliding.
+    private struct StatsFile: Codable {
+        var version: Int
+        var records: [String: ScoreRecord]
+    }
+    /// Bump only for a *breaking* change to the record shape/meaning; additive
+    /// fields are handled by `ScoreRecord`'s optional/defaulted decoding instead.
+    /// When bumped, add a step to `migrated(_:)`.
+    private static let currentVersion = 1
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if let data = defaults.data(forKey: key),
-            let decoded = try? JSONDecoder().decode([String: ScoreRecord].self, from: data)
-        {
-            records = decoded
-        } else {
-            records = [:]
+        records = Self.load(from: defaults, key: key)
+    }
+
+    /// Load the stats, resilient to partial corruption and old formats:
+    /// 1. Prefer the versioned envelope; reject a *newer* version (a breaking
+    ///    change this build predates) so we don't overwrite/mis-read it.
+    /// 2. Fall back to a legacy bare `[String: ScoreRecord]` (the pre-envelope
+    ///    format), wrapped at the current version.
+    /// 3. Either way, decode **per entry** — a single corrupt or incompatible
+    ///    record is dropped, never wiping the whole table.
+    private static func load(from defaults: UserDefaults, key: String) -> [String: ScoreRecord] {
+        guard let data = defaults.data(forKey: key) else { return [:] }
+        // Decode each record independently (re-serialize its JSON fragment, then
+        // decode), so a single corrupt or incompatible row is dropped rather than
+        // failing the whole table.
+        func perEntry(_ object: [String: Any]) -> [String: ScoreRecord] {
+            var out: [String: ScoreRecord] = [:]
+            for (k, v) in object {
+                guard
+                    let frag = try? JSONSerialization.data(
+                        withJSONObject: v, options: [.fragmentsAllowed]),
+                    let rec = try? JSONDecoder().decode(ScoreRecord.self, from: frag)
+                else { continue }
+                out[k] = rec
+            }
+            return out
         }
+
+        guard let top = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [:] }
+
+        if let versioned = top["records"] as? [String: Any], let v = top["version"] as? Int {
+            if v > currentVersion { return [:] }  // newer = unknown breaking change
+            return migrated(perEntry(versioned), from: v)
+        }
+        // Legacy bare dict (pre-envelope): the records sit at the top level.
+        return migrated(perEntry(top), from: 0)
+    }
+
+    /// Migration seam. Identity today — there are no breaking changes yet. When
+    /// `currentVersion` is bumped, transform `records` saved at `version` up to
+    /// the current shape here (one step per version), with fixture-based tests.
+    private static func migrated(_ records: [String: ScoreRecord], from version: Int)
+        -> [String: ScoreRecord]
+    {
+        records
     }
 
     public func record(for config: GameConfig) -> ScoreRecord? {
@@ -127,7 +176,8 @@ public final class Scoreboard: ObservableObject {
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(records) {
+        let file = StatsFile(version: Self.currentVersion, records: records)
+        if let data = try? JSONEncoder().encode(file) {
             defaults.set(data, forKey: key)
         }
     }

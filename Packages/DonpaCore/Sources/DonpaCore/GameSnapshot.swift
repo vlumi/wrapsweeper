@@ -6,10 +6,15 @@ import Foundation
 /// layout and the revealed/flagged cells as coordinate sets — far smaller than
 /// the full cell dictionary, and the safe path on huge boards.
 ///
-/// Versioned so a format change can be detected and an incompatible save simply
-/// discarded rather than mis-decoded.
+/// **Forward/backward compatibility.** The format is **additive**: new fields are
+/// added as optional-with-default and `decode` tolerates their absence, so a save
+/// written by an older app still restores in a newer one (`SaveStore.load`
+/// accepts `version <= currentVersion`). Two essentials — `config` and `mines` —
+/// are required; without them there's no game to rebuild, so a save missing them
+/// is rejected (decode throws → discarded). **Bump `currentVersion` only for a
+/// breaking change** (removing/repurposing a field): older apps then refuse the
+/// newer save rather than mis-read it.
 public struct GameSnapshot: Codable, Sendable {
-    /// Bump when the shape changes incompatibly; decoder rejects other versions.
     public static let currentVersion = 1
 
     public let version: Int
@@ -22,6 +27,22 @@ public struct GameSnapshot: Codable, Sendable {
     public let lossCoord: Coord?
     /// Banked play time; the live span is always folded in before saving.
     public let elapsedCentiseconds: Int
+
+    /// Tolerant decode: `config` + `mines` are required (no game without them);
+    /// everything else defaults if absent, so older/forward saves still load.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? Self.currentVersion
+        config = try c.decode(GameConfig.self, forKey: .config)
+        mines = try c.decode(Set<Coord>.self, forKey: .mines)
+        revealed = try c.decodeIfPresent(Set<Coord>.self, forKey: .revealed) ?? []
+        flagged = try c.decodeIfPresent(Set<Coord>.self, forKey: .flagged) ?? []
+        status = try c.decodeIfPresent(GameStatus.self, forKey: .status) ?? .playing
+        revealedSafeCount = try c.decodeIfPresent(Int.self, forKey: .revealedSafeCount) ?? 0
+        lossCoord = try c.decodeIfPresent(Coord.self, forKey: .lossCoord)
+        elapsedCentiseconds =
+            try c.decodeIfPresent(Int.self, forKey: .elapsedCentiseconds) ?? 0
+    }
 
     /// Capture a snapshot of a live game. Returns nil for a game not worth saving
     /// (not started, or already finished) — only a genuine in-progress game is.
@@ -41,5 +62,14 @@ public struct GameSnapshot: Codable, Sendable {
     /// Rebuild the `Game` this snapshot describes (topology from the config).
     public func makeGame() -> Game {
         Game.restored(from: self)
+    }
+
+    /// Migration seam, mirroring `Scoreboard`. Additive changes are handled by
+    /// the tolerant decoder above; this is for a future *breaking* change — when
+    /// `currentVersion` is bumped, transform a snapshot decoded at its older
+    /// `version` up to the current shape here (one step per version), with
+    /// fixture-based tests. Identity today (no breaking changes yet).
+    public func migrated() -> GameSnapshot {
+        self
     }
 }
