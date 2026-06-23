@@ -126,18 +126,28 @@ extension BoardScene {
         let size = layout.cellSize
         let inset: CGFloat = 1
         let side = size - inset * 2
-        for c in viewModel.game.board.allCoords
-        where viewModel.game.board[c].state == .hidden || viewModel.game.board[c].state == .flagged
-        {
+        // A flagged tile is still an *unopened* tile, so it gets the screentone
+        // too. The glow layer sits above the board (where the cell's flag glyph
+        // lives), so for flagged tiles we re-stamp the flag on top of the wash
+        // here — keeping the flag visible above its own halftone.
+        for c in viewModel.game.board.allCoords {
+            let state = viewModel.game.board[c].state
+            guard state == .hidden || state == .flagged else { continue }
+            let center = layout.center(of: c)
             let tile = SKShapeNode(
                 rect: CGRect(x: -side / 2, y: -side / 2, width: side, height: side),
                 cornerRadius: 3)
-            tile.position = layout.center(of: c)
+            tile.position = center
             tile.fillColor = .white  // the texture carries the ink; no extra tint
             tile.fillTexture = texture
             tile.strokeColor = .clear
             tile.isUserInteractionEnabled = false
             glowLayer.addChild(tile)
+            if state == .flagged {
+                let flag = flagNode(size: size, color: palette.flagGlyph)
+                flag.position = center
+                glowLayer.addChild(flag)  // above the wash
+            }
         }
     }
 

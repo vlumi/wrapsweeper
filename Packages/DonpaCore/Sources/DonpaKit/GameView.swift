@@ -182,7 +182,8 @@ struct GameContent: View {
             // a "new best %" pill shows only when this loss beat the prior best.
             let progress = viewModel.game.progress
             let isBest = scoreboard.submitLossProgress(progress, for: viewModel.config)
-            kind = .loss(progress: progress, isBest: isBest)
+            let safeRemaining = viewModel.game.safeCellCount - viewModel.game.revealedSafeCount
+            kind = .loss(progress: progress, safeRemaining: safeRemaining, isBest: isBest)
         }
         showPanel(kind)
 
