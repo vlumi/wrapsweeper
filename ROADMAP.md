@@ -155,25 +155,20 @@ full game state and tracking elapsed time as accumulated segments rather than
 and resume later, and a backgrounded app can be killed by the OS — so persistence
 isn't just nice-to-have.
 
-- [ ] **Segmented timer** (prerequisite for both): replace the single `startDate`
-      in `GameViewModel` with `accumulatedCentiseconds` + an optional
-      `runningSince`. Pause folds the running span into the accumulated total;
-      resume restarts the span. Persists cleanly (store the number, never a
-      wall-clock delta).
-- [ ] **Pause**: stop the clock, hide/blur the board so it can't be studied
-      while paused; resume continues the same game. Bind to **Esc** on macOS
-      (distinct from Esc = "return to title" on the *result* screen — pause is
-      mid-play).
-- [ ] **Persist & restore on quit**: save the in-progress game on
-      background/quit (iOS `scenePhase`) and offer to resume it on next launch.
-      Needs `Game` / `Board` / `Cell` / `Coord` `Codable`, plus a **tagged
-      encoding for the `any Topology` existential** (store kind + params, rebuild
-      via a factory — don't encode the protocol). Save the *exact* placed mine
-      layout (`Set<Coord>` + `minesPlaced`); mines are first-click-safe and must
-      not be re-randomized. Store config + accumulated elapsed too. Use a
-      **compact format** (mines/revealed/flagged as coord sets or a bitset, not
-      the full `[Coord: Cell]` dict) — a 1000×1000 save is large otherwise; this
-      dovetails with the v0.3 data-model rework below.
+- [x] **Segmented timer**: `GameViewModel` now uses `accumulatedCentiseconds` +
+      optional `runningSince`; pause folds the live span in, resume restarts it.
+      Persists as a plain number, never a wall-clock delta.
+- [x] **Pause**: a ⏸ button on the control strip (live game only) and Esc on
+      macOS freeze the clock and cover the board with a blurred "Paused / Tap to
+      resume" overlay; input is gated in the view model. Tapping / Esc resumes.
+- [x] **Persist & restore on quit**: `GameSnapshot` (versioned, `Codable`) stores
+      the config (which carries the tagged topology — the `any Topology`
+      existential is never encoded), the exact first-click-safe mine layout, and
+      revealed/flagged cells as compact coord sets (not the full dict). Saved
+      **atomically** by `SaveStore` (temp-then-rename, so a mid-save crash can't
+      corrupt it; tolerant decode discards bad/old saves). Autosaves on every
+      move; auto-pauses + saves on backgrounding (`scenePhase`); a launch alert
+      offers Resume / Discard; the save clears on finish / new game / home.
 
 ## v0.3.0 — Big boards
 

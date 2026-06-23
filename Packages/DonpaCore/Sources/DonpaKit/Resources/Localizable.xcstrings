@@ -481,6 +481,39 @@
         }
       }
     },
+    "Resume your game?": {
+      "comment": "Launch dialog title: offer to resume a saved in-progress game. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": { "state": "needs_review", "value": "Jatketaanko peliä?" }
+        },
+        "ja": {
+          "stringUnit": { "state": "needs_review", "value": "ゲームを再開しますか？" }
+        }
+      }
+    },
+    "Resume": {
+      "comment": "Launch dialog: resume the saved game. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": { "state": "needs_review", "value": "Jatka" }
+        },
+        "ja": {
+          "stringUnit": { "state": "needs_review", "value": "再開" }
+        }
+      }
+    },
+    "Discard": {
+      "comment": "Launch dialog: discard the saved game and start fresh. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": { "state": "needs_review", "value": "Hylkää" }
+        },
+        "ja": {
+          "stringUnit": { "state": "needs_review", "value": "破棄" }
+        }
+      }
+    },
     "Pause": {
       "comment": "Toolbar button: pause the game. NEEDS REVIEW: ja/fi.",
       "localizations": {

@@ -26,6 +26,7 @@ ignore:
   - "Packages/DonpaCore/Sources/DonpaKit/BoardScene+Pan.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/BoardView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/GameView.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/GameContentChrome.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/SheetViews.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/MangaPanelView.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/TitleScreen.swift"

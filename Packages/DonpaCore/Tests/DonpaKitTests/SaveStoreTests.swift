@@ -57,7 +57,8 @@ final class SaveStoreTests: XCTestCase {
     func testLoadRejectsWrongVersion() throws {
         // A future/newer save version is ignored rather than mis-decoded.
         let url = dir.appendingPathComponent(filename)
-        let json = #"{"version":999,"config":{"classic":{"_0":"beginner"}},"mines":[],"#
+        let json =
+            #"{"version":999,"config":{"classic":{"_0":"beginner"}},"mines":[],"#
             + #""revealed":[],"flagged":[],"status":"playing","revealedSafeCount":0,"#
             + #""elapsedCentiseconds":0}"#
         try Data(json.utf8).write(to: url)
