@@ -331,7 +331,8 @@ struct GameContent: View {
             Image(systemName: systemName)
                 .font(.system(size: 18))
                 .foregroundStyle(.secondary)
-                .frame(width: 32, height: 32)
+                .frame(width: 44, height: 44)  // Apple's min touch target
+                .contentShape(Rectangle())  // whole frame tappable, not just the glyph
         }
         .buttonStyle(.plain)
         .help(label)

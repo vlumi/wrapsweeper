@@ -107,7 +107,11 @@ public final class BoardScene: SKScene {
         tile.fillColor = fillColor(for: cell)
         container.addChild(tile)
 
-        if let glyph = glyph(for: cell) {
+        // The mine you hit gets the manga burst (icon motif, flat); other mines
+        // keep the plain ✸.
+        if cell.state == .revealed, cell.isMine, coord == viewModel.game.lossCoord {
+            container.addChild(burstMineNode(size: size))
+        } else if let glyph = glyph(for: cell) {
             let label = SKLabelNode(text: glyph.text)
             label.fontName = "Menlo-Bold"
             label.fontSize = size * 0.5

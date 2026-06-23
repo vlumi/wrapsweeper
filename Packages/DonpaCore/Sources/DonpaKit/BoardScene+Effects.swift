@@ -12,6 +12,48 @@ import AppKit
 /// restart — and respects Reduce Motion.
 extension BoardScene {
 
+    /// Flat burst-mine for the detonated cell (the app-icon motif, no halftone or
+    /// gradient — those would be noise at cell size).
+    func burstMineNode(size: CGFloat) -> SKNode {
+        let node = SKNode()
+        let ink = palette.mineGlyph
+
+        let path = CGMutablePath()
+        let spikes = 11
+        let rOut = size * 0.46, rIn = size * 0.30
+        for i in 0..<(spikes * 2) {
+            let a = 0.16 + CGFloat(i) * .pi / CGFloat(spikes)
+            let r = i % 2 == 0 ? rOut : rIn
+            let p = CGPoint(x: cos(a) * r, y: sin(a) * r)
+            if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        }
+        path.closeSubpath()
+        let burst = SKShapeNode(path: path)
+        burst.fillColor = SKColor(red: 0.98, green: 0.82, blue: 0.25, alpha: 1)
+        burst.strokeColor = ink
+        burst.lineWidth = max(1, size * 0.02)
+        burst.lineJoin = .round
+        node.addChild(burst)
+
+        let r = size * 0.15
+        for i in 0..<8 {
+            let a = CGFloat(i) * .pi / 4
+            let line = CGMutablePath()
+            line.move(to: CGPoint(x: cos(a) * r * 0.6, y: sin(a) * r * 0.6))
+            line.addLine(to: CGPoint(x: cos(a) * r * 1.5, y: sin(a) * r * 1.5))
+            let spoke = SKShapeNode(path: line)
+            spoke.strokeColor = ink
+            spoke.lineWidth = max(1, size * 0.05)
+            spoke.lineCap = .round
+            node.addChild(spoke)
+        }
+        let disc = SKShapeNode(circleOfRadius: r)
+        disc.fillColor = ink
+        disc.strokeColor = .clear
+        node.addChild(disc)
+        return node
+    }
+
     static var prefersReducedMotion: Bool {
         #if os(iOS)
         return UIAccessibility.isReduceMotionEnabled
