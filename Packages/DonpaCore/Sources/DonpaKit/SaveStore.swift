@@ -41,12 +41,17 @@ public struct SaveStore {
 
     /// Load a saved snapshot, or nil if there's none / it's unreadable / it's a
     /// version this build doesn't understand.
+    ///
+    /// Accepts any save at or below `currentVersion` — the format is additive, so
+    /// an older save still decodes (newer fields default; see `GameSnapshot`'s
+    /// decoder). A save from a *newer* app (`version > current`) may rely on a
+    /// breaking change this build predates, so it's discarded rather than risked.
     public func load() -> GameSnapshot? {
         guard let data = try? Data(contentsOf: url),
             let snapshot = try? JSONDecoder().decode(GameSnapshot.self, from: data),
-            snapshot.version == GameSnapshot.currentVersion
+            snapshot.version <= GameSnapshot.currentVersion
         else { return nil }
-        return snapshot
+        return snapshot.migrated()
     }
 
     public var hasSave: Bool { fileManager.fileExists(atPath: url.path) }

@@ -75,6 +75,31 @@ final class GameSnapshotTests: XCTestCase {
         XCTAssertEqual(String(data: data, encoding: .utf8), "[3,7]")
     }
 
+    /// A minimal save (only the required config + mines) decodes via field
+    /// defaults — so a future app that *added* fields can still read today's save,
+    /// and vice-versa. The format is additive.
+    func testDecodesWithOnlyRequiredFields() throws {
+        let json = #"{"config":{"classic":{"_0":"beginner"}},"mines":[[0,0]]}"#
+        let snap = try JSONDecoder().decode(GameSnapshot.self, from: Data(json.utf8))
+        XCTAssertEqual(snap.version, GameSnapshot.currentVersion)  // defaulted
+        XCTAssertEqual(snap.config, .classic(.beginner))
+        XCTAssertEqual(snap.mines, [Coord(0, 0)])
+        XCTAssertEqual(snap.revealed, [])  // defaulted
+        XCTAssertEqual(snap.status, .playing)  // defaulted
+        XCTAssertEqual(snap.elapsedCentiseconds, 0)  // defaulted
+    }
+
+    /// A save missing an essential field (config / mines) is rejected, not
+    /// silently turned into a broken game.
+    func testDecodeFailsWithoutEssentialFields() {
+        let noConfig = #"{"mines":[[0,0]]}"#
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(GameSnapshot.self, from: Data(noConfig.utf8)))
+        let noMines = #"{"config":{"classic":{"_0":"beginner"}}}"#
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(GameSnapshot.self, from: Data(noMines.utf8)))
+    }
+
     /// A corrupt/tampered save with off-board coordinates must restore to a valid
     /// in-bounds board — no phantom cells, no skewed counts — never a broken game.
     func testRestoreIgnoresOutOfBoundsCoords() throws {
