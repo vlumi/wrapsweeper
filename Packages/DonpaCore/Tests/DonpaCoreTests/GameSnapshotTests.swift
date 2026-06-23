@@ -74,4 +74,28 @@ final class GameSnapshotTests: XCTestCase {
         let data = try JSONEncoder().encode(Coord(3, 7))
         XCTAssertEqual(String(data: data, encoding: .utf8), "[3,7]")
     }
+
+    /// A corrupt/tampered save with off-board coordinates must restore to a valid
+    /// in-bounds board — no phantom cells, no skewed counts — never a broken game.
+    func testRestoreIgnoresOutOfBoundsCoords() throws {
+        // Beginner is 9×9. Craft a snapshot with in-bounds and off-board coords.
+        let json = """
+            {"version":1,"config":{"classic":{"_0":"beginner"}},
+            "mines":[[0,0],[99,99]],"revealed":[[1,1],[50,50]],"flagged":[[2,2],[-5,-5]],
+            "status":"playing","revealedSafeCount":999,"lossCoord":null,
+            "elapsedCentiseconds":100}
+            """
+        let snap = try JSONDecoder().decode(GameSnapshot.self, from: Data(json.utf8))
+        let game = snap.makeGame()
+
+        // Only the in-bounds mine survives; the off-board one is dropped.
+        XCTAssertEqual(game.board.mineCoords, [Coord(0, 0)])
+        // Revealed/flagged are the in-bounds ones only.
+        XCTAssertEqual(game.board.revealedCoords, [Coord(1, 1)])
+        XCTAssertEqual(game.board.flaggedCoords, [Coord(2, 2)])
+        // revealedSafeCount is derived from the board, not the bogus saved 999.
+        XCTAssertEqual(game.revealedSafeCount, 1)
+        // The board still has exactly its 81 cells (no phantom off-board entries).
+        XCTAssertEqual(game.board.cellCount, 81)
+    }
 }
