@@ -1,91 +1,118 @@
 #!/usr/bin/env swift
 //
-// Generates the app icon (a minesweeper flag on a tile) at every size the
-// asset catalog needs. Pure CoreGraphics, so it's reproducible and
-// dependency-free.
-//
-//   swift Scripts/make-icon.swift Sources/Shared/Assets.xcassets/AppIcon.appiconset
-//
-// Writes icon-16.png … icon-1024.png into the given directory.
+// App icon: a detonating mine in a halftone comic burst, at every catalog size.
+// Pure CoreGraphics. `--mono` renders the grayscale treatment.
+//   swift Scripts/make-icon.swift <outDir> [--mono]
 
 import CoreGraphics
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-// The icon is drawn at any requested pixel size, so it stays crisp at every
-// slot in the asset catalog (iOS 1024 plus the macOS 16…512 @1x/@2x set).
-let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
+let args = CommandLine.arguments
+let outDir = args.count > 1 && !args[1].hasPrefix("--") ? args[1] : "."
+let mono = args.contains("--mono")
 
-func color(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> CGColor {
-    CGColor(srgbRed: r, green: g, blue: b, alpha: 1)
+let space = CGColorSpace(name: CGColorSpace.sRGB)!
+
+func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor {
+    CGColor(srgbRed: r, green: g, blue: b, alpha: a)
 }
 
-func renderIcon(size: Int) -> CGImage {
+/// Colour ("cover") ships by default; `--mono` is the B&W "interior-page" look.
+struct Palette {
+    let bgTop, bgBottom, burst, ink, halftone: CGColor
+
+    static let color = Palette(
+        bgTop: rgb(0.62, 0.10, 0.10), bgBottom: rgb(0.30, 0.04, 0.06),
+        burst: rgb(0.98, 0.86, 0.30), ink: rgb(0.10, 0.06, 0.05),
+        halftone: rgb(0.85, 0.50, 0.08, 0.55))
+
+    static let mono = Palette(
+        bgTop: rgb(0.32, 0.32, 0.33), bgBottom: rgb(0.12, 0.12, 0.13),
+        burst: rgb(0.93, 0.92, 0.89), ink: rgb(0.08, 0.08, 0.09),
+        halftone: rgb(0.10, 0.10, 0.11, 0.40))
+}
+
+/// A jagged comic impact starburst centred at c.
+func burstPath(c: CGPoint, rOuter: CGFloat, rInner: CGFloat, spikes: Int, phase: CGFloat) -> CGPath
+{
+    let p = CGMutablePath()
+    for i in 0..<(spikes * 2) {
+        let a = phase + CGFloat(i) * .pi / CGFloat(spikes)
+        let r = i % 2 == 0 ? rOuter : rInner
+        let pt = CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
+        if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+    }
+    p.closeSubpath()
+    return p
+}
+
+/// Even Ben-Day halftone dots over `rect` (call inside a clip).
+func halftone(_ ctx: CGContext, in rect: CGRect, dot: CGFloat, gap: CGFloat, color: CGColor) {
+    ctx.setFillColor(color)
+    var y = rect.minY
+    while y < rect.maxY {
+        var x = rect.minX
+        while x < rect.maxX {
+            ctx.fillEllipse(in: CGRect(x: x, y: y, width: dot, height: dot))
+            x += gap
+        }
+        y += gap
+    }
+}
+
+/// A spiky mine disc with radial spikes and a small specular highlight, at c.
+func drawMine(_ ctx: CGContext, c: CGPoint, r: CGFloat, fill: CGColor) {
+    ctx.setFillColor(fill)
+    ctx.setStrokeColor(fill)
+    ctx.setLineWidth(r * 0.34)
+    ctx.setLineCap(.round)
+    for i in 0..<8 {
+        let a = CGFloat(i) * .pi / 4
+        ctx.move(to: CGPoint(x: c.x + cos(a) * r * 0.7, y: c.y + sin(a) * r * 0.7))
+        ctx.addLine(to: CGPoint(x: c.x + cos(a) * r * 1.55, y: c.y + sin(a) * r * 1.55))
+    }
+    ctx.strokePath()
+    ctx.fillEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+    ctx.setFillColor(rgb(1, 1, 1, 0.5))
+    ctx.fillEllipse(
+        in: CGRect(x: c.x - r * 0.45, y: c.y + r * 0.1, width: r * 0.5, height: r * 0.5))
+}
+
+func renderIcon(size: Int, palette pal: Palette) -> CGImage {
     guard
         let ctx = CGContext(
             data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
     else { fatalError("could not create context") }
 
     let s = CGFloat(size)
+    let c = CGPoint(x: s / 2, y: s / 2)
 
-    // Background: vertical gradient, dark slate to near-black (matches the board).
-    let space = CGColorSpace(name: CGColorSpace.sRGB)!
-    let gradient = CGGradient(
-        colorsSpace: space,
-        colors: [color(0.16, 0.17, 0.20), color(0.07, 0.07, 0.09)] as CFArray,
-        locations: [0, 1])!
-    ctx.drawLinearGradient(
-        gradient, start: CGPoint(x: 0, y: s), end: CGPoint(x: 0, y: 0), options: [])
+    let bg = CGGradient(
+        colorsSpace: space, colors: [pal.bgTop, pal.bgBottom] as CFArray, locations: [0, 1])!
+    ctx.drawLinearGradient(bg, start: CGPoint(x: 0, y: s), end: CGPoint(x: 0, y: 0), options: [])
 
-    // A raised tile in the centre.
-    let inset = s * 0.16
-    let tileRect = CGRect(x: inset, y: inset, width: s - inset * 2, height: s - inset * 2)
-    let tile = CGPath(
-        roundedRect: tileRect, cornerWidth: s * 0.10, cornerHeight: s * 0.10, transform: nil)
-    ctx.addPath(tile)
-    ctx.setFillColor(color(0.26, 0.27, 0.31))
+    let burst = burstPath(c: c, rOuter: s * 0.46, rInner: s * 0.30, spikes: 14, phase: 0.16)
+    ctx.addPath(burst)
+    ctx.setFillColor(pal.burst)
     ctx.fillPath()
-
-    // Subtle top highlight on the tile for a little depth.
-    ctx.saveGState()
-    ctx.addPath(tile)
-    ctx.clip()
-    let sheen = CGGradient(
-        colorsSpace: space,
-        colors: [color(0.34, 0.35, 0.40), color(0.22, 0.23, 0.27)] as CFArray,
-        locations: [0, 1])!
-    ctx.drawLinearGradient(
-        sheen, start: CGPoint(x: 0, y: tileRect.maxY), end: CGPoint(x: 0, y: tileRect.minY),
-        options: [])
-    ctx.restoreGState()
-
-    // Flag pole.
-    let poleX = s * 0.46
-    let poleBottom = s * 0.34
-    let poleTop = s * 0.70
-    ctx.setStrokeColor(color(0.85, 0.86, 0.90))
-    ctx.setLineWidth(s * 0.022)
-    ctx.setLineCap(.round)
-    ctx.move(to: CGPoint(x: poleX, y: poleBottom))
-    ctx.addLine(to: CGPoint(x: poleX, y: poleTop))
+    ctx.addPath(burst)
+    ctx.setStrokeColor(pal.ink)
+    ctx.setLineWidth(s * 0.018)
+    ctx.setLineJoin(.round)
     ctx.strokePath()
 
-    // Flag base.
-    let baseW = s * 0.20
-    ctx.setFillColor(color(0.85, 0.86, 0.90))
-    ctx.fill(
-        CGRect(x: poleX - baseW / 2, y: poleBottom - s * 0.018, width: baseW, height: s * 0.05))
+    ctx.saveGState()
+    ctx.addPath(burst)
+    ctx.clip()
+    halftone(
+        ctx, in: CGRect(x: 0, y: 0, width: s, height: s), dot: s * 0.02, gap: s * 0.052,
+        color: pal.halftone)
+    ctx.restoreGState()
 
-    // Red flag (triangle pointing right-down from the top of the pole).
-    ctx.setFillColor(color(0.92, 0.27, 0.24))
-    ctx.move(to: CGPoint(x: poleX, y: poleTop))
-    ctx.addLine(to: CGPoint(x: poleX + s * 0.22, y: poleTop - s * 0.085))
-    ctx.addLine(to: CGPoint(x: poleX, y: poleTop - s * 0.17))
-    ctx.closePath()
-    ctx.fillPath()
+    drawMine(ctx, c: c, r: s * 0.16, fill: pal.ink)
 
     guard let image = ctx.makeImage() else { fatalError("could not render image") }
     return image
@@ -106,7 +133,7 @@ func writePNG(_ image: CGImage, to path: String) {
 
 // Every pixel size the asset catalog references: iOS 1024 plus the macOS
 // 16/32/128/256/512 set at @1x and @2x. Keys match the Contents.json filenames.
-let sizes = [16, 32, 64, 128, 256, 512, 1024]
-for px in sizes {
-    writePNG(renderIcon(size: px), to: "\(outDir)/icon-\(px).png")
+let palette = mono ? Palette.mono : Palette.color
+for px in [16, 32, 64, 128, 256, 512, 1024] {
+    writePNG(renderIcon(size: px, palette: palette), to: "\(outDir)/icon-\(px).png")
 }

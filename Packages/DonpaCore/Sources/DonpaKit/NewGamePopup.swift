@@ -25,7 +25,6 @@ struct NewGamePopup: View {
     let onClose: () -> Void
 
     #if os(macOS)
-    @FocusState private var focused: Bool
     /// Keyboard-focused picker row: 0 = Mode, then Size/Difficulty depending on
     /// mode. nil until the first arrow press, so the highlight only appears once
     /// the player starts using the keyboard.
@@ -46,26 +45,29 @@ struct NewGamePopup: View {
                 .contentShape(Rectangle())
                 .onTapGesture {}
                 .padding(24)
-                #if os(macOS)
-            // The card itself holds keyboard focus (a zero-size proxy
-            // wouldn't reliably receive keys), with the focus ring
-            // suppressed so arrows/Return/Esc work without a glow around
-            // the modal.
-            .focusable()
-            .focused($focused)
-            .focusEffectDisabled()
-            .onAppear { focused = true }
-            .onMoveCommand { handleMove($0) }
-            .onExitCommand { onClose() }
-            // Return starts. Handled here because the focused card swallows
-            // Return before the Start button's `.defaultAction` can see it.
-            .onKeyPress(.return) {
-                onStart()
-                return .handled
-            }
-                #endif
+        }
+        #if os(macOS)
+        // An AppKit key-catcher takes first responder from the SpriteKit board
+        // and routes arrows/Return/Esc — SwiftUI @FocusState can't reliably pry
+        // it loose, especially after a game ends.
+        .background(KeyCatcher { handleKey($0) })
+        #endif
+    }
+
+    #if os(macOS)
+    private func handleKey(_ key: KeyCatcher.Key) {
+        switch key {
+        case .up: focusedRow = max(0, (focusedRow ?? 0) - 1)
+        case .down:
+            let rows = settings.mode == .classic ? 2 : 3
+            focusedRow = min(rows - 1, (focusedRow ?? -1) + 1)
+        case .left: cycleSelection(in: focusedRow ?? 0, by: -1)
+        case .right: cycleSelection(in: focusedRow ?? 0, by: 1)
+        case .enter: onStart()
+        case .escape: onClose()
         }
     }
+    #endif
 
     private var card: some View {
         VStack(spacing: 20) {
@@ -117,23 +119,6 @@ struct NewGamePopup: View {
     }
 
     #if os(macOS)
-    /// Up/down move the focused row; left/right cycle the value within it.
-    private func handleMove(_ direction: MoveCommandDirection) {
-        let rowCount = settings.mode == .classic ? 2 : 3
-        switch direction {
-        case .up:
-            focusedRow = max(0, (focusedRow ?? 0) - 1)
-        case .down:
-            focusedRow = min(rowCount - 1, (focusedRow ?? -1) + 1)
-        case .left:
-            cycleSelection(in: focusedRow ?? 0, by: -1)
-        case .right:
-            cycleSelection(in: focusedRow ?? 0, by: 1)
-        @unknown default:
-            break
-        }
-    }
-
     /// Cycle the selection in the given row. Row 0 is always Mode; rows 1+ are
     /// Difficulty (Classic) or Size then Difficulty (Modern).
     private func cycleSelection(in row: Int, by step: Int) {

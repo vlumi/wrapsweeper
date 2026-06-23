@@ -25,8 +25,11 @@ Ship a polished classic Minesweeper on iOS and macOS.
       (a custom crosshair/flag, shown only while a game is in progress)
 - [x] Local scoreboard: best time + games-cleared count per board
 - [x] iOS + macOS app targets, CI
-- [x] App icon (manga-style; PR #33 — placeholder pending a final title-free,
-      single-focal-subject icon, see "Creative identity & theme")
+- [x] App icon — a **procedural** detonating mine in a halftone comic burst
+      (`Scripts/make-icon.swift`, pure CoreGraphics; `--mono` flips to the B&W
+      "interior-page" treatment). Replaced the AI placeholder; single focal
+      subject, title-free, legible to 16px. The same flat burst-mine renders on
+      the detonated cell in-game.
 - [x] Light / dark / system appearance (settings sheet, persisted)
 - [x] Persisted board selection (mode + size/density/preset)
 - [x] Win/loss feedback: board animation, restart pop, iOS haptics. The early
@@ -54,9 +57,9 @@ Ship a polished classic Minesweeper on iOS and macOS.
         so co-design it with the v0.3 huge-map navigation rather than build twice.
   - [x] About view: version + credits (PR #36) — shared view; macOS app menu +
         iOS Settings row; bundle version, MIT/copyright, GitHub link.
-  - [ ] Final app icon: a title-free, single-focal-subject manga icon to
-        replace the PR #33 placeholder (see "Creative identity & theme"). The
-        light/dark question is moot now the icon is B/W manga on a flat field.
+  - [x] Final app icon: procedural bursting-mine (see the v0.1.0 list above).
+        Follow-up idea: use the B&W (`--mono`) icon on a launch screen (iOS
+        `UILaunchScreen` is still empty `{}`; no macOS launch screen yet).
   - [x] Window sizing: macOS grows the window to fit a board but never shrinks a
         maximized/hand-sized one (PR #33); per-board cell size targets a
         consistent footprint, and the on-screen cell cap is relative to the
