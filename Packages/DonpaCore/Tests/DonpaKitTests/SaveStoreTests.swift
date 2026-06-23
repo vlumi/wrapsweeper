@@ -40,6 +40,17 @@ final class SaveStoreTests: XCTestCase {
         XCTAssertEqual(loaded?.mines, snap.mines)
     }
 
+    func testAppSupportFactoryProducesAUsableStore() {
+        // Exercise the production factory (App Support dir), but with a unique
+        // filename so it can't touch a real save; clean up after.
+        let appStore = SaveStore.appSupport(filename: "test-appsupport-\(UUID().uuidString).json")
+        defer { appStore.clear() }
+        XCTAssertNil(appStore.load())
+        appStore.save(sampleSnapshot())
+        XCTAssertTrue(appStore.hasSave)
+        XCTAssertEqual(appStore.load()?.elapsedCentiseconds, 500)
+    }
+
     func testClearRemovesTheSave() {
         store.save(sampleSnapshot())
         store.clear()

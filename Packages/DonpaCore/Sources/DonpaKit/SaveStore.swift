@@ -22,12 +22,14 @@ public struct SaveStore {
 
     /// The production store, in Application Support (temp dir as a last resort if
     /// it's somehow unavailable). Tests construct `SaveStore(directory:)` directly.
-    public static func appSupport(fileManager: FileManager = .default) -> SaveStore {
+    public static func appSupport(
+        fileManager: FileManager = .default, filename: String = "currentGame.json"
+    ) -> SaveStore {
         let dir =
             (try? fileManager.url(
                 for: .applicationSupportDirectory, in: .userDomainMask,
                 appropriateFor: nil, create: true)) ?? fileManager.temporaryDirectory
-        return SaveStore(directory: dir, fileManager: fileManager)
+        return SaveStore(directory: dir, fileManager: fileManager, filename: filename)
     }
 
     /// Atomically write the snapshot. Failures are swallowed — a save that didn't
