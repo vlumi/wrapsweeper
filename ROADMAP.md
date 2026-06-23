@@ -241,18 +241,22 @@ reveal/"dig" glyph (a CC0 silhouette baked to a tintable template via
 `Scripts/make-boot.swift`). The mode toggle is a single-tap dig|flag segmented
 pair in distinct mode colours; the status bar carries a tappable config "change
 game" badge (replacing the separate New-Game button, mirroring the title splash).
-The manga flavour lives in these; the **board itself stays the classic look** (a
-tried "inked paper" board theme wasn't distinct enough from classic to justify
-itself, so it was dropped — revisit only with a genuinely different treatment:
-real screentone texture, heavier ink, custom number styling).
+The **board's unopened tiles carry a faint manga screentone keyed to the input
+mode** — Ben-Day dots for dig, diagonal hatch for flag (opposite per-tile
+vignettes), the same patterns echoed on the mode-toggle segments. The cue is the
+*pattern*, not colour, so it's colour-blind safe; the ink is brightness-balanced
+per appearance so a screentoned tile averages back to the bare-tile gray. The
+manga flavour lives in these; the **board grid itself stays the classic look** (a
+tried full "inked paper" board theme wasn't distinct enough from classic to
+justify itself, so it was dropped — revisit only with a genuinely different
+treatment: heavier ink, custom number styling).
 
 **Ideas to revisit:**
 
-- **Board mode-glow** — a faint mode-colour hint on the board (teal dig / orange
-  flag): a near-cursor radial glow on macOS, a faint full-board tint on iOS/
-  iPadOS (no pointer). Planned and scoped (canonical mode colours → `Palette`, a
-  glow layer in `BoardScene`, `flagsChanged`/pointer tracking) but deferred; the
-  coloured toggle is the sole mode cue today.
+- **More screentone accents** — the dot/hatch screentone vocabulary could extend
+  to other UI (panels, buttons, backgrounds). Tempting, but easy to overdo: keep
+  it sparing and meaningful (it currently *means* "unopened / this mode") rather
+  than decorative everywhere, or the UI gets noisy.
 - **Pause panel art** — a "squad taking a rest" manga frame on the pause overlay
   (same panel slot as win/loss). The current blurred "Paused" overlay is the
   placeholder; pairs with the next art batch (DALL·E → `.local` → `Panels.xcassets`).

@@ -97,29 +97,14 @@ extension GameContent {
         .accessibilityLabel(Text("Board", bundle: .module))
         .accessibilityValue(boardSummary)
         .accessibilityIdentifier("game.board")
-        // A subtle inner edge-glow tinted to the armed input mode, so the whole
-        // field reinforces which tool a tap will use (teal = dig, orange = flag).
-        .overlay { modeGlow }
+        // The mode hint is a manga screentone (dig dots / flag hatch) over the
+        // unopened tiles, drawn inside the SpriteKit scene — see
+        // BoardScene.refreshModeGlow.
         // Result screen dims the board ONLY, leaving the control strip live.
         .overlay { mangaPanel }
         .overlay { pauseOverlay }
         .animation(.easeInOut(duration: 0.2), value: viewModel.isPaused)
-        .animation(.easeInOut(duration: 0.2), value: viewModel.inputMode)
         .clipped()  // keep the dimmed backdrop within the board's bounds
-    }
-
-    /// A soft inner border glow in the armed mode's colour, drawn just inside the
-    /// board edge. Shown only during a live game; fades when the mode changes.
-    @ViewBuilder var modeGlow: some View {
-        if let color = activeModeColor {
-            RoundedRectangle(cornerRadius: 4)
-                .strokeBorder(color, lineWidth: 3)
-                .blur(radius: 6)
-                .padding(2)
-                .opacity(0.8)
-                .allowsHitTesting(false)
-                .transition(.opacity)
-        }
     }
 
     /// Covers the board while paused so it can't be studied; tap (or the strip's
@@ -324,17 +309,11 @@ extension GameContent {
         }
     }
 
-    /// Distinct colours for the two input modes — used for the armed toggle half
-    /// and the matching board glow, so the live tool is obvious at a glance.
-    /// Dig is a calm teal ("step safely"); flag is the warning orange.
-    static let digColor = Color(red: 0.10, green: 0.55, blue: 0.62)
-    static let flagColor = Color.orange
-
-    /// The colour of the currently-armed mode, or nil when no live game.
-    var activeModeColor: Color? {
-        guard gameInProgress else { return nil }
-        return viewModel.inputMode == .flag ? Self.flagColor : Self.digColor
-    }
+    /// Distinct colours for the two input modes — the armed toggle half, matching
+    /// the board mode-glow. Sourced from the palette so the toggle and the
+    /// SpriteKit glow never drift.
+    var digColor: Color { palette.digColor }
+    var flagColor: Color { palette.flagColor }
 
     /// A small manga-glyph button (the top-strip medal). 44pt touch target.
     func mangaIconButton(
@@ -362,8 +341,8 @@ extension GameContent {
         let flagging = viewModel.inputMode == .flag
         return Button(action: { viewModel.inputMode.toggle() }) {
             HStack(spacing: 0) {
-                modeSegment(.reveal, active: !flagging, fill: Self.digColor)
-                modeSegment(.flag, active: flagging, fill: Self.flagColor)
+                modeSegment(.reveal, active: !flagging, fill: digColor)
+                modeSegment(.flag, active: flagging, fill: flagColor)
             }
             .background(Capsule().fill(palette.statusBar.opacity(0.6)))
             .overlay(Capsule().stroke(.primary.opacity(0.15), lineWidth: 1))
@@ -387,10 +366,65 @@ extension GameContent {
     }
 
     /// One half of the dig|flag pair — pure visual (the whole pill is the button).
-    /// The armed half is filled with its mode colour and a white glyph.
+    /// The armed half is filled with its mode colour and a white glyph; both
+    /// halves carry the mode's manga screentone (dots for dig, hatch for flag)
+    /// behind the glyph, matching the board's unopened-tile texture.
     private func modeSegment(_ symbol: MangaIcon.Symbol, active: Bool, fill: Color) -> some View {
         MangaIcon(symbol: symbol, size: 34, tint: active ? .white : .secondary)
             .frame(width: 50, height: 60)
-            .background(active ? fill : .clear)
+            .background {
+                ZStack {
+                    if active { fill }
+                    // Screentone on top of the fill (white ink on the coloured
+                    // armed side; muted ink on the empty side) — same dots/hatch
+                    // vocabulary as the board.
+                    ScreentonePattern(
+                        dots: symbol == .reveal,
+                        color: active ? .white.opacity(0.35) : .primary.opacity(0.18))
+                }
+            }
+    }
+}
+
+/// The manga screentone used on the mode toggle's segment backgrounds — Ben-Day
+/// dots (dig) or diagonal hatch (flag), the SwiftUI counterpart to the board's
+/// `BoardScene.screentoneTexture` so the toggle and field share the texture.
+private struct ScreentonePattern: View {
+    let dots: Bool
+    let color: Color
+
+    var body: some View {
+        Canvas { ctx, area in
+            let w = area.width, h = area.height
+            let shading = GraphicsContext.Shading.color(color)
+            if dots {
+                let gap = w * 0.22, r = w * 0.05
+                var row = 0
+                var y = gap / 2
+                while y < h + gap {
+                    let offset = row.isMultiple(of: 2) ? 0 : gap / 2
+                    var x = gap / 2 - gap + offset
+                    while x < w + gap {
+                        ctx.fill(
+                            Path(
+                                ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                            with: shading)
+                        x += gap
+                    }
+                    y += gap * 0.86
+                    row += 1
+                }
+            } else {
+                let gap = w * 0.20
+                var d = -h
+                while d < w {
+                    var line = Path()
+                    line.move(to: CGPoint(x: d, y: 0))
+                    line.addLine(to: CGPoint(x: d + h, y: h))
+                    ctx.stroke(line, with: shading, lineWidth: w * 0.05)
+                    d += gap
+                }
+            }
+        }
     }
 }
