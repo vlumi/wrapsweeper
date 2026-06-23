@@ -54,6 +54,48 @@ extension BoardScene {
         return node
     }
 
+    /// The flag placed on a flagged cell — the swallowtail flag from the toolbar
+    /// toggle (`MangaIcon.flag`), drawn with SpriteKit paths so it matches the
+    /// chrome and stays crisp at any zoom. Centred on the cell origin (y-up).
+    func flagNode(size: CGFloat, color: SKColor) -> SKNode {
+        let node = SKNode()
+        // Work in a centred box of side `g`, mapping MangaIcon's 0…1 design space
+        // (top-down) to SpriteKit (y-up): x → x-0.5, y → 0.5-y, scaled by g.
+        let g = size * 0.66
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: (x - 0.5) * g, y: (0.5 - y) * g)
+        }
+        let poleX: CGFloat = 0.30
+        // Ball finial.
+        let ball = SKShapeNode(circleOfRadius: 0.07 * g)
+        ball.position = p(poleX, 0.12)
+        ball.fillColor = color
+        ball.strokeColor = .clear
+        node.addChild(ball)
+        // Pole.
+        let pole = CGMutablePath()
+        pole.move(to: p(poleX, 0.17))
+        pole.addLine(to: p(poleX, 0.86))
+        let poleNode = SKShapeNode(path: pole)
+        poleNode.strokeColor = color
+        poleNode.lineWidth = max(1, 0.07 * g)
+        poleNode.lineCap = .round
+        node.addChild(poleNode)
+        // Swallowtail flag with a V-notch cut into the fly edge.
+        let flag = CGMutablePath()
+        flag.move(to: p(poleX, 0.20))
+        flag.addLine(to: p(0.80, 0.20))
+        flag.addLine(to: p(0.66, 0.35))  // notch in
+        flag.addLine(to: p(0.80, 0.50))
+        flag.addLine(to: p(poleX, 0.50))
+        flag.closeSubpath()
+        let flagNode = SKShapeNode(path: flag)
+        flagNode.fillColor = color
+        flagNode.strokeColor = .clear
+        node.addChild(flagNode)
+        return node
+    }
+
     static var prefersReducedMotion: Bool {
         #if os(iOS)
         return UIAccessibility.isReduceMotionEnabled

@@ -11,14 +11,13 @@ struct CounterReadout: View {
     let tint: Color
 
     var body: some View {
-        HStack(spacing: 3) {
-            Text(verbatim: glyph)
+        HStack(spacing: 4) {
+            Text(verbatim: glyph).font(.title3)
             Text(verbatim: value)
-                .font(.system(.title3, design: .monospaced).weight(.bold))
+                .font(.system(.title, design: .monospaced).weight(.bold))
                 .foregroundStyle(tint)
         }
         .lineLimit(1)
-        .minimumScaleFactor(0.5)
         .layoutPriority(1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(a11y, bundle: .module))
@@ -50,14 +49,17 @@ struct ProgressReadout: View {
 
     var body: some View {
         let pct = Int((progress * 100).rounded())
-        return HStack(spacing: 3) {
-            Image(systemName: "chart.bar.fill").font(.caption)
-            Text(verbatim: "\(pct)%")
-                .font(.system(.title3, design: .monospaced).weight(.bold))
+        // Zero-pad to a fixed 3-digit field (e.g. `072%`, `100%`) so the readout's
+        // width never jitters as the value crosses 1→2→3 digits — matching the
+        // zero-padded 3-digit mine/timer counters.
+        return HStack(spacing: 4) {
+            Image(systemName: "chart.bar.fill").font(.body)
+            Text(verbatim: String(format: "%03d%%", pct))
+                .font(.system(.title, design: .monospaced).weight(.bold))
                 .foregroundStyle(tint)
         }
         .lineLimit(1)
-        .minimumScaleFactor(0.5)
+        .layoutPriority(1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Cleared", bundle: .module))
         .accessibilityValue(Text(verbatim: "\(pct)%"))

@@ -234,17 +234,25 @@ App Store Connect.
 ## Creative identity & theme
 
 **Shipped:** manga end-of-game result screen (win/loss/new-record panels), the
-interactive title screen, and a manga-style app icon. The manga flavour lives in
-these; the **board itself stays the classic look** (a tried "inked paper" board
-theme wasn't distinct enough from classic to justify itself, so it was dropped —
-revisit only with a genuinely different treatment: real screentone texture,
-heavier ink, custom number styling).
+interactive title screen, a manga-style app icon, and **procedural manga chrome
+glyphs** (`MangaIcon`): a war-medal High Scores button, a Quonset-hut "home"
+barracks, a swallowtail flag, a pause/play toggle, and an army boot-print
+reveal/"dig" glyph (a CC0 silhouette baked to a tintable template via
+`Scripts/make-boot.swift`). The mode toggle is a single-tap dig|flag segmented
+pair in distinct mode colours; the status bar carries a tappable config "change
+game" badge (replacing the separate New-Game button, mirroring the title splash).
+The manga flavour lives in these; the **board itself stays the classic look** (a
+tried "inked paper" board theme wasn't distinct enough from classic to justify
+itself, so it was dropped — revisit only with a genuinely different treatment:
+real screentone texture, heavier ink, custom number styling).
 
 **Ideas to revisit:**
 
-- **Manga-style toolbar icons** — the status-bar chrome (trophy, gear, mode
-  toggle, new-game) still uses plain SF Symbols; matching them to the manga
-  style would tie the in-game look to the panels/title.
+- **Board mode-glow** — a faint mode-colour hint on the board (teal dig / orange
+  flag): a near-cursor radial glow on macOS, a faint full-board tint on iOS/
+  iPadOS (no pointer). Planned and scoped (canonical mode colours → `Palette`, a
+  glow layer in `BoardScene`, `flagsChanged`/pointer tracking) but deferred; the
+  coloured toggle is the sole mode cue today.
 - **Pause panel art** — a "squad taking a rest" manga frame on the pause overlay
   (same panel slot as win/loss). The current blurred "Paused" overlay is the
   placeholder; pairs with the next art batch (DALL·E → `.local` → `Panels.xcassets`).

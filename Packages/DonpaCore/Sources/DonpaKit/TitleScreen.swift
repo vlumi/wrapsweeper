@@ -35,12 +35,14 @@ struct TitleScreen: View {
             // which may or may not overlap the art depending on its size).
             .overlay(alignment: .topTrailing) {
                 HStack(spacing: 8) {
-                    roundIcon(
-                        "trophy.fill", label: "High Scores", id: "title.highScores",
-                        action: onScores)
-                    roundIcon(
-                        "gearshape.fill", label: "Settings", id: "title.settings",
-                        action: onSettings)
+                    roundButton(label: "High Scores", id: "title.highScores", action: onScores) {
+                        MangaIcon(symbol: .medal, size: 34, tint: .white)
+                    }
+                    roundButton(label: "Settings", id: "title.settings", action: onSettings) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
                 }
                 .padding(16)
             }
@@ -66,14 +68,14 @@ struct TitleScreen: View {
         .accessibilityIdentifier("title.start")
     }
 
-    /// Small round overlay button for a secondary action in the corner.
-    private func roundIcon(
-        _ icon: String, label: LocalizedStringKey, id: String, action: @escaping () -> Void
+    /// Small round overlay button for a secondary action on the title corner;
+    /// the `icon` content (an SF Symbol or a `MangaIcon`) sits on the dark circle.
+    private func roundButton<Icon: View>(
+        label: LocalizedStringKey, id: String, action: @escaping () -> Void,
+        @ViewBuilder icon: () -> Icon
     ) -> some View {
         Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
+            icon()
                 .frame(width: 40, height: 40)
                 .background(.black.opacity(0.55), in: Circle())
                 .overlay(Circle().stroke(.white.opacity(0.5), lineWidth: 1))

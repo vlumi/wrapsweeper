@@ -108,9 +108,12 @@ public final class BoardScene: SKScene {
         container.addChild(tile)
 
         // The mine you hit gets the manga burst (icon motif, flat); other mines
-        // keep the plain ✸.
+        // keep the plain ✸. Flagged cells get the swallowtail flag matching the
+        // toolbar toggle (a SpriteKit-drawn glyph, not a text character).
         if cell.state == .revealed, cell.isMine, coord == viewModel.game.lossCoord {
             container.addChild(burstMineNode(size: size))
+        } else if cell.state == .flagged {
+            container.addChild(flagNode(size: size, color: palette.flagGlyph))
         } else if let glyph = glyph(for: cell) {
             let label = SKLabelNode(text: glyph.text)
             label.fontName = "Menlo-Bold"
@@ -135,7 +138,7 @@ public final class BoardScene: SKScene {
     private func glyph(for cell: Cell) -> (text: String, color: SKColor)? {
         switch cell.state {
         case .flagged:
-            return ("⚑", palette.flagGlyph)
+            return nil  // drawn as a swallowtail flagNode, not a text glyph
         case .hidden:
             return nil
         case .revealed:
@@ -354,8 +357,11 @@ public final class BoardScene: SKScene {
         if didDragInScene { panEnded() }  // spring back if the drag overshot the edge
         guard !didDragInScene else { return }  // a real drag panned; don't also click
         let p = event.location(in: self)
+        // Control is the temporary "other action" modifier (matching the cursor,
+        // which flips to the other mode while Ctrl is held): in Reveal mode it
+        // flags, in Flag mode it reveals — i.e. the long-press action.
         if NSEvent.modifierFlags.contains(.control) {
-            flag(atScenePoint: p)
+            longPressAction(atScenePoint: p)
         } else {
             tapAction(atScenePoint: p)
         }

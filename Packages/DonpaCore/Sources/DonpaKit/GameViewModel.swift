@@ -9,7 +9,10 @@ public enum InputMode: Sendable {
     case reveal
     case flag
 
-    public mutating func toggle() { self = self == .reveal ? .flag : .reveal }
+    public mutating func toggle() { self = flipped }
+
+    /// The other mode — used for the temporary Control-held "other action".
+    public var flipped: InputMode { self == .reveal ? .flag : .reveal }
 }
 
 /// The outcome of a finished game, used to drive end-of-game feedback.

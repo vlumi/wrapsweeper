@@ -85,13 +85,13 @@ final class ScrollForwardingSKView: SKView {
 
     override func mouseEntered(with event: NSEvent) {
         pointerInside = true
-        cursor(for: inputMode).set()
+        cursor(for: effectiveMode).set()
     }
 
     override func mouseMoved(with event: NSEvent) {
         // Re-assert each move: AppKit otherwise resets to the arrow as the pointer
         // travels, and a stale cursor from a sibling view can win without this.
-        cursor(for: inputMode).set()
+        cursor(for: effectiveMode).set()
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -99,59 +99,38 @@ final class ScrollForwardingSKView: SKView {
         NSCursor.arrow.set()
     }
 
+    // Holding Control temporarily flips the action (Ctrl+click flags in reveal
+    // mode, reveals in flag mode); reflect that in the cursor while it's held.
+    override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        refreshCursor()
+    }
+
+    /// The mode the next plain click would use: the armed `inputMode`, flipped
+    /// while Control is held (the temporary "other action" modifier).
+    private var effectiveMode: InputMode {
+        NSEvent.modifierFlags.contains(.control) ? inputMode.flipped : inputMode
+    }
+
     /// Re-apply the cursor for the current mode/state if the pointer is over us.
     private func refreshCursor() {
         guard pointerInside else { return }
-        cursor(for: inputMode).set()
+        cursor(for: effectiveMode).set()
     }
 
     private func cursor(for mode: InputMode) -> NSCursor {
         guard boardCursorActive else { return .arrow }
         switch mode {
-        case .reveal: return Self.crosshairCursor
+        // Native, system-feeling cursors: a pointing hand for "open this tile",
+        // and the flag.fill SF Symbol for flag mode. SF Symbols rasterise crisply
+        // (unlike the muddy ImageRenderer route) and read as platform-native.
+        case .reveal: return .pointingHand
         case .flag: return Self.flagCursor
         }
     }
 
-    /// A bold crosshair that reads on both light and dark tiles. The system
-    /// `.crosshair` is a thin black line that all but vanishes on the light-mode
-    /// manga board; here a thick black cross (contrasts on light) sits inside a
-    /// wider white halo (contrasts on dark), so a strong edge shows either way.
-    private static let crosshairCursor: NSCursor = {
-        let dim: CGFloat = 32
-        let size = NSSize(width: dim, height: dim)
-        let c = dim / 2
-        let arm: CGFloat = 12  // half-length of each crosshair arm
-        let gap: CGFloat = 3  // centre gap so the exact point stays clickable
-
-        let image = NSImage(size: size, flipped: false) { _ in
-            func strokeCross(width: CGFloat, color: NSColor) {
-                color.set()
-                let path = NSBezierPath()
-                path.lineWidth = width
-                path.lineCapStyle = .square
-                path.move(to: NSPoint(x: c - arm, y: c))
-                path.line(to: NSPoint(x: c - gap, y: c))
-                path.move(to: NSPoint(x: c + gap, y: c))
-                path.line(to: NSPoint(x: c + arm, y: c))
-                path.move(to: NSPoint(x: c, y: c - arm))
-                path.line(to: NSPoint(x: c, y: c - gap))
-                path.move(to: NSPoint(x: c, y: c + gap))
-                path.line(to: NSPoint(x: c, y: c + arm))
-                path.stroke()
-            }
-            strokeCross(width: 6, color: NSColor.white.withAlphaComponent(0.95))  // halo
-            strokeCross(width: 3, color: .black)  // bold core
-            // A center dot marks the exact hot spot.
-            NSColor.black.setFill()
-            NSBezierPath(ovalIn: NSRect(x: c - 1.5, y: c - 1.5, width: 3, height: 3)).fill()
-            return true
-        }
-        return NSCursor(image: image, hotSpot: NSPoint(x: c, y: c))
-    }()
-
-    /// A flag-shaped cursor drawn from the `flag.fill` SF Symbol, so it matches
-    /// the toolbar's flag-mode icon.
+    /// A flag cursor built from the `flag.fill` SF Symbol, tinted orange to match
+    /// the flag-mode toggle. SF Symbols feel native and stay crisp at cursor size.
     private static let flagCursor: NSCursor = {
         let size = NSSize(width: 24, height: 24)
         let config = NSImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
@@ -159,12 +138,10 @@ final class ScrollForwardingSKView: SKView {
             NSImage(systemSymbolName: "flag.fill", accessibilityDescription: "Flag")?
             .withSymbolConfiguration(config)
         guard let symbol else { return .arrow }
-        // Tint the flag orange to match the flag-mode toolbar tint.
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.systemOrange.set()
             rect.fill(using: .sourceOver)
-            symbol.draw(
-                in: rect, from: .zero, operation: .destinationIn, fraction: 1)
+            symbol.draw(in: rect, from: .zero, operation: .destinationIn, fraction: 1)
             return true
         }
         // Hot spot at the flagpole base (bottom-left-ish).
