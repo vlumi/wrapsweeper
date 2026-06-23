@@ -16,10 +16,12 @@ struct MangaPanelView: View {
         case win
         /// A win that set a new best time, in centiseconds — gets a record badge.
         case record(centiseconds: Int)
-        /// A loss, carrying the fraction (0...1) of safe cells cleared and
-        /// whether it beat the previous best — a "new best %" pill shows only
-        /// when `isBest`.
-        case loss(progress: Double, isBest: Bool)
+        /// A loss, carrying the fraction (0...1) of safe cells cleared, the count
+        /// of safe cells still unopened, and whether it beat the previous best — a
+        /// "new best %" pill shows only when `isBest`. `safeRemaining` lets the
+        /// display show "N tiles left" instead of a misleading "100%" when the
+        /// player lost on the very last cells (0.99x rounds up to 100).
+        case loss(progress: Double, safeRemaining: Int, isBest: Bool)
 
         var isWin: Bool {
             if case .loss = self { return false }
@@ -37,10 +39,10 @@ struct MangaPanelView: View {
                     localized:
                         "New record! Minefield cleared in \(TimeFormat.mmsst(centiseconds: cs))",
                     bundle: .module)
-            case .loss(let progress, _):
+            case .loss(let progress, let safeRemaining, _):
+                let cleared = Self.clearedDisplay(progress, safeRemaining: safeRemaining)
                 return String(
-                    localized: "Boom — you stepped on a mine. Cleared \(Self.percent(progress)).",
-                    bundle: .module)
+                    localized: "Boom — you stepped on a mine. \(cleared).", bundle: .module)
             }
         }
         /// The new-best time, if this is a record win.
@@ -48,15 +50,37 @@ struct MangaPanelView: View {
             if case .record(let cs) = self { return cs }
             return nil
         }
-        /// The cleared fraction — only when it's a new best loss (worth a pill).
-        var bestLossProgress: Double? {
-            if case .loss(let p, let isBest) = self, isBest { return p }
+        /// The headline string for a *best* loss pill — "N left" when the player
+        /// lost on the last cells (would otherwise read a misleading "100%"),
+        /// otherwise the cleared percent. `nil` unless this is a new-best loss.
+        var bestLossHeadline: String? {
+            if case .loss(let p, let rem, let isBest) = self, isBest {
+                return Self.lossHeadline(p, safeRemaining: rem)
+            }
             return nil
         }
 
         /// Whole-percent string, e.g. `87%`.
         static func percent(_ fraction: Double) -> String {
             "\(Int((fraction * 100).rounded()))%"
+        }
+
+        /// Short loss headline: the cleared percent, EXCEPT when it would round to
+        /// 100% on a non-clear — then the count of safe tiles still unopened, so a
+        /// last-cell loss reads "2 left" rather than a misleading "100%".
+        static func lossHeadline(_ fraction: Double, safeRemaining: Int) -> String {
+            if Int((fraction * 100).rounded()) >= 100 && safeRemaining > 0 {
+                return String(localized: "\(safeRemaining) left", bundle: .module)
+            }
+            return percent(fraction)
+        }
+
+        /// Sentence fragment for the consolation/a11y line.
+        static func clearedDisplay(_ fraction: Double, safeRemaining: Int) -> String {
+            if Int((fraction * 100).rounded()) >= 100 && safeRemaining > 0 {
+                return String(localized: "So close — \(safeRemaining) tiles left", bundle: .module)
+            }
+            return String(localized: "Cleared \(percent(fraction))", bundle: .module)
         }
     }
 
@@ -182,9 +206,9 @@ struct MangaPanelView: View {
     /// the record badge so a "new best %" reads as an achievement, not just text.
     /// (A plain loss shows nothing; the live readout covers the unimproved case.)
     @ViewBuilder private var bestLossPill: some View {
-        if let progress = kind.bestLossProgress {
+        if let headline = kind.bestLossHeadline {
             VStack(spacing: 0) {
-                Text(verbatim: Kind.percent(progress))
+                Text(verbatim: headline)
                     .font(.system(size: 17, weight: .black, design: .rounded))
                 Text("best", bundle: .module)
                     .font(.system(size: 9, weight: .heavy, design: .rounded))

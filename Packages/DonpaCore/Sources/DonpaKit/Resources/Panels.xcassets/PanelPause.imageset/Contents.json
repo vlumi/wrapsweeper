@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "panel-win.png",
+      "filename" : "panel-pause.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "panel-win@2x.png",
+      "filename" : "panel-pause@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "panel-win@3x.png",
+      "filename" : "panel-pause@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

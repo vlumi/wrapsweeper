@@ -39,7 +39,10 @@ Two seams isolate all "epic" variation; everything else is written once.
 donpa/
 ├── project.yml                  XcodeGen spec (iOS + macOS app targets)
 ├── Scripts/generate.sh          Regenerates the .xcodeproj (refuses if THIS project is open in Xcode)
-├── Scripts/make-icon.swift      Regenerates the app icon PNGs into Sources/Shared
+├── Scripts/make-icon.swift      Regenerates the app icon + launch PNGs (pure CoreGraphics)
+├── Scripts/make-boot.swift      Boot-print "dig" glyph: SVG → tintable template (needs ImageMagick)
+├── Scripts/make-panels.swift    Win/loss/pause panels: source PNG → keyed transparent asset
+├── Scripts/assets/              Committed art sources (SVG / cleaned DALL·E PNGs) for the above
 ├── Sources/{iOS,macOS}/         Thin @main app shells
 ├── Sources/Shared/              Assets shared by both targets (the AppIcon set)
 └── Packages/DonpaCore/    Swift package — most of the code
@@ -56,6 +59,41 @@ donpa/
 - Engine: **SpriteKit** (`SKScene` + `SKCameraNode`) in a SwiftUI `SpriteView`.
   All board input (tap/click/flag/chord/pan/zoom) is handled natively inside
   `BoardScene`, not via SwiftUI gestures. First-party only, no third-party deps.
+
+### Art assets
+
+Images are kept reproducible: the **source** lives in `Scripts/assets/`, a
+**script** turns it into the catalog asset, and both are committed. To change an
+asset, replace the source and re-run its script — don't hand-edit the catalog
+PNGs. (See the README "AI assistance" note: the source art is AI-generated;
+licensing for any future commissioned art is an open ROADMAP item.)
+
+- **App icon / launch** — `swift Scripts/make-icon.swift <outDir> [--mono|--launch]`.
+  Pure CoreGraphics (a detonating mine in a halftone burst); no external source.
+- **Boot-print "dig" glyph** — `swift Scripts/make-boot.swift`. Rasterises
+  `assets/boot-print.svg` (CC0) and keys it to a tintable **template** PNG in the
+  `BootPrint` imageset. Needs ImageMagick (`brew install imagemagick`); Quick
+  Look was tried but crops the tall print.
+- **Framed panels (win / loss / pause)** — `swift Scripts/make-panels.swift [win loss pause]`.
+  These three are the *same kind* of art — a black-bordered manga panel where art
+  may **spill past the border** (rocks/boot/detector breaking the frame). The
+  sources are **already keyed** (`assets/<panel>-source.png`, alpha baked in:
+  transparent where the page was, opaque art). The script does only the
+  packaging: it adds a thin white "page" **outline** at every transparent↔opaque
+  edge (so the black-ink art and the spilled bits still read in **dark mode**),
+  crops to the opaque content, and writes `@1x/2x/3x`. No keying/flooding in code
+  — automatic keying proved fiddly on busy panels (clouds/explosions), so the
+  transparency is done in an editor and the script just outlines + scales.
+  - **Authoring a new panel image**: prompt for a single bold framed manga panel,
+    black ink on white, thin rectangular border; a little art breaking the frame
+    is good (it's preserved). Then **key it in an editor** — make the page/margin
+    transparent, leaving the frame + interior + spilled art opaque (keep the
+    *insides* of spilled clouds/rocks opaque) — and save as the source. The
+    script handles the white outline; don't bake an outline into the source.
+- **Title screen** — NOT a framed panel: it's a full-bleed **poster** shown on a
+  white plate (no border, no transparency), so it ships as its raw PNG
+  (`TitleScreen` imageset) with no keying script. `assets/title-screen-source.png`
+  is kept for reference only.
 
 ## Commands
 

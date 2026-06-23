@@ -59,6 +59,20 @@ The numbered milestones below are the real pillars (scale, then board variants).
       jarringly switching mode mid-play. Rethink: pre-select in the New Game
       popup instead of starting immediately? Or be Modern-aware?
 
+**Code cleanup (next refactor round):**
+
+- [ ] **Pause as a UI play-state.** `isPaused` is a UI-only flag on
+      `GameViewModel` while `GameStatus` (Core) stays pure (`notStarted/playing/
+      won/lost`, also Codable-saved + used by the `Solver`). The smell is the
+      scattered `status == .playing && !isPaused` checks. Fold them into one
+      view-model computed enum (e.g. `playState` with a `.paused` case) the UI
+      reads — without pushing a UI concept into Core/solver/save. Decide during a
+      later refactor pass.
+- [ ] **`GameStatus` convenience accessors.** Replace the repeated
+      `status == .notStarted || status == .playing` with computed properties on
+      the enum (`isLive` / `isFinished` / `isPlaying`). Pure readability; no
+      behaviour change.
+
 ## v0.3.0 — Big boards
 
 The "huge zoomable maps" pillar — targeting **500×500 (250k) up to 1000×1000
@@ -156,6 +170,16 @@ How the apps reach the stores once a paid Apple Developer account exists:
   purchase" is a deliberate Catalyst/SwiftUI-app setup, not automatic.)
 - **App age rating**: 4+ / PEGI 3 (set via the App Store Connect questionnaire;
   nothing in the feature set pushes it higher).
+- **Release/CD strategy.** Decision: **manual for v0.1** — archive + upload via
+  Xcode (or one local `fastlane` lane run by hand). The solo pre-release cadence
+  doesn't justify automation, and it sidesteps secret-management entirely. When
+  uploads get tedious, add **GitHub Actions CD on the (public) repo, triggered
+  only on version tags**, with the App Store Connect API key + signing certs as
+  repo secrets scoped so they NEVER run on untrusted fork PRs — the repo staying
+  public is fine, the *secrets* stay private. A **separate private repo for the
+  pipeline** is only warranted if private material appears (commissioned-art
+  sources, or wanting the signing flow fully walled off) — same trigger as the
+  art-licensing question, so don't do it preemptively.
 - **AI disclosure.** The README carries an honest "AI assistance" note
       (human-directed; code largely AI-written; current art AI-generated;
       procedural chrome is AI-written code, not generated images). Remaining

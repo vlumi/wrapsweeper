@@ -88,7 +88,9 @@ extension GameContent {
             // Custom reveal/flag cursor only during a live game; otherwise the
             // normal arrow (title screen, result panel, or a finished board
             // you're just inspecting — where a flag cursor is stale).
-            boardCursorActive: gameInProgress && !navigator.showingTitle
+            // No custom reveal/flag cursor while paused: the board is blurred
+            // under the pause panel, so a dig/flag cursor there is stale.
+            boardCursorActive: gameInProgress && !navigator.showingTitle && !viewModel.isPaused
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Per-cell VoiceOver is a future task (needs a scalable cursor model for
@@ -112,17 +114,35 @@ extension GameContent {
     /// "paused", not "blank".
     @ViewBuilder var pauseOverlay: some View {
         if viewModel.isPaused {
-            ZStack {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .overlay(palette.pageBackground.opacity(0.5))
-                VStack(spacing: 14) {
-                    Image(systemName: "pause.circle.fill")
-                        .font(.system(size: 56))
-                        .foregroundStyle(.secondary)
-                    Text("Paused", bundle: .module).font(.title2.bold())
-                    Text("Tap to resume", bundle: .module)
-                        .font(.callout).foregroundStyle(.secondary)
+            GeometryReader { geo in
+                ZStack {
+                    // Blur still hides the board (can't study it while paused); the
+                    // "squad resting" manga panel sits on top as the pause art.
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .overlay(palette.pageBackground.opacity(0.5))
+                    // Sized like the win/loss result panel: off the shorter window
+                    // dimension, clamped — so the pause art matches them. Reserve
+                    // room for the hint so the panel + hint stay grouped and
+                    // centred (not the hint stranded at the screen bottom).
+                    let shorter = min(geo.size.width, geo.size.height)
+                    let panelW = min(max(shorter * 0.82, 220), 900)
+                    VStack(spacing: 12) {
+                        Image("PanelPause", bundle: .module)
+                            .resizable()
+                            .interpolation(.high)
+                            .antialiased(true)
+                            .scaledToFit()
+                            .frame(
+                                maxWidth: min(panelW, geo.size.width - 24),
+                                maxHeight: geo.size.height - 80
+                            )
+                            .shadow(color: .black.opacity(0.35), radius: 14, y: 5)
+                        Text("Tap to resume", bundle: .module)
+                            .font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .contentShape(Rectangle())
