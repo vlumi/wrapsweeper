@@ -86,7 +86,7 @@ public final class GameViewModel: ObservableObject {
     // MARK: Actions
 
     public func reveal(_ c: Coord) {
-        guard game.status == .notStarted || game.status == .playing else { return }
+        guard !isPaused, game.status == .notStarted || game.status == .playing else { return }
         let wasNotStarted = game.status == .notStarted
         game.reveal(c)
         if wasNotStarted, game.status == .playing { startTimer() }
@@ -95,16 +95,16 @@ public final class GameViewModel: ObservableObject {
     }
 
     public func toggleFlag(_ c: Coord) {
-        guard game.status == .notStarted || game.status == .playing else { return }
+        guard !isPaused, game.status == .notStarted || game.status == .playing else { return }
         game.toggleFlag(c)
         bump()
     }
 
     public func chord(_ c: Coord) {
-        // Once the game is over, input is inert — chording a revealed cell must
-        // not re-publish the result (which would replay the end-game animation
-        // and panel on every post-loss click).
-        guard game.status == .playing else { return }
+        // Once the game is over (or paused), input is inert — chording a revealed
+        // cell must not re-publish the result (which would replay the end-game
+        // animation and panel on every post-loss click).
+        guard !isPaused, game.status == .playing else { return }
         game.chord(c)
         finishIfEnded()
         bump()

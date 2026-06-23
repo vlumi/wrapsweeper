@@ -239,7 +239,36 @@ struct GameContent: View {
         .accessibilityValue(boardSummary)
         // Result screen dims the board ONLY, leaving the control strip live.
         .overlay { mangaPanel }
+        .overlay { pauseOverlay }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isPaused)
         .clipped()  // keep the dimmed backdrop within the board's bounds
+    }
+
+    /// Covers the board while paused so it can't be studied; tap (or the strip's
+    /// resume) continues the game. Blurs rather than blacks out so it reads as
+    /// "paused", not "blank".
+    @ViewBuilder private var pauseOverlay: some View {
+        if viewModel.isPaused {
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .overlay(palette.pageBackground.opacity(0.5))
+                VStack(spacing: 14) {
+                    Image(systemName: "pause.circle.fill")
+                        .font(.system(size: 56))
+                        .foregroundStyle(.secondary)
+                    Text("Paused", bundle: .module).font(.title2.bold())
+                    Text("Tap to resume", bundle: .module)
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { viewModel.resume() }
+            .transition(.opacity)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text("Paused", bundle: .module))
+            .accessibilityHint(Text("Tap to resume", bundle: .module))
+        }
     }
 
     // MARK: Status bar
@@ -282,6 +311,10 @@ struct GameContent: View {
             .scaleEffect(restartPop ? 1.25 : 1.0)
             actionButton("arrow.clockwise.circle.fill", help: "Retry", tint: newGameTint) {
                 viewModel.newGame()
+            }
+            // Pause only makes sense during a live game.
+            if viewModel.status == .playing {
+                actionButton("pause.circle.fill", help: "Pause") { viewModel.pause() }
             }
             actionButton("house.fill", help: "Home") { goHome() }
         }

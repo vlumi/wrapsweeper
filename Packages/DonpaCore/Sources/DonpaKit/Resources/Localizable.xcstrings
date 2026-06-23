@@ -481,6 +481,39 @@
         }
       }
     },
+    "Pause": {
+      "comment": "Toolbar button: pause the game. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": { "state": "needs_review", "value": "Tauko" }
+        },
+        "ja": {
+          "stringUnit": { "state": "needs_review", "value": "一時停止" }
+        }
+      }
+    },
+    "Paused": {
+      "comment": "Overlay title shown while the game is paused. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": { "state": "needs_review", "value": "Tauolla" }
+        },
+        "ja": {
+          "stringUnit": { "state": "needs_review", "value": "一時停止中" }
+        }
+      }
+    },
+    "Tap to resume": {
+      "comment": "Pause overlay hint: tap to continue the game. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": { "state": "needs_review", "value": "Jatka napauttamalla" }
+        },
+        "ja": {
+          "stringUnit": { "state": "needs_review", "value": "タップで再開" }
+        }
+      }
+    },
     "New game": {
       "comment": "Tooltip/label for the new-game button. NEEDS REVIEW: ja/fi.",
       "localizations": {

@@ -365,18 +365,23 @@ public final class BoardScene: SKScene {
         flag(atScenePoint: event.location(in: self))
     }
 
-    // The scene handles key input directly: a bare Space as a SwiftUI menu
-    // shortcut doesn't fire reliably, but the scene is in the responder chain
-    // for its gesture recognizers and receives key events here. Space toggles
-    // reveal/flag mode while playing; restarting a finished board is ⌘R (the
-    // result panel takes keyboard focus once a game ends, so the scene no longer
-    // sees Space then anyway).
+    // The scene handles key input directly: SwiftUI menu shortcuts for bare keys
+    // don't fire reliably, but the scene is in the responder chain for its
+    // gesture recognizers and receives key events here. Space toggles reveal/flag
+    // mode; Esc pauses/resumes mid-play. (Restarting a finished board is ⌘R.)
     public override func keyDown(with event: NSEvent) {
-        guard event.charactersIgnoringModifiers == " " else {
+        switch event.keyCode {
+        case 49:  // Space
+            viewModel.inputMode.toggle()
+        case 53:  // Escape
+            if viewModel.isPaused {
+                viewModel.resume()
+            } else {
+                viewModel.pause()
+            }
+        default:
             super.keyDown(with: event)
-            return
         }
-        viewModel.inputMode.toggle()
     }
     #endif
 }
