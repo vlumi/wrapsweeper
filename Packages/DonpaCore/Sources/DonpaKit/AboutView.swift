@@ -20,6 +20,14 @@ public struct AboutView: View {
         return "\(short) (\(build))"
     }
 
+    /// The git commit the build was stamped with (`GitCommitSHA`, injected by
+    /// Scripts/embed-commit-sha.sh at build time). Absent on builds made before
+    /// that script existed (e.g. 0.1.0 (2)) — hidden when missing rather than
+    /// showing a placeholder.
+    private var commitSHA: String? {
+        Bundle.main.infoDictionary?["GitCommitSHA"] as? String
+    }
+
     /// Whether the UI is in Japanese. The app name and author name are the same
     /// entities written in two scripts (not translated text), so both pick their
     /// form from this rather than going through the string catalog.
@@ -72,6 +80,14 @@ public struct AboutView: View {
                 .padding(.vertical, 4)
                 .background(Capsule().fill(palette.counter.opacity(0.15)))
                 .overlay(Capsule().stroke(palette.counter.opacity(0.3), lineWidth: 1))
+
+            // The build's git commit, when stamped in — small and quiet, for
+            // matching a TestFlight/App Store build back to its source.
+            if let sha = commitSHA {
+                Text(verbatim: sha)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+            }
 
             Divider().frame(maxWidth: 220)
 
