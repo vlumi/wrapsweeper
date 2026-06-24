@@ -12,6 +12,9 @@ public final class Navigator: ObservableObject {
     @Published public var showingScores = false
     /// Whether the settings sheet is presented.
     @Published public var showingSettings = false
+    /// Whether the About sheet is presented (the title screen's "i" button, and
+    /// the macOS app menu's "About").
+    @Published public var showingAbout = false
     /// Whether the New Game config popup is presented. Opened both by the in-game
     /// "New Game" action and by tapping the title art ("press start"); picking a
     /// config and confirming starts a fresh game and dismisses the title.

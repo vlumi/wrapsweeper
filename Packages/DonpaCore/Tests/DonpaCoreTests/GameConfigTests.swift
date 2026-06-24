@@ -78,6 +78,34 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(GameConfig.modern(.medium, .hard).label, "Medium · Veteran")
     }
 
+    // MARK: Rank insignia + modern accessors
+
+    func testDensityInsigniaAscends() {
+        // Enlisted tiers are 1/2/3 chevron stripes; the top two are officer marks.
+        XCTAssertEqual(chevrons(.easy), 1)
+        XCTAssertEqual(chevrons(.normal), 2)
+        XCTAssertEqual(chevrons(.hard), 3)
+        if case .star = Density.brutal.insignia {} else { XCTFail("brutal should be .star") }
+        if case .staredLaurel = Density.insane.insignia {
+        } else {
+            XCTFail("insane should be .staredLaurel")
+        }
+    }
+
+    func testModernAccessors() {
+        let modern = GameConfig.modern(.large, .brutal)
+        XCTAssertEqual(modern.modernSize, .large)
+        XCTAssertEqual(modern.modernDensity, .brutal)
+        // Classic configs have neither.
+        XCTAssertNil(GameConfig.classic(.expert).modernSize)
+        XCTAssertNil(GameConfig.classic(.expert).modernDensity)
+    }
+
+    private func chevrons(_ d: Density) -> Int? {
+        if case .chevrons(let n) = d.insignia { return n }
+        return nil
+    }
+
     // MARK: A config builds a playable, winnable game (integration sanity)
 
     func testModernConfigProducesAPlayableGame() {

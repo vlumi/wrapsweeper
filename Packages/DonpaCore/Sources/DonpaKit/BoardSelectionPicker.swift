@@ -35,18 +35,32 @@ struct BoardSelectionPicker: View {
                     }
                 }
             case .modern:
+                // Difficulty first (row 1) so it lines up with Classic's
+                // difficulty row across the mode switch; Size is the extra row
+                // Modern adds below.
                 row(1) {
+                    Picker("Difficulty", selection: $settings.modernDensity) {
+                        ForEach(Density.allCases, id: \.self) { density in
+                            densityInsignia(density)
+                                .tag(density)
+                                .accessibilityLabel(Text(verbatim: density.label))
+                        }
+                    }
+                }
+                row(2) {
                     Picker("Size", selection: $settings.modernSize) {
                         ForEach(BoardSize.allCases, id: \.self) { Text(verbatim: $0.label).tag($0) }
                     }
                 }
-                row(2) {
-                    Picker("Difficulty", selection: $settings.modernDensity) {
-                        ForEach(Density.allCases, id: \.self) { Text(verbatim: $0.label).tag($0) }
-                    }
-                }
             }
         }
+    }
+
+    /// Ascending rank insignia for a density tier (shared `DensityInsignia`).
+    /// A segmented `Picker` flattens a multi-view label into one run, so each
+    /// tier is a SINGLE flat rendered `Image` (one clean label per segment).
+    private func densityInsignia(_ density: Density) -> Image {
+        DensityInsignia.markImage(density)
     }
 
     /// A segmented picker wrapped with a focus highlight when it's the keyboard-

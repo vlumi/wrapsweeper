@@ -22,7 +22,11 @@ struct GameContent: View {
     @State var restartPop = false
     @State private var windowSize: CGSize = .zero
     /// Atomic, crash-safe store for the in-progress game (save/restore on quit).
-    @State private var saveStore = SaveStore.appSupport()
+    /// Under the UI-test launch arg it's a clean ephemeral store, so tests never
+    /// read or write the real saved game; otherwise the production Application
+    /// Support store.
+    @State private var saveStore =
+        SaveStore.isUITestCleanLaunch ? SaveStore.ephemeral() : SaveStore.appSupport()
     /// A saved game found on launch, awaiting the user's Resume/Discard choice.
     @State private var pendingResume: GameSnapshot?
     @Environment(\.colorScheme) private var colorScheme
@@ -79,6 +83,9 @@ struct GameContent: View {
         }
         .sheet(isPresented: $navigator.showingSettings) {
             SettingsView(settings: settings)
+        }
+        .sheet(isPresented: $navigator.showingAbout) {
+            AboutView()
         }
         // Exactly two choices. One button must carry the `.cancel` role or the OS
         // synthesizes its own Cancel — so Discard *is* the cancel role (it's the

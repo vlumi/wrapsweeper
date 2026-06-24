@@ -41,6 +41,8 @@ ignore:
   - "Packages/DonpaCore/Sources/DonpaKit/Navigator.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/OnChangeCompat.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/FitToWidth.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/DensityInsignia.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/ScreentonePattern.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/GameViewModel.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/Settings.swift"
   - "Packages/DonpaCore/Sources/DonpaKit/Palette.swift"

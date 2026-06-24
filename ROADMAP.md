@@ -277,9 +277,10 @@ App Store Connect.
 
 ## Creative identity & theme
 
-**Shipped:** manga end-of-game result screen (win/loss/new-record panels), the
-interactive title screen, a manga-style app icon, and **procedural manga chrome
-glyphs** (`MangaIcon`): a war-medal High Scores button, a Quonset-hut "home"
+**Shipped:** manga end-of-game result screen (win/loss/new-record panels), a
+"squad resting" pause panel, the interactive title screen, a procedural app
+icon, and **procedural manga chrome glyphs** (`MangaIcon`): a war-medal High
+Scores button, a Quonset-hut "home"
 barracks, a swallowtail flag, a pause/play toggle, and an army boot-print
 reveal/"dig" glyph (a CC0 silhouette baked to a tintable template via
 `Scripts/make-boot.swift`). The mode toggle is a single-tap dig|flag segmented
@@ -301,12 +302,11 @@ treatment: heavier ink, custom number styling).
   to other UI (panels, buttons, backgrounds). Tempting, but easy to overdo: keep
   it sparing and meaningful (it currently *means* "unopened / this mode") rather
   than decorative everywhere, or the UI gets noisy.
-- **Pause panel art** — a "squad taking a rest" manga frame on the pause overlay
-  (same panel slot as win/loss). The current blurred "Paused" overlay is the
-  placeholder; pairs with the next art batch (DALL·E → `.local` → `Panels.xcassets`).
-- **Art sources** — current panels/title/icon are DALL·E (commercial-use OK via
-  OpenAI TOS on a personal account; verify before ship). If iterating: keep the
-  *icon* a single bold focal subject, no baked title text, readable at 64px.
+- **Art sources** — the scene panels (title / win / loss / pause) are DALL·E
+  (commercial-use OK via OpenAI TOS on a personal account; verify before ship);
+  the app icon is *procedural* (`Scripts/make-icon.swift`), not DALL·E. If
+  iterating on an icon: keep it a single bold focal subject, no baked title text,
+  readable at 64px.
   Alternatives to DALL·E worth a look when commissioning final art: a real manga
   artist (Fiverr/commission for a consistent character sheet + assets), or other
   gen tools — but a human pass to replace AI kana with proper typeset lettering

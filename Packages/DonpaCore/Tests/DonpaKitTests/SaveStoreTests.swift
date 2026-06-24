@@ -87,4 +87,18 @@ final class SaveStoreTests: XCTestCase {
         XCTAssertNotNil(loaded, "an older, compatible save is preserved across upgrade")
         XCTAssertEqual(loaded?.config, .classic(.beginner))
     }
+
+    // MARK: UI-test isolation
+
+    func testEphemeralStoreStartsEmpty() {
+        // The UI-test store is a fresh temp dir with no save, so load() is nil and
+        // it never touches the real App Support store.
+        XCTAssertNil(SaveStore.ephemeral().load(), "a fresh ephemeral store has no saved game")
+    }
+
+    func testUITestCleanLaunchFlagFalseInUnitTests() {
+        // The -uitest-clean arg is only passed by the XCUITest harness; a plain
+        // unit-test run is a normal launch.
+        XCTAssertFalse(SaveStore.isUITestCleanLaunch)
+    }
 }

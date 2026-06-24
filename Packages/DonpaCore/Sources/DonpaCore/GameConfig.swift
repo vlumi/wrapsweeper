@@ -91,6 +91,26 @@ public enum Density: String, CaseIterable, Sendable, Codable {
         case .insane: return String(localized: "Legend", bundle: .module)
         }
     }
+
+    /// Ascending rank insignia for the tier, shown instead of the (long, hard-to-
+    /// localize) text in the compact difficulty picker — so the rank reads at a
+    /// glance, language-free. The `label` stays the accessibility name. Lower
+    /// ranks are enlisted chevron stripes; the top two are officer marks (a star,
+    /// then a star in a laurel wreath for the apex).
+    public enum Insignia: Sendable {
+        case chevrons(Int)  // N stacked stripes
+        case star  // single officer star
+        case staredLaurel  // star in a laurel wreath (apex)
+    }
+    public var insignia: Insignia {
+        switch self {
+        case .easy: return .chevrons(1)
+        case .normal: return .chevrons(2)
+        case .hard: return .chevrons(3)
+        case .brutal: return .star
+        case .insane: return .staredLaurel
+        }
+    }
 }
 
 /// Topology axes — only one value each ships now; the rest exist so the storage
@@ -136,6 +156,19 @@ public enum GameConfig: Hashable, Sendable, Codable {
         case .modern(let size, let density):
             return "\(size.label) · \(density.label)"
         }
+    }
+
+    /// The Modern size, or nil for a Classic config.
+    public var modernSize: BoardSize? {
+        if case .modern(let size, _) = self { return size }
+        return nil
+    }
+
+    /// The Modern difficulty tier, or nil for a Classic config. Lets the chrome
+    /// show the rank insignia for the density part of a Modern config.
+    public var modernDensity: Density? {
+        if case .modern(_, let density) = self { return density }
+        return nil
     }
 
     /// Stable, versioned, geometry-bearing persistence key. Encodes every

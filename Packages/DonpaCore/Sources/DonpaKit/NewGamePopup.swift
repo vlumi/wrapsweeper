@@ -121,7 +121,8 @@ struct NewGamePopup: View {
 
     #if os(macOS)
     /// Cycle the selection in the given row. Row 0 is always Mode; rows 1+ are
-    /// Difficulty (Classic) or Size then Difficulty (Modern).
+    /// Difficulty (Classic), or Difficulty then Size (Modern — difficulty first to
+    /// match Classic's row 1).
     private func cycleSelection(in row: Int, by step: Int) {
         switch (settings.mode, row) {
         case (_, 0):
@@ -129,9 +130,9 @@ struct NewGamePopup: View {
         case (.classic, _):
             settings.classicPreset = Self.cycled(settings.classicPreset, by: step)
         case (.modern, 1):
-            settings.modernSize = Self.cycled(settings.modernSize, by: step)
-        case (.modern, _):
             settings.modernDensity = Self.cycled(settings.modernDensity, by: step)
+        case (.modern, _):
+            settings.modernSize = Self.cycled(settings.modernSize, by: step)
         }
     }
 

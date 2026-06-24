@@ -1,6 +1,40 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Dig mode — tap reveals (Space)": {
+      "comment": "Tooltip for the mode toggle while in dig (reveal) mode. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Kaivuutila — napautus avaa (väli)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "発掘モード — タップで開く（スペース）"
+          }
+        }
+      }
+    },
+    "About": {
+      "comment": "Title of the About sheet. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tietoja"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "アプリについて"
+          }
+        }
+      }
+    },
     "%lld left": {
       "comment": "Loss pill: safe tiles still unopened when the cleared % would round to 100. NEEDS REVIEW: ja/fi.",
       "localizations": {
@@ -95,23 +129,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Apple プラットフォーム向けのマインスイーパー。"
-          }
-        }
-      }
-    },
-    "About Donpa Squad": {
-      "comment": "Settings row / menu item opening the About screen. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Tietoja: Donpa Squad"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ドンパ隊について"
           }
         }
       }
@@ -598,23 +615,6 @@
         }
       }
     },
-    "NEW RECORD · %@": {
-      "comment": "Record badge on the win panel; %@ is the time. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "UUSI ENNÄTYS · %@"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "新記録 · %@"
-          }
-        }
-      }
-    },
     "New record! Minefield cleared in %@": {
       "comment": "VoiceOver label on a new-best win. %@ is the time. NEEDS REVIEW: ja/fi.",
       "localizations": {
@@ -696,23 +696,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "開く"
-          }
-        }
-      }
-    },
-    "Reveal mode — tap reveals (Space)": {
-      "comment": "Tooltip for the mode toggle while in reveal mode. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Avaustila — napautus avaa (väli)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "開くモード — タップで開く（スペース）"
           }
         }
       }

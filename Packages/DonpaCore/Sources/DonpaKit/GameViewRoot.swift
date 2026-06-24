@@ -57,7 +57,8 @@ public struct GameView: View {
                 // New Game button share one chooser.
                 onStart: { navigator.showingNewGame = true },
                 onSettings: { navigator.showingSettings = true },
-                onScores: { navigator.showingScores = true }
+                onScores: { navigator.showingScores = true },
+                onAbout: { navigator.showingAbout = true }
             )
             .opacity(navigator.showingTitle ? 1 : 0)
             .allowsHitTesting(navigator.showingTitle)

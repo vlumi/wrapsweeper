@@ -12,6 +12,10 @@ final class DonpaUITests: XCTestCase {
         super.setUp()
         continueAfterFailure = false
         app = XCUIApplication()
+        // Clean, isolated state per run: no saved game restored, and the app uses
+        // an ephemeral save store — so tests are deterministic and never touch the
+        // developer's real save.
+        app.launchArguments += ["-uitest-clean"]
         // Force English so any label-based fallbacks are predictable.
         app.launchArguments += ["-AppleLanguages", "(en)"]
         app.launch()
