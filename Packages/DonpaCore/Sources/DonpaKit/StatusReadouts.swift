@@ -18,6 +18,10 @@ struct CounterReadout: View {
                 .foregroundStyle(tint)
         }
         .lineLimit(1)
+        // Shrink the digits rather than truncating on a narrow phone, in case
+        // FitToWidth's whole-row scaling under-measures (a single readout would
+        // otherwise clip to "00…").
+        .minimumScaleFactor(0.5)
         .layoutPriority(1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(a11y, bundle: .module))
@@ -59,6 +63,9 @@ struct ProgressReadout: View {
                 .foregroundStyle(tint)
         }
         .lineLimit(1)
+        // This readout is the widest (4 glyphs incl. "%"), so it's first to clip;
+        // shrink rather than truncate if FitToWidth under-measures.
+        .minimumScaleFactor(0.5)
         .layoutPriority(1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Cleared", bundle: .module))
