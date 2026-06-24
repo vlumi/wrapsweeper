@@ -168,26 +168,33 @@ extension GameContent {
     /// proportional and the same relative size, instead of each child self-scaling
     /// to a different size, jittering, or truncating.
     var statusBar: some View {
-        FitToWidth {
-            HStack(spacing: 16) {
-                // Which game you're playing (e.g. "Expert" or "Medium · Sapper"),
-                // as a tappable badge that opens the New Game popup — tapping the
-                // current game to change it. This replaces the separate New Game
-                // action button.
-                configButton
-                CounterReadout.mines(viewModel.flagsRemaining, tint: palette.counter)
-                // `game.progress` re-renders on every reveal via the @Published revision.
-                ProgressReadout(progress: viewModel.game.progress, tint: palette.counter)
-                CounterReadout.time(
-                    centiseconds: viewModel.elapsedCentiseconds, tint: palette.counter)
-                Spacer(minLength: 12)
-                // High Scores sits apart on the right — same read-only character.
-                // (On the title screen it stays on the art; this is its in-game home.)
-                mangaIconButton(.medal, size: 40, help: "High Scores") {
-                    navigator.showingScores = true
+        // The medal is pinned to the right OUTSIDE FitToWidth; FitToWidth scales
+        // only the left cluster (config badge + the three readouts). Keeping the
+        // expanding Spacer out of the measured content is what makes scaling work:
+        // a Spacer inside FitToWidth collapses to its minLength when measured but
+        // expands when rendered, so the measured natural width never matched the
+        // laid-out width and the row clipped instead of shrinking as one.
+        HStack(spacing: 16) {
+            FitToWidth {
+                HStack(spacing: 16) {
+                    // Which game you're playing (e.g. "Expert" or "Medium · Sapper"),
+                    // as a tappable badge that opens the New Game popup — tapping the
+                    // current game to change it (replaces a separate New Game button).
+                    configButton
+                    CounterReadout.mines(viewModel.flagsRemaining, tint: palette.counter)
+                    // `game.progress` re-renders on every reveal via @Published revision.
+                    ProgressReadout(progress: viewModel.game.progress, tint: palette.counter)
+                    CounterReadout.time(
+                        centiseconds: viewModel.elapsedCentiseconds, tint: palette.counter)
                 }
+                .lineLimit(1)
             }
-            .lineLimit(1)
+            Spacer(minLength: 12)
+            // High Scores sits apart on the right — same read-only character.
+            // (On the title screen it stays on the art; this is its in-game home.)
+            mangaIconButton(.medal, size: 40, help: "High Scores") {
+                navigator.showingScores = true
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
