@@ -3,68 +3,25 @@
 [![CI](https://github.com/vlumi/donpa/actions/workflows/ci.yml/badge.svg)](https://github.com/vlumi/donpa/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/vlumi/donpa/branch/main/graph/badge.svg)](https://codecov.io/gh/vlumi/donpa)
 
-**Donpa Squad** (ドンパ隊) — a Minesweeper game for Apple platforms (iOS 16+ and macOS 14+). Classic mode
-ships first; the architecture is built for "epic" variants from day one —
-huge zoomable maps, wrapped/torus edges, and hex grids — added later without
-touching the game logic.
+**Donpa Squad** (ドンパ隊) — a manga-styled Minesweeper for Apple platforms
+(iOS 16+ and macOS 14+). Classic mode ships first; the architecture is built for
+"epic" variants from day one — huge zoomable maps, wrapped/torus edges, and hex
+grids — added later without touching the game logic.
 
 The first release will be **v0.1.0** (classic mode); see [ROADMAP.md](ROADMAP.md)
 for the path to v1.0, [CHANGELOG.md](CHANGELOG.md) for changes, and
 [ARCHITECTURE.md](ARCHITECTURE.md) for the key design decisions.
 
-## How it's built to stay flexible
+## Contents
 
-All variation is isolated behind two seams; everything else is written once:
-
-- **`Topology`** — the logical "who are my neighbours?" relation
-  (square ↔ hex, bounded ↔ wrapped). Mine placement, adjacency, flood-fill,
-  and win/lose are expressed *only* in terms of `neighbors(of:)` / `allCoords()`,
-  so a new variant is a new `Topology` and nothing else. A test already wins a
-  full game on a wrapped (torus) board using the unchanged game logic.
-- **`CellLayout`** — the visual coordinate → pixel mapping and hit-testing.
-  `SquareLayout` ships now; `HexLayout` slots in here later with no change to
-  the renderer or the game logic.
-
-## Structure
-
-```text
-donpa/
-├── project.yml                  XcodeGen spec (iOS + macOS app targets)
-├── Scripts/generate.sh          Regenerates the .xcodeproj (refuses while Xcode is open)
-├── Sources/{iOS,macOS}/         Thin @main app shells
-└── Packages/DonpaCore/    Swift package — ~90% of the code
-    ├── Sources/DonpaCore/ Pure logic, zero UI imports, fully tested
-    └── Sources/DonpaKit/  SpriteKit + SwiftUI, depends on Core
-```
-
-The rendering engine is **SpriteKit** (`SKScene` + `SKCameraNode`) hosted in a
-SwiftUI `SpriteView`; the camera provides the pan/zoom that huge maps will lean
-on. No third-party dependencies.
-
-## Building
-
-Requires Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`). The `.xcodeproj` is a generated artifact and is not
-checked in.
-
-A `Makefile` drives everything from the command line, so you never have to open
-Xcode just to run the app (the generated project regenerates only when
-`project.yml` or an `Info.plist` changes):
-
-```sh
-make            # list the available targets
-make run-mac    # build + launch the macOS app
-make run-ios    # build + launch in an iOS simulator (newest iOS 16+ iPhone)
-make build-mac  # build the macOS app
-make build-ios  # build the iOS app (simulator)
-make test       # run the package logic tests (no Xcode project needed)
-make uitest     # run the iOS UI tests in a simulator (local only; not on CI)
-make generate   # regenerate Donpa.xcodeproj from project.yml (if stale)
-make clean      # remove the generated project + local build output
-```
-
-The targets delegate to `Scripts/*.sh` (each does one step); the Makefile wires
-up the dependencies. To work in Xcode instead, `make generate && open Donpa.xcodeproj`.
+- [Modes](#modes)
+- [Controls](#controls)
+- [Start and end of a game](#start-and-end-of-a-game)
+- [Scores](#scores)
+- [Settings](#settings)
+- [AI assistance](#ai-assistance)
+- [Development](#development)
+- [License](#license)
 
 ## Modes
 
@@ -116,10 +73,9 @@ screentone keyed to the toggle (dots for dig, hatch for flag).
 On macOS the pointer reflects the mode while a game is in progress — a pointing
 hand to dig, a flag to flag (a plain arrow otherwise); holding **Control** shows
 the other mode's cursor, since Control-click does the opposite action. Panning is
-bounded to the
-board: it rests with a little breathing room past each edge, and pulling further
-rubber-bands with resistance before springing back. When the whole board already
-fits on screen, panning is disabled.
+bounded to the board: it rests with a little breathing room past each edge, and
+pulling further rubber-bands with resistance before springing back. When the
+whole board already fits on screen, panning is disabled.
 
 ### Keyboard shortcuts
 
@@ -138,9 +94,8 @@ fits on screen, panning is disabled.
 The app opens on a **title screen** that doubles as the home hub: tapping the
 art opens the **New Game popup** to pick a board and start. The 🎖️ High Scores,
 ⚙️ Settings, and ⓘ About buttons sit on the art's corner. You can return to the
-title any
-time from the in-game **Home** button or the **Title Screen** menu item (⌘T) on
-macOS.
+title any time from the in-game **Home** button or the **Title Screen** menu item
+(⌘T) on macOS.
 
 When a game ends, a comic **result panel** slides in over the **board** — a
 triumphant one on a win, a dramatic one on a loss, with a "new record" flourish
@@ -177,9 +132,35 @@ here rather than hidden. The project is human-directed — design, gameplay, and
 every visual decision are the author's — but the **code is largely AI-written**
 and the **current scene art (the title, result, and pause panels) is
 AI-generated** (DALL·E). The procedural visuals — the app icon, the manga UI
-glyphs, and the board screentone — are AI-*written code*, not generated images. If hand-made or
-commissioned art replaces the generated pieces later, this note will be updated
-to credit it.
+glyphs, and the board screentone — are AI-*written code*, not generated images.
+If hand-made or commissioned art replaces the generated pieces later, this note
+will be updated to credit it.
+
+## Development
+
+The codebase is mostly a Swift package (`Packages/DonpaCore`): a pure
+`DonpaCore` logic target with zero UI imports (fully tested) and a `DonpaKit`
+SpriteKit + SwiftUI target on top; thin iOS/macOS app shells host it. All board
+variation is isolated behind two seams — **`Topology`** (logical neighbours:
+square ↔ hex, bounded ↔ wrapped) and **`CellLayout`** (coordinate → pixel) — so
+new board types land as new conformers without touching the game logic.
+[ARCHITECTURE.md](ARCHITECTURE.md) covers the load-bearing decisions and
+[AGENTS.md](AGENTS.md) the conventions, build commands, and asset pipeline.
+
+Requires Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`); the `.xcodeproj` is generated, not checked in. A
+`Makefile` drives everything from the command line:
+
+```sh
+make            # list the available targets
+make run-mac    # build + launch the macOS app
+make run-ios    # build + launch in an iOS simulator
+make test       # run the package logic tests (no Xcode project needed)
+make uitest     # run the iOS UI tests in a simulator (local only; not on CI)
+```
+
+No third-party dependencies. CI runs SwiftLint + swift-format, the logic tests
+(with coverage), and both platform builds.
 
 ## License
 
