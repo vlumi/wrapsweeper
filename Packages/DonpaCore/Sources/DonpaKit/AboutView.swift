@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// App "About": name, version, and credits. Shown from the macOS app menu
-/// ("About Donpa Squad") and from a row in the iOS Settings sheet — one shared
-/// view so the two never drift.
+/// App "About": name, version, and credits. Shown from the title screen's "i"
+/// button (both platforms) and, on macOS, also the app menu ("About Donpa
+/// Squad") — one shared view so the entry points never drift.
 public struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     public init() {}
+
+    private var palette: Palette { Palette.resolved(for: colorScheme) }
 
     /// `CFBundleShortVersionString` (build) read from the main bundle, e.g.
     /// "0.1.0 (1)". Falls back gracefully if absent.
@@ -29,7 +32,18 @@ public struct AboutView: View {
     private var appName: String { isJapanese ? "ドンパ隊" : "Donpa Squad" }
     private var authorName: String { isJapanese ? "三﨑ヴィッレ" : "Ville Misaki" }
 
+    /// Measured natural height of the content, for the iOS fit-content detent
+    /// (same compact-card treatment as the Settings / Scores sheets).
+    @State private var contentHeight: CGFloat = 0
+
     public var body: some View {
+        chrome
+            .background(palette.pageBackground.ignoresSafeArea())
+            .accessibilityElement(children: .contain)
+    }
+
+    /// The shared credits content (no chrome / Done button).
+    private var content: some View {
         VStack(spacing: 16) {
             appIcon
                 .frame(width: 88, height: 88)
@@ -49,9 +63,15 @@ public struct AboutView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
+            // Version in a rounded badge — the same pill language as the in-game
+            // config badge, so About reads as part of the app, not a system sheet.
             Text("Version \(versionString)", bundle: .module)
-                .font(.footnote.monospaced())
-                .foregroundStyle(.secondary)
+                .font(.footnote.monospaced().weight(.semibold))
+                .foregroundStyle(palette.counter)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(palette.counter.opacity(0.15)))
+                .overlay(Capsule().stroke(palette.counter.opacity(0.3), lineWidth: 1))
 
             Divider().frame(maxWidth: 220)
 
@@ -66,8 +86,38 @@ public struct AboutView: View {
                     }
                     .font(.footnote)
                 }
+                .tint(palette.counter)
             }
+        }
+    }
 
+    /// iOS wraps the content in a NavigationStack with a toolbar "Done" and a
+    /// fit-content detent — matching the Settings / Scores sheets. macOS keeps the
+    /// inline layout with a bottom Done button (right in a macOS sheet).
+    @ViewBuilder private var chrome: some View {
+        #if os(iOS)
+        NavigationStack {
+            content
+                .padding(28)
+                .frame(maxWidth: .infinity)
+                .background(heightReader)
+                .navigationTitle(Text("About", bundle: .module))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Text("Done", bundle: .module)
+                        }
+                        .accessibilityIdentifier("sheet.done")
+                    }
+                }
+        }
+        .presentationDetents(contentHeight > 0 ? [.height(contentHeight + 64)] : [.medium])
+        #else
+        VStack(spacing: 16) {
+            content
             Button {
                 dismiss()
             } label: {
@@ -78,8 +128,18 @@ public struct AboutView: View {
         }
         .padding(28)
         .frame(minWidth: 300)
-        .accessibilityElement(children: .contain)
+        #endif
     }
+
+    #if os(iOS)
+    /// Reports the content's natural height (for the iOS fit-content detent).
+    private var heightReader: some View {
+        GeometryReader { geo in
+            Color.clear.onAppear { contentHeight = geo.size.height }
+                .onChangeCompat(of: geo.size.height) { contentHeight = $0 }
+        }
+    }
+    #endif
 
     /// The app icon from the asset catalog. The 1024 icon image is the only one
     /// directly loadable by name; the `AppIcon` set itself isn't a UI image.

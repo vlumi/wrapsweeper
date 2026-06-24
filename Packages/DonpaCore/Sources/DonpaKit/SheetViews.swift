@@ -164,7 +164,16 @@ struct ScoreboardView: View {
 
     private func row(_ config: GameConfig) -> some View {
         HStack {
-            Text(verbatim: config.label)  // already localized by GameConfig
+            // Modern rows: the difficulty rank insignia in a fixed-width column
+            // (so the size letters line up), then the size name. Classic rows show
+            // their preset name.
+            if let size = config.modernSize, let density = config.modernDensity {
+                DensityInsignia.image(density)
+                    .resizable().scaledToFit().frame(width: 30, height: 20)
+                Text(verbatim: size.label)
+            } else {
+                Text(verbatim: config.label)  // already localized by GameConfig
+            }
             Spacer()
             Text("\(scoreboard.wins(for: config))")
                 .font(.body.monospaced())
@@ -210,7 +219,6 @@ struct ScoreboardView: View {
 struct SettingsView: View {
     @ObservedObject var settings: Settings
     @Environment(\.dismiss) private var dismiss
-    @State private var showingAbout = false
     /// The language in effect when this sheet appeared. If the picker moves away
     /// from it, the app needs a restart to actually switch — surfaced loudly.
     @State private var launchLanguage: LanguagePreference?
@@ -225,9 +233,6 @@ struct SettingsView: View {
 
     var body: some View {
         sheetChrome
-            .sheet(isPresented: $showingAbout) {
-                AboutView()
-            }
             .onAppear { launchLanguage = settings.language }
             .animation(.easeInOut(duration: 0.2), value: languageChanged)
     }
@@ -267,19 +272,8 @@ struct SettingsView: View {
                 }
             }
 
-            // macOS surfaces About via the app menu ("About Donpa Squad"); iOS
-            // has no such menu, so expose it here in Settings.
-            #if os(iOS)
-            Button {
-                showingAbout = true
-            } label: {
-                Label {
-                    Text("About Donpa Squad", bundle: .module)
-                } icon: {
-                    Image(systemName: "info.circle")
-                }
-            }
-            #endif
+            // About lives on the title screen's "i" button now (cross-platform),
+            // plus the macOS app menu — so it's no longer a Settings row.
         }
     }
 

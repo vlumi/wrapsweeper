@@ -32,6 +32,22 @@ public struct SaveStore {
         return SaveStore(directory: dir, fileManager: fileManager, filename: filename)
     }
 
+    /// A fresh, empty store in a unique temp directory — so each launch starts
+    /// with NO saved game and never reads or writes the real Application Support
+    /// store. Used by UI tests (launch arg `-uitest-clean`) so they're
+    /// deterministic and can't be polluted by, or pollute, a real save.
+    public static func ephemeral(fileManager: FileManager = .default) -> SaveStore {
+        let dir = fileManager.temporaryDirectory
+            .appendingPathComponent("donpa-uitest-\(UUID().uuidString)", isDirectory: true)
+        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        return SaveStore(directory: dir, fileManager: fileManager)
+    }
+
+    /// Whether the app was launched for a clean UI-test run.
+    public static var isUITestCleanLaunch: Bool {
+        ProcessInfo.processInfo.arguments.contains("-uitest-clean")
+    }
+
     /// Atomically write the snapshot. Failures are swallowed — a save that didn't
     /// land just means the prior save (or none) is what restores.
     public func save(_ snapshot: GameSnapshot) {

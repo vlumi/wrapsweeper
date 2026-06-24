@@ -1,6 +1,23 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "About": {
+      "comment": "Title of the About sheet. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tietoja"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "アプリについて"
+          }
+        }
+      }
+    },
     "%lld left": {
       "comment": "Loss pill: safe tiles still unopened when the cleared % would round to 100. NEEDS REVIEW: ja/fi.",
       "localizations": {

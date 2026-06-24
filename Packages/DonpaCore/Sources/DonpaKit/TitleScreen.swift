@@ -15,6 +15,7 @@ struct TitleScreen: View {
     let onStart: () -> Void
     let onSettings: () -> Void
     let onScores: () -> Void
+    let onAbout: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -41,6 +42,11 @@ struct TitleScreen: View {
                     roundButton(label: "Settings", id: "title.settings", action: onSettings) {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    roundButton(label: "About", id: "title.about", action: onAbout) {
+                        Image(systemName: "info")
+                            .font(.system(size: 17, weight: .bold))
                             .foregroundStyle(.white)
                     }
                 }
