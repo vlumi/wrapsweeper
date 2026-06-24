@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store requires App Sandbox. Donpa is fully offline — no network,
+	     no access outside its own container (the save/scoreboard live in the
+	     sandboxed Application Support dir) — so the sandbox needs no further
+	     entitlements granted. Add capability keys here only if a feature later
+	     needs them (e.g. iCloud KVS for cross-device score sync, v0.2.0). -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+</dict>
+</plist>
