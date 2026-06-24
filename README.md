@@ -73,29 +73,35 @@ it from the title art, the in-game **New Game** button, the result screen, or
 `⌘N`):
 
 - **Classic** — the original Beginner / Intermediate / Expert presets.
-- **Modern** — pick a **Size** (Small 9×9 · Medium 16×16 · Large 25×25) and a
-  **Difficulty** (Easy · Normal · Hard · Brutal · Insane). Difficulty is mine
-  density, so it composes with any size; Insane is the deliberately brutal,
-  near-unguessable tier. The chosen mode and selections are remembered.
+- **Modern** — pick a **Difficulty** then a **Size** (Small 9×9 · Medium 16×16 ·
+  Large 25×25). Difficulty is mine density (the deliberately brutal top tier is
+  near-unguessable), so it composes with any size. The five tiers are shown as
+  ascending **military rank insignia** — chevron stripes for the lower ranks, a
+  star, then a star-in-laurel for the apex — rather than text, so they stay
+  compact and language-independent (the rank name is the accessibility label).
+  The chosen mode and selections are remembered.
 
 On macOS the popup is keyboard-drivable: **↑/↓** move between the rows (Mode /
-Size / Difficulty), **←/→** cycle the selection within the highlighted row,
+Difficulty / Size), **←/→** cycle the selection within the highlighted row,
 **Return** starts, **Esc** closes.
 
 ## Controls
 
-A floating **toggle** in a thumb-reachable corner of the board switches a
-tap/click between **Reveal mode** and **Flag mode**, so you can place flags
-without risking an accidental reveal. Its corner follows the **Toggle side**
-setting (left/right) for your grip. A tap on a revealed number always chords in
-either mode, and a long-press is always the opposite primary action.
+A **toggle** in a thumb-reachable corner of the board switches a tap/click
+between **Dig mode** and **Flag mode**, so you can place flags without risking an
+accidental reveal. Its corner follows the **Toggle side** setting (left/right)
+for your grip. A tap on a revealed number always chords in either mode, and a
+long-press is always the opposite primary action.
 
-The board chrome is split in two: a thin top strip shows read-only metrics —
-the flag counter, a live **clear-%**, the timer, and the 🏆 High Scores button —
-while a strip beside or below the board (whichever the board's shape leaves room
-for) holds the **New Game / Retry / Home** actions plus the flag toggle.
+The board chrome is split in two: a thin top strip shows a tappable **config
+badge** (the current game — its rank insignia + size — which opens the New Game
+popup to switch) and read-only metrics — the flag counter, a live **clear-%**,
+the timer, and the 🏆 High Scores button — while a strip beside or below the
+board (whichever the board's shape leaves room for) holds the **Retry / Pause /
+Home** actions plus the dig/flag toggle. Unopened tiles carry a faint manga
+screentone keyed to the toggle (dots for dig, hatch for flag).
 
-| Action            | Reveal mode   | Flag mode     |
+| Action            | Dig mode      | Flag mode     |
 | ----------------- | ------------- | ------------- |
 | Tap/click hidden  | Reveal        | Flag / unflag |
 | Tap/click number  | Chord         | Chord         |
@@ -107,8 +113,10 @@ for) holds the **New Game / Retry / Home** actions plus the flag toggle.
 | Pan             | Drag  | Two-finger scroll            |
 | Zoom            | Pinch | Pinch (trackpad)             |
 
-On macOS the pointer reflects the mode while a game is in progress — a crosshair
-to reveal, a flag to flag (a plain arrow otherwise). Panning is bounded to the
+On macOS the pointer reflects the mode while a game is in progress — a pointing
+hand to dig, a flag to flag (a plain arrow otherwise); holding **Control** shows
+the other mode's cursor, since Control-click does the opposite action. Panning is
+bounded to the
 board: it rests with a little breathing room past each edge, and pulling further
 rubber-bands with resistance before springing back. When the whole board already
 fits on screen, panning is disabled.
@@ -128,17 +136,20 @@ fits on screen, panning is disabled.
 ## Start and end of a game
 
 The app opens on a **title screen** that doubles as the home hub: tapping the
-art opens the **New Game popup** to pick a board and start. The 🏆 High Scores
-and ⚙️ Settings buttons sit on the art's corner. You can return to the title any
+art opens the **New Game popup** to pick a board and start. The 🏆 High Scores,
+⚙️ Settings, and ⓘ About buttons sit on the art's corner. You can return to the
+title any
 time from the in-game **Home** button or the **Title Screen** menu item (⌘T) on
 macOS.
 
 When a game ends, a comic **result panel** slides in over the **board** — a
 triumphant one on a win, a dramatic one on a loss, with a "new record" flourish
-when you beat your best time. It dims only the board, so the toolbar stays live:
+when you beat your best time. It dims only the board, so the control strip stays
+live:
 
-- **New Game / Retry / Home** remain usable on the strip — no need to dismiss
-  the panel first. Retry replays the same board; New Game opens the popup.
+- **Retry / Home** (and the config badge for a different game) remain usable on
+  the chrome — no need to dismiss the panel first. Retry replays the same board;
+  the config badge opens the New Game popup.
 - Dismiss the panel to inspect the finished board via the **X**, a tap anywhere,
   or **Esc**.
 
@@ -165,7 +176,7 @@ Donpa Squad is built with substantial AI assistance, and that's stated openly
 here rather than hidden. The project is human-directed — design, gameplay, and
 every visual decision are the author's — but the **code is largely AI-written**
 and the **current art (app icon, title, and result panels) is AI-generated**
-(DALL·E). The procedural chrome (the manga toolbar glyphs and board screentone)
+(DALL·E). The procedural chrome (the manga UI glyphs and board screentone)
 is AI-written code, not generated images. If hand-made or commissioned art
 replaces the generated pieces later, this note will be updated to credit it.
 
