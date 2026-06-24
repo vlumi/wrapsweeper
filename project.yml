@@ -62,6 +62,13 @@ targets:
     dependencies:
       - package: DonpaCore
         product: DonpaKit
+    # Stamp the git commit into the bundled Info.plist (GitCommitSHA) so every
+    # build self-identifies its source. Runs last, after the plist is copied
+    # into the product; fires on archive too. See Scripts/embed-commit-sha.sh.
+    postBuildScripts:
+      - script: "\"$SRCROOT/Scripts/embed-commit-sha.sh\""
+        name: Embed git commit SHA
+        basedOnDependencyAnalysis: false
     scheme:
       # Wire the UI tests into the iOS app's scheme so `xcodebuild test
       # -scheme Donpa-iOS` runs them (used by `make uitest`, locally only).
@@ -118,6 +125,11 @@ targets:
         # Signing: same personal paid-account team as iOS; automatic signing.
         DEVELOPMENT_TEAM: U84DT7P75P
         CODE_SIGN_STYLE: Automatic
+    # See the iOS target: stamp the git commit into the bundled Info.plist.
+    postBuildScripts:
+      - script: "\"$SRCROOT/Scripts/embed-commit-sha.sh\""
+        name: Embed git commit SHA
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: DonpaCore
         product: DonpaKit
