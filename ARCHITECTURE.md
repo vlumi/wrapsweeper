@@ -29,7 +29,7 @@ mode, and republishes a `revision` counter on every change so the SpriteKit
 scene knows to re-render without diffing.
 
 Win/progress is **O(1)**: `Game.revealedSafeCount` is an incremental counter, so
-`checkWin` never scans the board. This matters for the v0.3 huge-board goal and
+`checkWin` never scans the board. This matters for the v0.2 huge-board goal and
 already backs the progress-% feature.
 
 ## SpriteKit board, owned by SwiftUI, input handled natively
@@ -86,7 +86,7 @@ mid-game is a shrug; losing your records is not).
   *carries* the topology kind + params — the `any Topology` existential is never
   encoded) plus the first-click-safe mine layout and the revealed/flagged cells
   as **coordinate sets**, not the full cell dict (a 1000² board would be huge
-  otherwise; dovetails with the v0.3 flat-storage rework). The scoreboard is a
+  otherwise; dovetails with the v0.2 flat-storage rework). The scoreboard is a
   `[storageKey: ScoreRecord]` map (see below).
 - **Atomic.** `SaveStore` writes the game save with `Data.write(.atomic)` (temp
   file + rename), so a crash mid-save can't corrupt it — the prior save survives.

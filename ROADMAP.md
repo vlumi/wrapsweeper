@@ -6,9 +6,12 @@ How Donpa gets from "classic Minesweeper" to the full "epic" vision at
 plus UI, without touching the game logic.
 
 Versions are indicative, not contractual; scope may shift between minor
-releases (the numbers name the **pillars**, so there are gaps — e.g. the
-former v0.2 "fairer boards" became un-versioned backlog items). The project is
-**currently unversioned** — the first cut is v0.1.0.
+releases. Each minor groups **related** work into one meaty release rather than
+giving every feature its own number (so v0.2.0 carries both cross-device sync
+and big boards; v0.3.0 carries both board-topology variants). The former v0.2
+"fairer boards" lives on as un-versioned backlog items. The project is
+**currently unversioned** — the first cut is v0.1.0 (TestFlight pre-release; not
+a public store release).
 
 ---
 
@@ -28,9 +31,9 @@ and a clean leak/retain audit.
 Carry-over notes for later milestones:
 
 - **Per-cell board VoiceOver deferred** — needs a scalable cursor model (swiping
-  10k cells doesn't work on huge boards); co-design with v0.3 navigation.
-- **Window grow-to-fit** assumes a board that fits a window — revisit for v0.3
-  huge maps / v0.4 edgeless boards (panned, not framed).
+  10k cells doesn't work on huge boards); co-design with v0.2 big-board navigation.
+- **Window grow-to-fit** assumes a board that fits a window — revisit for v0.2
+  huge maps / v0.3 edgeless wrapped boards (panned, not framed).
 - **JA/FI strings are my drafts** (`needs_review`) — revisit on native/test
   feedback; not blocking 0.1.
 
@@ -40,10 +43,99 @@ Carry-over notes for later milestones:
       string is fine for the App Store; the build number must increment per
       upload. `MARKETING_VERSION = 0.1.0`; TestFlight is the pre-release channel.
 
+## v0.2.0 — Cross-device & big boards
+
+Two strands of "make the existing square game better and bigger" — grouped into
+one milestone rather than a minor each. Cloud sync (below) is independent of the
+big-board work and can land first.
+
+### Cross-device scoreboard sync
+
+Make a player's progress follow them across their Mac, iPhone, and iPad, keyed
+by Apple ID — no accounts, no server, no UI.
+
+- [ ] **iCloud scoreboard sync** via `NSUbiquitousKeyValueStore` (iCloud KVS) —
+      right-sized for the small `Codable` scoreboard blob; CloudKit / Core Data
+      sync would be overkill. **Silent auto-sync** (no toggle); degrades to
+      local-only when not signed into iCloud (== today's behaviour).
+  - **Merge is lossless and needs no conflict UI:** records are keyed
+    independently by `GameConfig.storageKey`, and each `ScoreRecord` merges
+    field-wise — `max(wins)`, `min(bestCentiseconds)`, `max(bestLossProgress)`
+    (all nil-safe). Order-independent + idempotent, so any sync order converges.
+  - **`wins` merges with `max`, not `sum`** — a deliberate choice: summing would
+    double-count the same offline session across devices. `max` can under-count
+    a genuine divergence, but inflating a "games cleared" stat is worse, and true
+    dedup would need per-win IDs (not worth it). Document in code, not silently.
+  - **Implementation seam is already clean:** `Scoreboard` funnels through one
+    `load()`/`persist()` and is injectable. Plan: abstract the backing store
+    behind a tiny protocol, dual-write to `UserDefaults` (fast local cache) AND
+    KVS (cross-device truth), merge-on-read, and observe
+    `didChangeExternallyNotification` so an open scoreboard updates live. The
+    versioned `StatsFile` envelope (the per-entry-tolerant format) carries over
+    as the wire format unchanged.
+  - **Entitlement / signing** is the one careful part: add the iCloud +
+    Key-Value Storage capability to BOTH app targets (regenerates the
+    provisioning profile; automatic signing handles it). **iOS and macOS must
+    share an explicit KVS identifier** — by default `fi.misaki.donpa` and
+    `fi.misaki.donpa.mac` wouldn't see each other's scores, which would defeat
+    the Mac-sharing goal. No App Store Connect metadata change; PRIVACY.md gets a
+    one-line note that scores sync via the user's own iCloud (we still collect
+    nothing).
+  - **In-progress games stay strictly local** — deliberately not synced. A
+    half-played board on two devices has no lossless merge (one would overwrite
+    the other), and it's transient by nature; only the high-stakes scoreboard is
+    worth syncing.
+  - **Testing:** the merge is a pure function → unit-tested headless (the
+    high-value tests). KVS itself can only be verified on real devices on the
+    same iCloud account (simulator KVS is unreliable).
+
+### Big boards
+
+The "huge zoomable maps" pillar — targeting **500×500 (250k) up to 1000×1000
+(1M) cells**. Both a data-model and a rendering/perf effort; profile with
+Instruments (Allocations + Leaks) at those sizes throughout.
+
+**Data model (Core):**
+
+- [ ] Replace `Board`'s `[Coord: Cell]` storage — a dict keyed by a struct is
+      ~100MB+ and slow at 1M entries. For bounded rectangular topologies use a
+      **flat `[Cell]` of size w·h** indexed `y·w + x`; pack `Cell` tight (state
+      2 bits + mine 1 + adjacency 0–8 in 4 bits ≈ 1 byte/cell → 1000×1000 ≈ 1MB).
+      Keep the `Topology` seam (dict path can stay for sparse/odd topologies).
+      (Win/mine/flag counts are *already* O(1) incremental counters, so this is
+      purely the storage swap.)
+
+**Rendering (Kit):**
+
+- [ ] Viewport culling in `BoardScene.rebuild` — only build nodes for cells in
+      the camera rect (+ margin); refresh the visible set on pan/zoom. Today it
+      makes one `SKShapeNode` (+ `SKLabelNode`) per cell → millions of nodes at
+      scale.
+- [ ] Incremental re-render (update changed cells instead of full `rebuild()`,
+      which currently re-runs on every palette push / tick).
+- [ ] Node reuse / pooling as the viewport moves; consider `SKTileMapNode` or a
+      drawn texture instead of per-cell `SKShapeNode` (shape nodes are pricey).
+- [ ] Re-profile memory + teardown with Instruments at 500²–1000² (Allocations +
+      Leaks). The v0.1 groundwork retain audit was clean at current scale (see
+      ARCHITECTURE.md); the open question is behaviour under the flat-storage +
+      culling rework above.
+
+**Navigation / window:**
+
+- [ ] Large presets (e.g. 50×50, 100×100, … up to 1000²) + smooth pan/zoom.
+      Modern sizes use clothing-size labels (S/M/L; 小/中/大 in JA), so bigger
+      boards extend naturally to XL/XXL/XXXL (特大/超特大…) — add `BoardSize`
+      cases + catalog entries; the rawValue keys the scoreboard, label is display.
+- [ ] Minimap / overview for navigation.
+- [ ] Rethink macOS window grow-to-fit (from v0.1): huge boards don't "fit" a
+      window, so the grow-to-fit / cell-cap / fit-zoom model needs a pan-first
+      alternative here (and again for edgeless wrapped boards in v0.3).
+
 ## Backlog (unversioned)
 
 Polish and smaller features that can land in any release — not milestone gates.
-The numbered milestones below are the real pillars (scale, then board variants).
+The numbered milestones are the real pillars (scale, then board variants); these
+slot into whichever release they're ready for.
 
 **Gameplay fairness** (builds on the v0.1 logical solver):
 
@@ -73,49 +165,13 @@ The numbered milestones below are the real pillars (scale, then board variants).
       the enum (`isLive` / `isFinished` / `isPlaying`). Pure readability; no
       behaviour change.
 
-## v0.3.0 — Big boards
+## v0.3.0 — Board variants (wrapped + hex)
 
-The "huge zoomable maps" pillar — targeting **500×500 (250k) up to 1000×1000
-(1M) cells**. Both a data-model and a rendering/perf effort; profile with
-Instruments (Allocations + Leaks) at those sizes throughout.
+The two board-topology pillars, grouped: both exercise the `Topology` /
+`CellLayout` seams the same way and share the "select a variant, score it
+separately" UI work, so they're one milestone rather than two minors.
 
-**Data model (Core):**
-
-- [ ] Replace `Board`'s `[Coord: Cell]` storage — a dict keyed by a struct is
-      ~100MB+ and slow at 1M entries. For bounded rectangular topologies use a
-      **flat `[Cell]` of size w·h** indexed `y·w + x`; pack `Cell` tight (state
-      2 bits + mine 1 + adjacency 0–8 in 4 bits ≈ 1 byte/cell → 1000×1000 ≈ 1MB).
-      Keep the `Topology` seam (dict path can stay for sparse/odd topologies).
-      (Win/mine/flag counts are *already* O(1) incremental counters, so this is
-      purely the storage swap.)
-
-**Rendering (Kit):**
-
-- [ ] Viewport culling in `BoardScene.rebuild` — only build nodes for cells in
-      the camera rect (+ margin); refresh the visible set on pan/zoom. Today it
-      makes one `SKShapeNode` (+ `SKLabelNode`) per cell → millions of nodes at
-      scale.
-- [ ] Incremental re-render (update changed cells instead of full `rebuild()`,
-      which currently re-runs on every palette push / tick).
-- [ ] Node reuse / pooling as the viewport moves; consider `SKTileMapNode` or a
-      drawn texture instead of per-cell `SKShapeNode` (shape nodes are pricey).
-- [ ] Re-profile memory + teardown with Instruments at 500²–1000² (Allocations +
-      Leaks). The pre-v0.3 retain audit was clean at current scale (see
-      ARCHITECTURE.md); the open question is behaviour under the flat-storage +
-      culling rework above.
-
-**Navigation / window:**
-
-- [ ] Large presets (e.g. 50×50, 100×100, … up to 1000²) + smooth pan/zoom.
-      Modern sizes use clothing-size labels (S/M/L; 小/中/大 in JA), so bigger
-      boards extend naturally to XL/XXL/XXXL (特大/超特大…) — add `BoardSize`
-      cases + catalog entries; the rawValue keys the scoreboard, label is display.
-- [ ] Minimap / overview for navigation.
-- [ ] Rethink macOS window grow-to-fit (from v0.1): huge boards don't "fit" a
-      window, so the grow-to-fit / cell-cap / fit-zoom model needs a pan-first
-      alternative here (and again for edgeless wrapped boards in v0.4).
-
-## v0.4.0 — Wrapped (torus) boards
+### Wrapped (torus) boards
 
 The "wrapped edges" pillar. Logic already proven — a `WrappedSquareTopology`
 test wins a full game with unchanged rules. This release makes it playable.
@@ -126,7 +182,7 @@ test wins a full game with unchanged rules. This release makes it playable.
 - [ ] Pan behaviour for a seamless/torus surface (no hard edges to clamp to)
 - [ ] Scoreboards keyed by topology
 
-## v0.5.0 — Hex grids
+### Hex grids
 
 The "hex grids" pillar — exercises the second seam.
 
@@ -340,6 +396,7 @@ Still open:
 
 Per project conventions: **no ads, no microtransactions, no pay-to-win**; no
 third-party dependencies; the older Intel Mac is not targeted. Online
-multiplayer and cloud-synced scores are not planned for v1.0. (A **tip jar** —
-optional, content-neutral support — is the one monetization form under
-consideration; see Distribution & extras.)
+multiplayer is not planned for v1.0. (Cross-device *score* sync via the user's
+own iCloud **is** planned — see v0.2.0 — but that's local-iCloud KVS, not a
+server or social layer.) A **tip jar** — optional, content-neutral support — is
+the one monetization form under consideration; see Distribution & extras.
