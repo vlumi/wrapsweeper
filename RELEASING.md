@@ -3,6 +3,27 @@
 How Donpa Squad versions, builds, and ships. Mechanical steps only — the
 "why" behind the architecture lives in [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Branching
+
+Trunk-based: `main` is the single trunk. Every change is a short-lived branch →
+PR → merge to `main`. Releases are **tags**, not long-lived branches (see Cutting
+a release). No `develop` branch — `main` isn't continuously deployed, so a second
+permanent trunk would only add merge overhead.
+
+**Release branches** are the one exception, cut *only* when an in-progress
+release needs to be finalized/approved while trunk has already moved on to the
+next version:
+
+- Cut `release/<minor>` (e.g. `release/0.1`) from the commit the release builds
+  from. Forward work (the next version) continues on `main`.
+- **Fixes for that release land on the release branch** (branch off it → PR into
+  it → tag the new build from it), NOT on `main` directly.
+- **Every release-branch fix must also reach `main`** — cherry-pick it over, or
+  the next version silently regresses it. This is the only discipline a release
+  branch demands.
+- **Delete the release branch once that version ships for real** — it's
+  temporary, not a maintained line.
+
 ## Versioning
 
 Two numbers, both set in [project.yml](project.yml) (the source of truth — the
@@ -14,10 +35,11 @@ Two numbers, both set in [project.yml](project.yml) (the source of truth — the
 | `CURRENT_PROJECT_VERSION` | `CFBundleVersion` | Build number, e.g. `5` | Unique & strictly increasing per upload. |
 
 Both targets (`Donpa-iOS`, `Donpa-macOS`) carry their own copy of these. They're
-**separate apps that release independently** (§ Platforms), so their versions and
-build numbers *may* diverge — keep them in step only when you choose to ship both
-at once. The build number is per-app: iOS `(5)` and Mac `(5)` are unrelated
-counters.
+**one app across two platforms** (§ Platforms — a Universal Purchase sharing the
+bundle ID `fi.misaki.donpa`), but each platform builds and uploads its own binary,
+so versions and build numbers *may* diverge — keep them in step only when you
+choose to ship both at once. The build number is per-platform: iOS `(5)` and Mac
+`(5)` are unrelated counters.
 
 ### When to bump what
 
@@ -93,17 +115,23 @@ committed `main` so the stamp is meaningful.
 
 ## Platforms
 
-iOS and macOS are **separate App Store Connect records** with distinct bundle
-IDs (`fi.misaki.donpa` / `fi.misaki.donpa.mac`) — no Catalyst. Each is archived
-and distributed independently (own build numbers, own tag prefix, own beta
-review); the metadata is shared but entered per-record, and screenshots are
-per-platform size.
+iOS and macOS are **one App Store Connect record** — a **Universal Purchase**:
+both platforms share the bundle ID `fi.misaki.donpa`, the same Apple ID, SKU, and
+name (no platform qualifier — and don't put "Mac" in the name, it's an Apple
+trademark, rejected under guideline 5.2.5). Not Catalyst — a separate native
+macOS target qualifies for Universal Purchase; it just needs the shared bundle ID.
+Each platform still archives and uploads its **own binary** (own build numbers,
+own `ios/`–`mac/` tag prefix, own beta review); metadata is entered per-platform
+within the one record, and screenshots are per-platform size.
+
+(If a macOS record ever needs adding from scratch: in App Store Connect, open the
+iOS record and use the platform **⌄** dropdown next to the app name → add macOS —
+do NOT create a second app record.)
 
 ### iOS (the flow above, by default)
 
-A single universal app: one record, one binary, runs on iPhone **and** iPad,
-appears on both stores automatically. Testers install betas via the **TestFlight
-app**.
+One universal app, one binary, runs on iPhone **and** iPad. Testers install betas
+via the **TestFlight app**.
 
 ### macOS — same shape, but mind these deltas
 
