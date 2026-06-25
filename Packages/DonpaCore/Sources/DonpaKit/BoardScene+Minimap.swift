@@ -33,7 +33,15 @@ extension BoardScene {
         // whole board" means it fits.
         let fits =
             range.minX <= 0 && range.minY <= 0 && range.maxX >= w - 1 && range.maxY >= h - 1
-        guard !fits else {
+        // Publish to the chrome so the toolbar toggle can disable itself when the
+        // whole board fits (nothing to map). Only assign on change to avoid
+        // needless @Published churn every frame.
+        let exceeds = !fits
+        if viewModel.boardExceedsViewport != exceeds {
+            viewModel.boardExceedsViewport = exceeds
+        }
+        // Show only when the board exceeds the view AND the user wants it.
+        guard exceeds, showMinimap else {
             minimapNode?.isHidden = true
             return
         }

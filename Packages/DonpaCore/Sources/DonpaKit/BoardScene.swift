@@ -70,6 +70,9 @@ public final class BoardScene: SKScene {
     var lastMinimapRevision = -1
     /// Cached board size the minimap was built for, to detect new-game/resize.
     var lastMinimapBoard: CGSize = .zero
+    /// User preference (pushed from the chrome's toolbar toggle, via BoardView):
+    /// show the minimap when the board exceeds the viewport. Default on.
+    var showMinimap = true
 
     /// The active color palette. Set by the host when the system appearance
     /// changes; updating it recolors the background and rebuilds the cells.

@@ -141,6 +141,11 @@ public final class Settings: ObservableObject {
     @Published public var handedness: Handedness {
         didSet { defaults.set(handedness.rawValue, forKey: handednessKey) }
     }
+    /// Whether to show the big-board minimap overview. A user preference (the
+    /// minimap only actually appears when the board also exceeds the viewport).
+    @Published public var showMinimap: Bool {
+        didSet { defaults.set(showMinimap, forKey: showMinimapKey) }
+    }
     /// Language override. Persisted as our own preference *and* written to
     /// `AppleLanguages` so the system picks it up on the next launch.
     @Published public var language: LanguagePreference {
@@ -162,6 +167,7 @@ public final class Settings: ObservableObject {
     private let presetKey = "donpa.classicPreset"
     private let handednessKey = "donpa.handedness"
     private let languageKey = "donpa.language"
+    private let showMinimapKey = "donpa.showMinimap"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -176,6 +182,9 @@ public final class Settings: ObservableObject {
             defaults.string(forKey: presetKey).flatMap(ClassicPreset.init(rawValue:)) ?? .beginner
         handedness =
             defaults.string(forKey: handednessKey).flatMap(Handedness.init(rawValue:)) ?? .left
+        // Default ON: absent key → show. (`bool(forKey:)` is false when missing,
+        // so check presence explicitly to default true.)
+        showMinimap = defaults.object(forKey: showMinimapKey) as? Bool ?? true
         language =
             defaults.string(forKey: languageKey).flatMap(LanguagePreference.init(rawValue:))
             ?? .system

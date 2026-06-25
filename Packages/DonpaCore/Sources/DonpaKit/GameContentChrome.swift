@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The in-game action buttons, in their fixed far-edge → toggle order. (Starting
 /// a different game lives in the status-bar config badge, not here.)
-enum GameAction: Hashable { case home, retry, pause }
+enum GameAction: Hashable { case home, retry, pause, minimap }
 
 /// The in-game chrome for `GameContent`: the thin top metrics strip, the board +
 /// its control strip (actions + flag toggle), and the pause overlay. Split out of
@@ -90,7 +90,8 @@ extension GameContent {
             // you're just inspecting — where a flag cursor is stale).
             // No custom reveal/flag cursor while paused: the board is blurred
             // under the pause panel, so a dig/flag cursor there is stale.
-            boardCursorActive: gameInProgress && !navigator.showingTitle && !viewModel.isPaused
+            boardCursorActive: gameInProgress && !navigator.showingTitle && !viewModel.isPaused,
+            showMinimap: settings.showMinimap
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Per-cell VoiceOver is a future task (needs a scalable cursor model for
@@ -272,8 +273,9 @@ extension GameContent {
     }
 
     /// The fixed action sequence, far-edge → toggle. Always the same set (so the
-    /// control row never reflows); Pause is just disabled off-play.
-    private var actionOrder: [GameAction] { [.home, .retry, .pause] }
+    /// control row never reflows); Pause and Minimap are just disabled when they
+    /// don't apply (off-play / board fits the viewport).
+    private var actionOrder: [GameAction] { [.home, .retry, .pause, .minimap] }
 
     @ViewBuilder
     private func actionView(_ action: GameAction) -> some View {
@@ -297,6 +299,21 @@ extension GameContent {
             .disabled(!live && !paused)
             .opacity(live || paused ? 1 : 0.4)
             .accessibilityIdentifier("game.pause")
+        case .minimap:
+            // Toggle the big-board overview. Disabled (dimmed) when the whole
+            // board fits the viewport — there's nothing off-screen to map. The
+            // icon dims further when the preference is off, so on/off reads at a
+            // glance.
+            let available = viewModel.boardExceedsViewport
+            actionButton(
+                .minimap, help: "Overview map",
+                tint: settings.showMinimap ? newGameTint : .secondary
+            ) {
+                settings.showMinimap.toggle()
+            }
+            .disabled(!available)
+            .opacity(available ? 1 : 0.4)
+            .accessibilityIdentifier("game.minimap")
         }
     }
 
