@@ -55,6 +55,22 @@ public final class BoardScene: SKScene {
     /// cheaper than a per-cell `SKShapeNode` (the old hot spot on big boards).
     var tileTextureCache: [String: SKTexture] = [:]
 
+    // Minimap (overview) — a corner thumbnail of the whole board with a rectangle
+    // marking the visible viewport, shown only when the board exceeds the view.
+    // Lives in BoardScene+Minimap; pinned to the camera so it's fixed on screen.
+    /// Container pinned to the camera (built lazily in the +Minimap extension).
+    var minimapNode: SKNode?
+    /// Opaque background panel behind the overview, so it reads as a HUD element.
+    var minimapPanel: SKShapeNode?
+    /// The overview image sprite inside `minimapNode`, rebuilt on board change.
+    var minimapImage: SKSpriteNode?
+    /// The "you are here" viewport rectangle, repositioned each frame.
+    var minimapViewport: SKShapeNode?
+    /// Board revision the overview image was last rendered for (rebuild on change).
+    var lastMinimapRevision = -1
+    /// Cached board size the minimap was built for, to detect new-game/resize.
+    var lastMinimapBoard: CGSize = .zero
+
     /// The active color palette. Set by the host when the system appearance
     /// changes; updating it recolors the background and rebuilds the cells.
     public var palette: Palette = .dark {
@@ -100,6 +116,7 @@ public final class BoardScene: SKScene {
         // animated spring-back without each having to call in.
         buildVisibleCells()
         refreshModeGlow()
+        refreshMinimap()
     }
 
     // MARK: Rendering — cell nodes + viewport culling live in BoardScene+Render.
