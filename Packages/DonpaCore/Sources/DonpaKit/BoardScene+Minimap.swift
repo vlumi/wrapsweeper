@@ -33,7 +33,15 @@ extension BoardScene {
         // whole board" means it fits.
         let fits =
             range.minX <= 0 && range.minY <= 0 && range.maxX >= w - 1 && range.maxY >= h - 1
-        guard !fits else {
+        // Publish to the chrome so the toolbar toggle can disable itself when the
+        // whole board fits (nothing to map). Only assign on change to avoid
+        // needless @Published churn every frame.
+        let exceeds = !fits
+        if viewModel.boardExceedsViewport != exceeds {
+            viewModel.boardExceedsViewport = exceeds
+        }
+        // Show only when the board exceeds the view AND the user wants it.
+        guard exceeds, showMinimap else {
             minimapNode?.isHidden = true
             return
         }
@@ -173,8 +181,10 @@ extension BoardScene {
             y: halfH - pad - mm.height / 2 - framePad)
 
         // Viewport rectangle: map the visible cell range onto the minimap image.
-        // Board row 0 renders at the minimap's TOP (matching the image), so the
-        // viewport rect maps board-y from the top down: minimap-top minus y.
+        // `SKTexture(cgImage:)` renders the overview with board row 0 at the
+        // minimap BOTTOM on both platforms (verified on device: the image looks
+        // correct, the rect was the mirrored one). So map board-y bottom-up —
+        // minimap-bottom (−h/2) plus y — to track the image.
         let cellW = mm.width / CGFloat(boardW)
         let cellH = mm.height / CGFloat(boardH)
         let rw = CGFloat(range.maxX - range.minX + 1) * cellW
@@ -185,6 +195,6 @@ extension BoardScene {
         let midY = CGFloat(range.minY + range.maxY) / 2 + 0.5
         minimapViewport.position = CGPoint(
             x: -mm.width / 2 + midX * cellW,
-            y: mm.height / 2 - midY * cellH)
+            y: -mm.height / 2 + midY * cellH)
     }
 }

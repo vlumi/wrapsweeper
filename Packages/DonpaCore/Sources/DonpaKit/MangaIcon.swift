@@ -17,6 +17,7 @@ struct MangaIcon: View {
         case medal  // ribbon + star disc (High Scores)
         case reveal  // bootprint (reveal mode — tread carefully)
         case flag  // swallowtail flag on a pole (flag mode)
+        case minimap  // framed map with a viewport rectangle (overview toggle)
     }
 
     let symbol: Symbol
@@ -85,6 +86,7 @@ struct MangaIcon: View {
         case .medal: drawMedal(pen)
         case .reveal: drawReveal(pen)
         case .flag: drawFlag(pen)
+        case .minimap: drawMinimap(pen)
         }
     }
 
@@ -263,6 +265,16 @@ struct MangaIcon: View {
         flag.addLine(to: CGPoint(x: poleX, y: flagBot))
         flag.closeSubpath()
         pen.fill(flag)
+    }
+
+    private static func drawMinimap(_ pen: Pen) {  // framed map + viewport rect
+        let s = pen.s
+        // Outer frame = the overview map.
+        let frame = CGRect(x: s * 0.18, y: s * 0.22, width: s * 0.64, height: s * 0.56)
+        pen.stroke(Path(roundedRect: frame, cornerRadius: s * 0.06))
+        // Small filled rectangle near the top-left = the "you are here" viewport.
+        let vp = CGRect(x: s * 0.28, y: s * 0.32, width: s * 0.22, height: s * 0.18)
+        pen.fill(Path(roundedRect: vp, cornerRadius: s * 0.03))
     }
 
     private static func starPath(center c: CGPoint, r: CGFloat) -> Path {

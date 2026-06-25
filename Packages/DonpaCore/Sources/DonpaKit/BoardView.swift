@@ -13,11 +13,14 @@ struct BoardView: View {
     /// When false (e.g. the result panel is up), the board shows the normal
     /// arrow cursor instead of the reveal/flag mode cursor.
     var boardCursorActive: Bool = true
+    /// User preference for the big-board minimap (pushed into the scene as a value
+    /// so the update runs when it changes, like `palette`).
+    var showMinimap: Bool = true
 
     var body: some View {
         BoardSKView(
             scene: scene, palette: palette, inputMode: inputMode,
-            boardCursorActive: boardCursorActive)
+            boardCursorActive: boardCursorActive, showMinimap: showMinimap)
     }
 }
 
@@ -27,11 +30,13 @@ private struct BoardSKView: NSViewRepresentable {
     let palette: Palette
     let inputMode: InputMode
     let boardCursorActive: Bool
+    let showMinimap: Bool
 
     func makeNSView(context: Context) -> ScrollForwardingSKView {
         let view = ScrollForwardingSKView()
         view.ignoresSiblingOrder = true
         scene.palette = palette
+        scene.showMinimap = showMinimap
         view.inputMode = inputMode
         view.boardCursorActive = boardCursorActive
         view.presentScene(scene)
@@ -41,6 +46,7 @@ private struct BoardSKView: NSViewRepresentable {
     func updateNSView(_ view: ScrollForwardingSKView, context: Context) {
         if view.scene !== scene { view.presentScene(scene) }
         scene.palette = palette
+        scene.showMinimap = showMinimap
         view.inputMode = inputMode
         view.boardCursorActive = boardCursorActive
     }
@@ -162,11 +168,13 @@ private struct BoardSKView: UIViewRepresentable {
     let palette: Palette
     let inputMode: InputMode  // unused on iOS (no pointer cursor)
     let boardCursorActive: Bool  // unused on iOS (no pointer cursor)
+    let showMinimap: Bool
 
     func makeUIView(context: Context) -> SKView {
         let view = SKView()
         view.ignoresSiblingOrder = true
         scene.palette = palette
+        scene.showMinimap = showMinimap
         view.presentScene(scene)
         return view
     }
@@ -174,6 +182,7 @@ private struct BoardSKView: UIViewRepresentable {
     func updateUIView(_ view: SKView, context: Context) {
         if view.scene !== scene { view.presentScene(scene) }
         scene.palette = palette
+        scene.showMinimap = showMinimap
     }
 }
 #endif

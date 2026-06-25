@@ -76,6 +76,12 @@ public final class GameViewModel: ObservableObject {
     /// the pause overlay; distinct from `.notStarted`/finished states.
     @Published public private(set) var isPaused = false
 
+    /// Whether the board currently extends beyond the viewport (so there's
+    /// off-screen board a minimap could map). Published by `BoardScene` each frame
+    /// as the camera pans/zooms; the chrome uses it to enable/disable the minimap
+    /// toggle (nothing to show when the whole board fits).
+    @Published public var boardExceedsViewport = false
+
     public init(config: GameConfig = .classic(.beginner)) {
         self.config = config
         self.game = Game(config: config)
