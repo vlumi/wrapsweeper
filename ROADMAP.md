@@ -92,44 +92,52 @@ by Apple ID — no accounts, no server, no UI.
 ### Big boards
 
 The "huge zoomable maps" pillar — targeting **500×500 (250k) up to 1000×1000
-(1M) cells**. Both a data-model and a rendering/perf effort; profile with
-Instruments (Allocations + Leaks) at those sizes throughout.
+(1M) cells**. The current shipped max is **XL = 100×100 (10k)**; 1000² is the
+data-model ceiling (proven in tests) but not yet a selectable preset.
 
-**Data model (Core):**
+**Shipped (June 2026):**
 
-- [ ] Replace `Board`'s `[Coord: Cell]` storage — a dict keyed by a struct is
-      ~100MB+ and slow at 1M entries. For bounded rectangular topologies use a
-      **flat `[Cell]` of size w·h** indexed `y·w + x`; pack `Cell` tight (state
-      2 bits + mine 1 + adjacency 0–8 in 4 bits ≈ 1 byte/cell → 1000×1000 ≈ 1MB).
-      Keep the `Topology` seam (dict path can stay for sparse/odd topologies).
-      (Win/mine/flag counts are *already* O(1) incremental counters, so this is
-      purely the storage swap.)
+- [x] **Flat cell storage** (#86): `Board` uses a flat `[Cell]` (row-major
+      `y·w+x`) for `RectangularTopology` boards instead of `[Coord: Cell]`. No
+      dict fallback — every topology (incl. hex, later) is a dense rectangle, so
+      the constraint is in the type. (`Cell` not bit-packed yet — a plain struct
+      array is already ~100× the dict's headroom; pack only if profiling demands.)
+- [x] **Viewport culling** (#87): `BoardScene` builds only the cells in the
+      camera rect (+margin), refreshed each frame; the mode-glow is culled too.
+- [x] **Texture batching** (#87): cells are `SKSpriteNode`s over cached shared
+      `SKTexture`s (tile bg + number/✸ glyph) — replaced per-cell `SKShapeNode`
+      (the hot spot). Flag / loss-burst stay as drawn nodes (rare).
+- [x] **XL preset** (100×100), label XL / 特大 (#87).
+- [x] **Bounded zoom-out** (#88): can't zoom out past ~22pt cells, so a huge
+      board never becomes a tiny/laggy untappable sea; pan to explore.
+- [x] **Start zoom**: bounds the visible cell count (~600, window-relative) so
+      the node count is bounded on any window; ~28pt tap floor; centred; edge-peek
+      (clip edge cells when the board exceeds the viewport).
+- [x] **Minimap overview** (#89/#90): corner thumbnail (downsampled single
+      texture) + viewport rect, big boards only, with a toolbar toggle (disabled
+      when the board fits). The navigation aid + the unlock for any 1M preset.
+- [x] **Window sizing** (earlier): grow-to-fit is Classic-only; Modern (square,
+      can be huge) keeps the window and pans/zooms.
 
-**Rendering (Kit):**
+**Deferred / still open (pick from these):**
 
-- [ ] Viewport culling in `BoardScene.rebuild` — only build nodes for cells in
-      the camera rect (+ margin); refresh the visible set on pan/zoom. Today it
-      makes one `SKShapeNode` (+ `SKLabelNode`) per cell → millions of nodes at
-      scale.
-- [ ] Incremental re-render (update changed cells instead of full `rebuild()`,
-      which currently re-runs on every palette push / tick).
-- [ ] Node reuse / pooling as the viewport moves; consider `SKTileMapNode` or a
-      drawn texture instead of per-cell `SKShapeNode` (shape nodes are pricey).
-- [ ] Re-profile memory + teardown with Instruments at 500²–1000² (Allocations +
-      Leaks). The v0.1 groundwork retain audit was clean at current scale (see
-      ARCHITECTURE.md); the open question is behaviour under the flat-storage +
-      culling rework above.
-
-**Navigation / window:**
-
-- [ ] Large presets (e.g. 50×50, 100×100, … up to 1000²) + smooth pan/zoom.
-      Modern sizes use clothing-size labels (S/M/L; 小/中/大 in JA), so bigger
-      boards extend naturally to XL/XXL/XXXL (特大/超特大…) — add `BoardSize`
-      cases + catalog entries; the rawValue keys the scoreboard, label is display.
-- [ ] Minimap / overview for navigation.
-- [ ] Rethink macOS window grow-to-fit (from v0.1): huge boards don't "fit" a
-      window, so the grow-to-fit / cell-cap / fit-zoom model needs a pan-first
-      alternative here (and again for edgeless wrapped boards in v0.3).
+- [ ] **iCloud score sync** — the other 0.2.0 pillar (above); not started.
+- [ ] **Minimap drag-to-reposition** — move the HUD out of the way (the toggle
+      hides it; dragging relocates it). Immediate next minimap follow-up.
+- [ ] **Save/restore camera zoom + position** in `GameSnapshot`, so title→back
+      (and resume) keep the exact view. (Do with a persistence pass.)
+- [ ] **Zoomed-all-the-way-out perf** (slice 2c): `SKTileMapNode` / single drawn
+      texture for when the whole huge board is visible (culling can't help then —
+      every cell is on screen). Partly mitigated by bounded zoom-out; only needed
+      to *allow* fully-zoomed-out on very large boards.
+- [ ] **Large presets beyond 100²** (up to 1000²) — now unblocked by the minimap;
+      extend `BoardSize` (XXL/XXXL · 超特大…). Likely wants slice 2c first.
+- [ ] **Minimap polish** — higher-contrast revealed shading; handedness-aware
+      corner.
+- [ ] **Real-device test pass before 1.0** — everything so far is iPhone-15-sim +
+      Mac only; need older/slower devices, iPad, and small screens (the SE
+      status-bar truncation escaped exactly this gap). Profile huge boards on real
+      hardware (the simulator software-renders SpriteKit and overstates cost).
 
 ## Backlog (unversioned)
 
