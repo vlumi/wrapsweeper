@@ -34,10 +34,12 @@ extension BoardScene {
     }
 
     /// Multiply the current zoom by `factor` (>1 zooms in). Never zooms out past
-    /// the whole board fitting on screen, and caps how far in you can go.
+    /// `maxZoomOutScale` (whole board OR the min interactive cell size, whichever
+    /// keeps cells tappable — so a huge board can't be zoomed out to an untappable
+    /// sea of cells), and caps how far in you can go.
     public func zoom(by factor: CGFloat) {
         let next = cameraNode.xScale / factor
-        cameraNode.setScale(min(max(next, 0.1), fitScale))
+        cameraNode.setScale(min(max(next, 0.1), maxZoomOutScale))
         // A smaller scale shows more board, which may pull empty space into
         // view; re-clamp so the board rests at the margin edge.
         cameraNode.position = clampedCameraPosition(cameraNode.position)

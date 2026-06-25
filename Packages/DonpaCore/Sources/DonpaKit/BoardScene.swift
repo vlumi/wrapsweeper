@@ -138,6 +138,23 @@ public final class BoardScene: SKScene {
     /// past the edges instead of looking complete. <1 because scale is
     /// world-units-per-point (smaller scale = more zoomed in).
     private static let edgePeekZoom: CGFloat = 0.92
+    /// Smallest on-screen cell size (points) reachable by manual zoom-OUT — only a
+    /// little below the ~28pt start floor, so there's a small buffer past the
+    /// opening view but it never reaches the tiny/choppy range (sub-20pt cells on
+    /// a huge board, where the whole grid becomes visible and laggy). The
+    /// whole-board overview is the future minimap's job, not deep zoom-out.
+    private static let minInteractiveCellSize: CGFloat = 22
+
+    /// The most zoomed-OUT camera scale allowed: the larger of "whole board fits"
+    /// and "cells at the min interactive size" is the *smaller* scale (more zoomed
+    /// in), so we clamp to whichever keeps cells tappable. For a board that fits at
+    /// a comfortable size this is `fitScale` (unchanged); for a huge board it stops
+    /// zoom-out before cells get too small to tap (and before the node count
+    /// explodes). Internal so BoardScene+Pan's `zoom`/clamps use it.
+    var maxZoomOutScale: CGFloat {
+        let interactiveLimit = layout.cellSize / Self.minInteractiveCellSize
+        return min(fitScale, interactiveLimit)
+    }
 
     // Internal so BoardScene+Pan (which owns pan/zoom/clamp) can reach them.
     func centerCamera() {
