@@ -120,14 +120,26 @@ extension BoardScene {
         tile.size = CGSize(width: size, height: size)
         container.addChild(tile)
 
+        // Overlay above the tile. The flag and burst are SKShapeNode-based; an
+        // SKSpriteNode (the tile) and SKShapeNodes render in separate passes, so
+        // without an explicit higher zPosition the shapes draw *under* the sprite
+        // tile and vanish. Texture glyphs (also sprites) layer fine, but set z on
+        // all overlays uniformly so the rule is one line, not per-branch.
+        let overlay: SKNode?
         if cell.state == .revealed, cell.isMine, coord == viewModel.game.lossCoord {
-            container.addChild(burstMineNode(size: size))
+            overlay = burstMineNode(size: size)
         } else if cell.state == .flagged {
-            container.addChild(flagNode(size: size, color: palette.flagGlyph))
+            overlay = flagNode(size: size, color: palette.flagGlyph)
         } else if let glyph = glyph(for: cell) {
             let sprite = SKSpriteNode(texture: glyphTexture(glyph.text, color: glyph.color))
             sprite.size = CGSize(width: size, height: size)
-            container.addChild(sprite)
+            overlay = sprite
+        } else {
+            overlay = nil
+        }
+        if let overlay {
+            overlay.zPosition = 1
+            container.addChild(overlay)
         }
         return container
     }
@@ -188,51 +200,60 @@ extension BoardScene {
 
     /// A cell-sized texture of a centred glyph (a number or the `✸` mine), cached
     /// by text + colour + pixel size, so all "3" cells (say) share one texture.
+    /// Drawn via the platform image renderer (which handles the text coordinate
+    /// system correctly) rather than text into a raw CGContext — the latter
+    /// renders flipped/off-canvas, so glyphs didn't appear.
     private func glyphTexture(_ text: String, color: SKColor) -> SKTexture {
         let px = max(4, Int(layout.cellSize.rounded()))
         let key = "glyph-\(text)-\(px)-\(color)"
         if let cached = tileTextureCache[key] { return cached }
 
         let scale: CGFloat = 2
-        let dim = Int(CGFloat(px) * scale)
-        let fontSize = CGFloat(px) * scale * 0.5
-        let img = drawCellImage(dim: dim) { ctx in
-            #if os(macOS)
-            let nsFont =
-                NSFont(name: "Menlo-Bold", size: fontSize)
-                ?? .monospacedSystemFont(ofSize: fontSize, weight: .bold)
-            let attrs: [NSAttributedString.Key: Any] = [.font: nsFont, .foregroundColor: color]
-            #else
-            let uiFont =
-                UIFont(name: "Menlo-Bold", size: fontSize)
-                ?? .monospacedSystemFont(ofSize: fontSize, weight: .bold)
-            let attrs: [NSAttributedString.Key: Any] = [.font: uiFont, .foregroundColor: color]
-            #endif
-            let str = NSAttributedString(string: text, attributes: attrs)
-            let bounds = str.size()
-            // Center the glyph in the cell.
-            let origin = CGPoint(
-                x: (CGFloat(dim) - bounds.width) / 2, y: (CGFloat(dim) - bounds.height) / 2)
-            #if os(macOS)
-            let gc = NSGraphicsContext(cgContext: ctx, flipped: false)
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = gc
-            str.draw(at: origin)
-            NSGraphicsContext.restoreGraphicsState()
-            #else
-            UIGraphicsPushContext(ctx)
-            str.draw(at: origin)
-            UIGraphicsPopContext()
-            #endif
+        let dim = CGFloat(px) * scale
+        let fontSize = dim * 0.5
+        #if os(macOS)
+        let font =
+            NSFont(name: "Menlo-Bold", size: fontSize)
+            ?? .monospacedSystemFont(ofSize: fontSize, weight: .bold)
+        #else
+        let font =
+            UIFont(name: "Menlo-Bold", size: fontSize)
+            ?? .monospacedSystemFont(ofSize: fontSize, weight: .bold)
+        #endif
+        let str = NSAttributedString(
+            string: text, attributes: [.font: font, .foregroundColor: color])
+        let bounds = str.size()
+        let rect = CGRect(
+            x: (dim - bounds.width) / 2, y: (dim - bounds.height) / 2,
+            width: bounds.width, height: bounds.height)
+        let canvas = CGSize(width: dim, height: dim)
+
+        let cgImage: CGImage
+        #if os(macOS)
+        let image = NSImage(size: canvas)
+        image.lockFocus()
+        str.draw(in: rect)
+        image.unlockFocus()
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return SKTexture()
         }
-        let texture = SKTexture(cgImage: img)
+        cgImage = cg
+        #else
+        let renderer = UIGraphicsImageRenderer(size: canvas)
+        let uiImage = renderer.image { _ in str.draw(in: rect) }
+        guard let cg = uiImage.cgImage else { return SKTexture() }
+        cgImage = cg
+        #endif
+
+        let texture = SKTexture(cgImage: cgImage)
         texture.filteringMode = .linear
         tileTextureCache[key] = texture
         return texture
     }
 
     /// Render a square `dim×dim` transparent image with `draw`, returning the
-    /// CGImage for an `SKTexture`. Shared by the tile + glyph texture builders.
+    /// CGImage for an `SKTexture`. Used by the tile texture builder (shapes only;
+    /// text uses the platform renderer in `glyphTexture`).
     private func drawCellImage(dim: Int, _ draw: (CGContext) -> Void) -> CGImage {
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
         let ctx = CGContext(
