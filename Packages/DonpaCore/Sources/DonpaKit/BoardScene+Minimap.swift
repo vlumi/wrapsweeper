@@ -173,8 +173,8 @@ extension BoardScene {
             y: halfH - pad - mm.height / 2 - framePad)
 
         // Viewport rectangle: map the visible cell range onto the minimap image.
-        // Board y grows DOWNWARD; minimap space is y-up, so a cell at board-y maps
-        // to minimap top minus y (the image texture is oriented the same way).
+        // Board row 0 renders at the minimap's TOP (matching the image), so the
+        // viewport rect maps board-y from the top down: minimap-top minus y.
         let cellW = mm.width / CGFloat(boardW)
         let cellH = mm.height / CGFloat(boardH)
         let rw = CGFloat(range.maxX - range.minX + 1) * cellW
