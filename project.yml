@@ -113,10 +113,9 @@ targets:
         NSHighResolutionCapable: true
     settings:
       base:
-        # Distinct from iOS: the Mac app is a separate native App Store Connect
-        # record, so it needs its own bundle ID. Locked in before registering
-        # IDs with Apple (changing it afterward is painful).
-        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa.mac
+        # Shares the iOS bundle ID for Universal Purchase: one App Store record
+        # spanning both platforms, sharing the name, Apple ID, and SKU.
+        PRODUCT_BUNDLE_IDENTIFIER: fi.misaki.donpa
         # The app's user-visible name everywhere the OS shows it (Dock,
         # Cmd-Tab switcher, .app filename). Without this it's the target name
         # "Donpa-macOS". The module name stays Donpa_macOS (PRODUCT_MODULE_NAME).
