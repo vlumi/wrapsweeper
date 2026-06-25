@@ -133,8 +133,10 @@ extension BoardScene {
                 }
                 guard let color else { continue }
                 ctx.setFillColor(color)
-                let py = boardH - 1 - y
-                ctx.fill(CGRect(x: x * ppc, y: py * ppc, width: ppc, height: ppc))
+                // No y-flip: board row 0 paints at CG y=0; combined with the
+                // sprite's presentation this lands board-top at minimap-top,
+                // matching the viewport-rect math (which is y-up from the top).
+                ctx.fill(CGRect(x: x * ppc, y: y * ppc, width: ppc, height: ppc))
             }
         }
         guard let cg = ctx.makeImage() else { return }
@@ -143,13 +145,16 @@ extension BoardScene {
         minimapImage?.texture = texture
     }
 
-    /// Position + size the minimap in the fixed top-left corner (counter-scaled so
-    /// it's a constant on-screen size despite the camera zoom), and move the
-    /// viewport rectangle to mirror the visible cell range.
+    /// Position + size the minimap in the fixed top-left corner, and move the
+    /// viewport rectangle to mirror the visible cell range. Camera children render
+    /// WITHOUT the camera's scale applied (per SKCameraNode docs), so everything
+    /// here is in plain screen points — no counter-scaling, and zoom doesn't move
+    /// or resize the minimap.
     private func layoutMinimap(boardW: Int, boardH: Int, range: CellRange) {
         guard let minimapNode, let minimapImage, let minimapViewport else { return }
         let mm = minimapSize(boardW: boardW, boardH: boardH)
         minimapImage.size = mm
+        minimapImage.position = .zero
 
         // Panel frames the image with a small inset border.
         let framePad: CGFloat = 6
@@ -159,32 +164,25 @@ extension BoardScene {
                 width: mm.width + framePad * 2, height: mm.height + framePad * 2),
             cornerWidth: 6, cornerHeight: 6, transform: nil)
 
-        // Counter the camera scale so the minimap stays a fixed on-screen size.
-        let invScale = cameraNode.xScale
-        minimapNode.setScale(invScale)
-
-        // Top-left corner in screen space (camera children are centred on screen).
+        // Fixed top-left corner: camera origin is screen centre, y-up.
         let halfW = size.width / 2
         let halfH = size.height / 2
         let pad = Self.minimapPadding
-        // Position is in the camera node's *unscaled* space; multiply screen
-        // offsets by the camera scale so the on-screen result is constant.
-        let cx = (-halfW + pad + mm.width / 2)
-        let cy = (halfH - pad - mm.height / 2)
-        minimapNode.position = CGPoint(x: cx * invScale, y: cy * invScale)
-        // The container is scaled by invScale, so children use unscaled sizes.
-        minimapImage.position = .zero
+        minimapNode.position = CGPoint(
+            x: -halfW + pad + mm.width / 2 + framePad,
+            y: halfH - pad - mm.height / 2 - framePad)
 
         // Viewport rectangle: map the visible cell range onto the minimap image.
+        // Board y grows DOWNWARD; minimap space is y-up, so a cell at board-y maps
+        // to minimap top minus y (the image texture is oriented the same way).
         let cellW = mm.width / CGFloat(boardW)
         let cellH = mm.height / CGFloat(boardH)
         let rw = CGFloat(range.maxX - range.minX + 1) * cellW
         let rh = CGFloat(range.maxY - range.minY + 1) * cellH
         minimapViewport.path = CGPath(
             rect: CGRect(x: -rw / 2, y: -rh / 2, width: rw, height: rh), transform: nil)
-        // Centre of the visible range, in minimap space (y flipped like the image).
-        let midX = (CGFloat(range.minX + range.maxX) / 2 + 0.5)
-        let midY = (CGFloat(range.minY + range.maxY) / 2 + 0.5)
+        let midX = CGFloat(range.minX + range.maxX) / 2 + 0.5
+        let midY = CGFloat(range.minY + range.maxY) / 2 + 0.5
         minimapViewport.position = CGPoint(
             x: -mm.width / 2 + midX * cellW,
             y: mm.height / 2 - midY * cellH)
