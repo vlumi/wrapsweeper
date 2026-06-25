@@ -27,17 +27,22 @@ func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor 
 
 /// Colour ("cover") ships by default; `--mono` is the B&W "interior-page" look.
 struct Palette {
-    let bgTop, bgBottom, burst, ink, halftone: CGColor
+    let bgTop, bgBottom, burst, ink, halftone, bgHalftone: CGColor
 
     static let color = Palette(
         bgTop: rgb(0.62, 0.10, 0.10), bgBottom: rgb(0.30, 0.04, 0.06),
         burst: rgb(0.98, 0.86, 0.30), ink: rgb(0.10, 0.06, 0.05),
-        halftone: rgb(0.85, 0.50, 0.08, 0.55))
+        // Halftone dots = the same dark ink as the outline/mine, fully opaque, so
+        // the icon stays a tight ~4-colour set (red bg, yellow burst, dark ink,
+        // grey mine highlight) and the dots read as bold Ben-Day, not a faint wash.
+        halftone: rgb(0.10, 0.06, 0.05, 1.0),
+        bgHalftone: rgb(0.10, 0.06, 0.05, 1.0))
 
     static let mono = Palette(
         bgTop: rgb(0.32, 0.32, 0.33), bgBottom: rgb(0.12, 0.12, 0.13),
         burst: rgb(0.93, 0.92, 0.89), ink: rgb(0.08, 0.08, 0.09),
-        halftone: rgb(0.10, 0.10, 0.11, 0.40))
+        halftone: rgb(0.08, 0.08, 0.09, 1.0),
+        bgHalftone: rgb(0.08, 0.08, 0.09, 1.0))
 }
 
 /// A jagged comic impact starburst centred at c.
@@ -54,18 +59,34 @@ func burstPath(c: CGPoint, rOuter: CGFloat, rInner: CGFloat, spikes: Int, phase:
     return p
 }
 
-/// Even Ben-Day halftone dots over `rect` (call inside a clip).
-func halftone(_ ctx: CGContext, in rect: CGRect, dot: CGFloat, gap: CGFloat, color: CGColor) {
+/// Ben-Day halftone dots over `rect` (call inside a clip), with dot size GRADED
+/// by distance from `center` — small near the centre (the bright burst core),
+/// growing outward to `maxDot` near the edges. Varying the dot size is how real
+/// halftone fakes a gradient/shading, so the burst reads as lit from the middle
+/// rather than a flat dot grid. `gap` is the grid pitch.
+func halftone(
+    _ ctx: CGContext, in rect: CGRect, center: CGPoint, radius: CGFloat,
+    minDot: CGFloat, maxDot: CGFloat, gap: CGFloat, color: CGColor
+) {
     ctx.setFillColor(color)
     var y = rect.minY
     while y < rect.maxY {
         var x = rect.minX
         while x < rect.maxX {
-            ctx.fillEllipse(in: CGRect(x: x, y: y, width: dot, height: dot))
+            // Cell centre → normalized distance from the burst centre (0…1).
+            let cx = x + gap / 2, cy = y + gap / 2
+            let d = (hypot(cx - center.x, cy - center.y) / radius).clamped(to: 0...1)
+            // Ease so the core stays clearly light and growth ramps toward edges.
+            let dot = minDot + (maxDot - minDot) * (d * d)
+            ctx.fillEllipse(in: CGRect(x: cx - dot / 2, y: cy - dot / 2, width: dot, height: dot))
             x += gap
         }
         y += gap
     }
+}
+
+extension Comparable {
+    func clamped(to r: ClosedRange<Self>) -> Self { min(max(self, r.lowerBound), r.upperBound) }
 }
 
 /// A spiky mine disc with radial spikes and a small specular highlight, at c.
@@ -99,10 +120,20 @@ func renderIcon(size: Int, palette pal: Palette, transparentBackground: Bool = f
     let c = CGPoint(x: s / 2, y: s / 2)
 
     if !transparentBackground {
-        let bg = CGGradient(
-            colorsSpace: space, colors: [pal.bgTop, pal.bgBottom] as CFArray, locations: [0, 1])!
-        ctx.drawLinearGradient(
-            bg, start: CGPoint(x: 0, y: s), end: CGPoint(x: 0, y: 0), options: [])
+        // Flat red field — the gradient is faked by the graded halftone dots
+        // below, so a smooth colour gradient would be redundant and add colours.
+        // Keeps the icon to a tight printed-comic palette.
+        ctx.setFillColor(pal.bgTop)
+        ctx.fill(CGRect(x: 0, y: 0, width: s, height: s))
+        // Background halftone: dark dots over the red field, graded so they grow
+        // toward the bottom — the printed-comic shading that fakes the gradient
+        // and matches the burst's Ben-Day dots.
+        // Centre at the TOP (CG y = s): dots are smallest near the top and grow
+        // toward the bottom, deepening the field downward like the old gradient.
+        halftone(
+            ctx, in: CGRect(x: 0, y: 0, width: s, height: s),
+            center: CGPoint(x: s / 2, y: s), radius: s,
+            minDot: s * 0.004, maxDot: s * 0.034, gap: s * 0.05, color: pal.bgHalftone)
     }
 
     let burst = burstPath(c: c, rOuter: s * 0.46, rInner: s * 0.30, spikes: 14, phase: 0.16)
@@ -119,8 +150,8 @@ func renderIcon(size: Int, palette pal: Palette, transparentBackground: Bool = f
     ctx.addPath(burst)
     ctx.clip()
     halftone(
-        ctx, in: CGRect(x: 0, y: 0, width: s, height: s), dot: s * 0.02, gap: s * 0.052,
-        color: pal.halftone)
+        ctx, in: CGRect(x: 0, y: 0, width: s, height: s), center: c, radius: s * 0.46,
+        minDot: s * 0.008, maxDot: s * 0.058, gap: s * 0.066, color: pal.halftone)
     ctx.restoreGState()
 
     drawMine(ctx, c: c, r: s * 0.16, fill: pal.ink)
