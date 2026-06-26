@@ -293,8 +293,7 @@ extension BoardScene {
     }
 
     /// Fire the hit-tile explosion immediately on tap, before the off-thread reveal
-    /// runs, for instant feedback. `playLoss` then skips re-detonating it (and won't
-    /// clear the layer). Called from the tap handler when the cell is a known mine.
+    /// runs (`playLoss` then skips re-detonating it and keeps the layer).
     func detonateInstantly(at c: Coord) {
         prefiredDetonation = c
         effectsLayer.addChild(detonation(at: layout.center(of: c), size: layout.cellSize))
@@ -316,11 +315,9 @@ extension BoardScene {
             if let origin { effectsLayer.addChild(flash(at: origin, size: cell)) }
             return
         }
-        // Other mines pulse, staggered outward from the trigger — but ONLY the ones
-        // in (or near) the viewport. Off-screen mines are invisible, so building a
-        // pulse node + action for each of a huge board's ~130k mines just froze the
-        // main thread (and littered the effects layer, making the next restart
-        // tear them all down). Culling to the visible range keeps it to a screenful.
+        // Other mines pulse, staggered outward — but ONLY visible ones. Off-screen
+        // pulses are invisible, so building one per mine on a huge board (~130k)
+        // froze the main thread; culling to the viewport keeps it to a screenful.
         let range = visibleRange()
         let speed = cell * 18  // points/sec the shock wave travels
         for c in mineCoords where c != trigger && range.contains(c) {
@@ -371,7 +368,11 @@ extension BoardScene {
         burst.position = p
         burst.fillColor = SKColor(red: 1, green: 0.5, blue: 0.2, alpha: 1)
         burst.lineWidth = 0
-        burst.blendMode = .add
+        // Above the tiles and starting bigger than one (1.4×), so a pre-fired
+        // burst reads as a real explosion on the first frame — not a faint ring
+        // hidden behind/within the unrevealed tile until its scale-up animates in.
+        burst.zPosition = 10
+        burst.setScale(1.4)
         burst.run(
             .sequence([
                 .group([
