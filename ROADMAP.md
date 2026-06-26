@@ -172,14 +172,6 @@ slot into whichever release they're ready for.
       `status == .notStarted || status == .playing` with computed properties on
       the enum (`isLive` / `isFinished` / `isPlaying`). Pure readability; no
       behaviour change.
-- [ ] **Move `GameViewModel` into `DonpaCore` (+ tests).** It's `@MainActor`
-      `ObservableObject` orchestration that imports only Combine/Foundation — no
-      SwiftUI/SpriteKit — so it belongs with the pure-logic, coverage-gated target
-      (the rest of the testable logic moved there in #94). Do it in its own PR
-      *with* unit tests so coverage doesn't regress, and update the
-      `ARCHITECTURE.md` module-split note in the same PR. (`Settings` imports
-      SwiftUI and `Palette` carries `Color`/`SKColor`, so those stay in
-      `DonpaKit`.)
 
 ## v0.3.0 — Board variants (wrapped + hex)
 

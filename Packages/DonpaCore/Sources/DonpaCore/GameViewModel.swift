@@ -1,5 +1,4 @@
 import Combine
-import DonpaCore
 import Foundation
 
 /// What a plain tap/click on a *hidden* cell does. A revealed number always
