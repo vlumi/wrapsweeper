@@ -112,26 +112,26 @@ extension GameContent {
         .clipped()  // keep the dimmed backdrop within the board's bounds
     }
 
-    /// Shown while a reveal/chord is being computed off the main thread (a big
-    /// board's flood-fill / mine placement). Board input is blocked meanwhile (the
-    /// view model's `canTakeInput`), so this both signals "working" and explains
-    /// why taps don't register — the UI stays responsive rather than freezing. A
-    /// small unobtrusive badge, not a full-screen block: the board shows through.
+    /// Shown while a reveal/chord/new-board is being computed off the main thread (a
+    /// big board's mine placement / flood-fill). Board input is blocked meanwhile
+    /// (the view model's `canTakeInput`), so this must make "disabled" obvious — a
+    /// dim wash over the whole board plus a centred spinner, not a subtle corner
+    /// badge that left taps feeling broken. Dimmer than the pause overlay (it's
+    /// transient, the board needn't be hidden), but unmistakably "not now".
     @ViewBuilder var processingOverlay: some View {
         if viewModel.isComputing {
-            VStack {
-                Spacer()
-                HStack(spacing: 10) {
+            ZStack {
+                Rectangle()
+                    .fill(palette.pageBackground.opacity(0.4))
+                VStack(spacing: 12) {
                     ProgressView()
-                        .controlSize(.small)
+                        .controlSize(.large)
                     Text("Working…", bundle: .module)
-                        .font(.callout.weight(.semibold))
+                        .font(.headline)
                         .foregroundStyle(palette.counter)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: Capsule())
-                .padding(.bottom, 24)
+                .padding(24)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
             }
             .transition(.opacity)
             .allowsHitTesting(false)  // never intercept; input is gated in the model
