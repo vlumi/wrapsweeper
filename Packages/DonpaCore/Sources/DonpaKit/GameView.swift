@@ -31,6 +31,14 @@ struct GameContent: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Heartbeat for the periodic autosave (crash protection): a save can't be
+    /// counted on between board moves — pure pan/zoom doesn't bump `revision` —
+    /// so an unflushed reframe (or a long think) would be lost to a crash. This
+    /// flushes roughly once a minute while a game is live. (Deliberate exits —
+    /// background, Home, pause — save immediately; this is the safety net.)
+    private let autosaveHeartbeat =
+        Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
     /// One resolved scheme for both the chrome and the scene. Driven by the
     /// user's setting; `.system` reads the real OS appearance (see
     /// `resolvedScheme`). `colorScheme` is only the iOS fallback, but reading it
@@ -75,6 +83,17 @@ struct GameContent: View {
                 viewModel.pause()
                 autosave()
             }
+        }
+        // Pausing flushes a save (it's a natural "I'm stepping away" moment, and
+        // the manual pause button doesn't change game state, so `revision` won't
+        // fire). Only on the transition into paused.
+        .onChangeCompat(of: viewModel.isPaused) { paused in
+            if paused { autosave() }
+        }
+        // Periodic crash-protection save while the app is active — bounds how much
+        // a crash can lose (esp. pan/zoom, which doesn't bump `revision`).
+        .onReceive(autosaveHeartbeat) { _ in
+            if scenePhase == .active { autosave() }
         }
         .sheet(isPresented: $navigator.showingScores) {
             ScoreboardView(scoreboard: scoreboard, available: windowSize)
