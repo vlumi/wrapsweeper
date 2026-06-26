@@ -163,6 +163,9 @@ struct GameContent: View {
         .onChangeCompat(of: navigator.startRequested) { _ in handleStartRequest() }
         // Home requested (in-game button / macOS ⌘T): pause + save, then title.
         .onChangeCompat(of: navigator.homeRequested) { _ in goHome() }
+        // Keyboard zoom (macOS ⌘+ / ⌘−): zoom about the board centre — no cursor.
+        .onChangeCompat(of: navigator.zoomInRequested) { _ in scene.zoom(by: 1.25) }
+        .onChangeCompat(of: navigator.zoomOutRequested) { _ in scene.zoom(by: 0.8) }
     }
 
     // MARK: Save / restore lifecycle

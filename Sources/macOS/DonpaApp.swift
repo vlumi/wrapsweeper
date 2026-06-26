@@ -76,6 +76,17 @@ struct DonpaApp: App {
 
                 Divider()
 
+                // ⌘+ / ⌘− zoom the board (about its centre). "+" binds to "=" so
+                // no Shift is needed — the usual macOS zoom-shortcut convention.
+                Button("Zoom In") { navigator.zoomInRequested &+= 1 }
+                    .keyboardShortcut("=", modifiers: .command)
+                    .disabled(modalOpen)
+                Button("Zoom Out") { navigator.zoomOutRequested &+= 1 }
+                    .keyboardShortcut("-", modifiers: .command)
+                    .disabled(modalOpen)
+
+                Divider()
+
                 classicButton(.beginner, key: "1")
                 classicButton(.intermediate, key: "2")
                 classicButton(.expert, key: "3")
