@@ -1,7 +1,6 @@
-import DonpaCore
 import XCTest
 
-@testable import DonpaKit
+@testable import DonpaCore
 
 @MainActor
 final class ScoreboardTests: XCTestCase {

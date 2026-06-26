@@ -1,7 +1,6 @@
-import DonpaCore
 import XCTest
 
-@testable import DonpaKit
+@testable import DonpaCore
 
 final class SaveStoreTests: XCTestCase {
     private var store: SaveStore!

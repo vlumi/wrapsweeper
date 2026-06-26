@@ -1,5 +1,4 @@
 import CoreGraphics
-import DonpaCore
 
 /// Maps logical cell coordinates to screen geometry and back — the *visual*
 /// counterpart to `Topology`'s logical neighbours, and the second (and final)

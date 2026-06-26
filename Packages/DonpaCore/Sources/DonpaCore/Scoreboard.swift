@@ -1,4 +1,3 @@
-import DonpaCore
 import Foundation
 
 /// Per-config stats: how many games have been cleared, the best time, and the

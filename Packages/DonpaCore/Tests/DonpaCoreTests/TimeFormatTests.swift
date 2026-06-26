@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import DonpaKit
+@testable import DonpaCore
 
 final class TimeFormatTests: XCTestCase {
     func testZero() {

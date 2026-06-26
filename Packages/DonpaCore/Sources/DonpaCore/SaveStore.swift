@@ -1,4 +1,3 @@
-import DonpaCore
 import Foundation
 
 /// Persists the in-progress `GameSnapshot` to a file in Application Support.

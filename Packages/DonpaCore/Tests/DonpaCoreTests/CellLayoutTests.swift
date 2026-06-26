@@ -1,8 +1,7 @@
 import CoreGraphics
-import DonpaCore
 import XCTest
 
-@testable import DonpaKit
+@testable import DonpaCore
 
 final class CellLayoutTests: XCTestCase {
     func testCenterIsHalfACellInFromTheOrigin() {

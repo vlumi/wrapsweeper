@@ -1,6 +1,9 @@
-# Coverage tracks the testable logic, not the SwiftKit/AppKit view layer (which
-# needs UI automation this project doesn't run). Keep the signal on Core +
-# Scoreboard; don't let untestable view code fail PRs.
+# Coverage tracks the testable game logic, not the SpriteKit/SwiftUI view layer
+# (which needs UI automation this project doesn't run). The two are split by
+# Swift target: DonpaCore is pure, headlessly-testable logic and is gated;
+# DonpaKit is the SpriteKit scene + SwiftUI glue and is ignored wholesale. Keep
+# logic in DonpaCore so it's covered automatically — no per-file edits here when
+# a view file is added or split for the lint length limit.
 
 coverage:
   status:
@@ -17,33 +20,9 @@ comment:
   # Only comment when coverage actually changed; keeps PRs quiet.
   require_changes: true
 
-# The SpriteKit scene and SwiftUI views need UI automation to exercise, which
-# this project doesn't run. CellLayout is intentionally NOT ignored — it's pure
-# geometry and should be unit-tested.
+# The whole DonpaKit target is the untestable view layer. A new file under it is
+# ignored by the glob automatically; pure logic belongs in DonpaCore instead,
+# where it's tracked. Tests themselves aren't coverage subjects.
 ignore:
-  - "Packages/DonpaCore/Sources/DonpaKit/BoardScene.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/BoardScene+Effects.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/BoardScene+Pan.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/BoardView.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/GameView.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/GameContentChrome.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/SheetViews.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/MangaPanelView.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/TitleScreen.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/BoardSelectionPicker.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/GameViewRoot.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/SplashView.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/KeyCatcher.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/NewGamePopup.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/StatusReadouts.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/MangaIcon.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/AboutView.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/Navigator.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/OnChangeCompat.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/FitToWidth.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/DensityInsignia.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/ScreentonePattern.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/GameViewModel.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/Settings.swift"
-  - "Packages/DonpaCore/Sources/DonpaKit/Palette.swift"
+  - "Packages/DonpaCore/Sources/DonpaKit/**"
   - "Packages/DonpaCore/Tests/**"
