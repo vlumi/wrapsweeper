@@ -296,6 +296,8 @@ extension BoardScene {
         let cell = layout.cellSize
         let origin = trigger.map { layout.center(of: $0) }
 
+        // Detonate the hit tile FIRST so the explosion lands instantly, before any
+        // of the (potentially many) other-mine pulses are built.
         if let origin {
             effectsLayer.addChild(detonation(at: origin, size: cell))
         }
@@ -303,9 +305,14 @@ extension BoardScene {
             if let origin { effectsLayer.addChild(flash(at: origin, size: cell)) }
             return
         }
-        // Other mines pulse, staggered outward from the trigger.
+        // Other mines pulse, staggered outward from the trigger — but ONLY the ones
+        // in (or near) the viewport. Off-screen mines are invisible, so building a
+        // pulse node + action for each of a huge board's ~130k mines just froze the
+        // main thread (and littered the effects layer, making the next restart
+        // tear them all down). Culling to the visible range keeps it to a screenful.
+        let range = visibleRange()
         let speed = cell * 18  // points/sec the shock wave travels
-        for c in mineCoords where c != trigger {
+        for c in mineCoords where c != trigger && range.contains(c) {
             let p = layout.center(of: c)
             let delay = origin.map { hypot(p.x - $0.x, p.y - $0.y) / speed } ?? 0
             let pulse = minePulse(at: p, size: cell)

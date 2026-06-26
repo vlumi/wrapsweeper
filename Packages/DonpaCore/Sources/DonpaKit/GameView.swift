@@ -294,7 +294,9 @@ struct GameContent: View {
 
     /// Slam the result screen in after a short beat — so the board's detonation /
     /// win ripple plays first rather than being covered immediately. It then
-    /// stays until the player picks Retry or Return to title.
+    /// stays until the player picks Retry or Return to title. The beat is just
+    /// animation timing (an async sleep), not a hang: the end-game effects are now
+    /// viewport-culled, so they build instantly even on a huge board.
     private func showPanel(_ kind: MangaPanelView.Kind) {
         panelTask?.cancel()
         panelTask = Task {
