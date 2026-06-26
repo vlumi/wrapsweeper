@@ -48,6 +48,19 @@ extension BoardScene {
     /// Reset camera to fit and center the whole board (e.g. on new game).
     public func resetCamera() { centerCamera() }
 
+    /// Centre the camera on a normalized board point (0…1 in each axis), keeping
+    /// the current zoom — the fullscreen overview drives this live as the player
+    /// drags/taps the viewport rectangle. Clamped to the resting bounds so it
+    /// can't scroll past the edges. (0,0) = top-left of the board.
+    public func centerCamera(onNormalizedPoint p: CGPoint) {
+        let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
+        let nx = min(max(p.x, 0), 1)
+        let ny = min(max(p.y, 0), 1)
+        // Board y grows downward; world y is up, so flip the normalized y.
+        let target = CGPoint(x: nx * board.width, y: (1 - ny) * board.height)
+        cameraNode.position = clampedCameraPosition(target)
+    }
+
     /// Clamp a proposed camera centre to the resting bounds: the viewport may sit
     /// up to `edgeMargin` past each board edge, no further. On an axis where the
     /// board is smaller than the viewport the camera locks to the board centre,

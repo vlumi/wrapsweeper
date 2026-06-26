@@ -33,11 +33,16 @@ public final class Navigator: ObservableObject {
     /// of discarding it. A counter so repeated requests always fire.
     @Published public var homeRequested = 0
 
-    /// Whether any modal (a sheet or the New Game popup) is presented. Gameplay
-    /// commands (New Game / Restart / mode toggle / presets) are disabled while
-    /// one is up, so their keyboard shortcuts don't mutate the game underneath it.
+    /// Whether the fullscreen board overview (big navigable map) is presented.
+    /// Opened from the minimap's expand icon; navigation happens in that view.
+    @Published public var showingOverview = false
+
+    /// Whether any modal (a sheet, the New Game popup, or the overview) is
+    /// presented. Gameplay commands (New Game / Restart / mode toggle / presets)
+    /// are disabled while one is up, so their keyboard shortcuts don't mutate the
+    /// game underneath it.
     public var isModalPresented: Bool {
-        showingScores || showingSettings || showingAbout || showingNewGame
+        showingScores || showingSettings || showingAbout || showingNewGame || showingOverview
     }
 
     public init(showingTitle: Bool = true) {

@@ -18,6 +18,7 @@ struct MangaIcon: View {
         case reveal  // bootprint (reveal mode — tread carefully)
         case flag  // swallowtail flag on a pole (flag mode)
         case minimap  // framed map with a viewport rectangle (overview toggle)
+        case expand  // outward arrows in corners (open the fullscreen overview)
     }
 
     let symbol: Symbol
@@ -87,6 +88,7 @@ struct MangaIcon: View {
         case .reveal: drawReveal(pen)
         case .flag: drawFlag(pen)
         case .minimap: drawMinimap(pen)
+        case .expand: drawExpand(pen)
         }
     }
 
@@ -275,6 +277,28 @@ struct MangaIcon: View {
         // Small filled rectangle near the top-left = the "you are here" viewport.
         let vp = CGRect(x: s * 0.28, y: s * 0.32, width: s * 0.22, height: s * 0.18)
         pen.fill(Path(roundedRect: vp, cornerRadius: s * 0.03))
+    }
+
+    private static func drawExpand(_ pen: Pen) {  // four outward corner arrows
+        let s = pen.s
+        let lo = s * 0.24, hi = s * 0.76, arm = s * 0.16
+        // One L-shaped arrowhead per corner, pointing outward from the centre.
+        // dx/dy give the outward direction for each corner.
+        for (cx, cy, dx, dy) in [
+            (lo, lo, -1.0, -1.0), (hi, lo, 1.0, -1.0),
+            (lo, hi, -1.0, 1.0), (hi, hi, 1.0, 1.0),
+        ] {
+            var p = Path()
+            p.move(to: CGPoint(x: cx + dx * arm, y: cy))  // horizontal stub
+            p.addLine(to: CGPoint(x: cx + dx * arm, y: cy + dy * arm))  // corner
+            p.addLine(to: CGPoint(x: cx, y: cy + dy * arm))  // vertical stub
+            pen.stroke(p)
+            // Short diagonal from the corner toward the centre (the arrow shaft).
+            var shaft = Path()
+            shaft.move(to: CGPoint(x: cx + dx * arm, y: cy + dy * arm))
+            shaft.addLine(to: CGPoint(x: cx + dx * arm * 0.1, y: cy + dy * arm * 0.1))
+            pen.stroke(shaft)
+        }
     }
 
     private static func starPath(center c: CGPoint, r: CGFloat) -> Path {

@@ -125,4 +125,23 @@ final class DonpaUITests: XCTestCase {
             app.descendants(matching: .any)["game.paused"].waitForExistence(timeout: 2),
             "resumed")
     }
+
+    /// The big-board overview opens from the toolbar and dismisses. (Needs a board
+    /// bigger than the viewport, so it picks Modern XL.)
+    func testOverviewOpensAndCloses() {
+        waitFor(startButton)
+        startButton.tap()
+        waitFor(app.buttons["newgame.start"])
+        if app.buttons["Modern"].waitForExistence(timeout: 3) { app.buttons["Modern"].tap() }
+        if app.buttons["XL"].waitForExistence(timeout: 3) { app.buttons["XL"].tap() }
+        app.buttons["newgame.start"].tap()
+        waitFor(app.buttons["game.home"])
+        app.otherElements["game.board"].tap()
+        waitFor(app.buttons["game.overview"])
+        app.buttons["game.overview"].tap()
+        XCTAssertTrue(app.buttons["overview.close"].waitForExistence(timeout: 5), "overview opened")
+        app.buttons["overview.close"].tap()
+        XCTAssertTrue(
+            app.buttons["overview.close"].waitForNonExistence(timeout: 3), "overview closed")
+    }
 }

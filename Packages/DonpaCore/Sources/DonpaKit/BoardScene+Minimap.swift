@@ -108,13 +108,24 @@ extension BoardScene {
         minimapNode = container
     }
 
-    /// Render the whole board to a small image: one pixel block per cell, hidden
-    /// vs revealed vs mine shaded distinctly. O(cells) once per board change, not
-    /// per frame — and a single sprite, not per-cell nodes.
+    /// Render the whole board to a small image for the minimap sprite.
     private func updateMinimapImage(boardW: Int, boardH: Int) {
         // Pixel-per-cell, capped so a 1000² board still renders to a sane bitmap.
         let maxDim = 240
         let ppc = max(1, min(maxDim / max(boardW, boardH), 4))
+        guard let cg = boardOverviewImage(pixelsPerCell: ppc) else { return }
+        let texture = SKTexture(cgImage: cg)
+        texture.filteringMode = .nearest  // crisp cell blocks, no blur
+        minimapImage?.texture = texture
+    }
+
+    /// A downsampled image of the whole board — one `ppc`×`ppc` pixel block per
+    /// cell, hidden / revealed / mine / flag shaded distinctly. Shared by the
+    /// corner minimap and the fullscreen overview. O(cells); board row 0 paints at
+    /// CG y=0 (the orientation the minimap's viewport-rect math expects).
+    func boardOverviewImage(pixelsPerCell ppc: Int) -> CGImage? {
+        let boardW = viewModel.boardWidth
+        let boardH = viewModel.boardHeight
         let pxW = boardW * ppc
         let pxH = boardH * ppc
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -122,7 +133,7 @@ extension BoardScene {
             let ctx = CGContext(
                 data: nil, width: pxW, height: pxH, bitsPerComponent: 8, bytesPerRow: 0,
                 space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return }
+        else { return nil }
 
         ctx.setFillColor(palette.hiddenTile.cgColor)
         ctx.fill(CGRect(x: 0, y: 0, width: pxW, height: pxH))
@@ -131,7 +142,6 @@ extension BoardScene {
         let revealed = palette.revealedTile.cgColor
         let mine = palette.mineTile.cgColor
         let flag = palette.flagGlyph.cgColor
-        // CG origin is bottom-left; board y grows downward in our layout, so flip y.
         for y in 0..<boardH {
             for x in 0..<boardW {
                 let cell = board[Coord(x, y)]
@@ -143,16 +153,10 @@ extension BoardScene {
                 }
                 guard let color else { continue }
                 ctx.setFillColor(color)
-                // No y-flip: board row 0 paints at CG y=0; combined with the
-                // sprite's presentation this lands board-top at minimap-top,
-                // matching the viewport-rect math (which is y-up from the top).
                 ctx.fill(CGRect(x: x * ppc, y: y * ppc, width: ppc, height: ppc))
             }
         }
-        guard let cg = ctx.makeImage() else { return }
-        let texture = SKTexture(cgImage: cg)
-        texture.filteringMode = .nearest  // crisp cell blocks, no blur
-        minimapImage?.texture = texture
+        return ctx.makeImage()
     }
 
     /// Position + size the minimap in the fixed top-left corner, and move the

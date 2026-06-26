@@ -70,6 +70,28 @@ extension BoardScene {
         return CellRange(minX: minX, maxX: maxX, minY: minY, maxY: maxY)
     }
 
+    /// The camera's currently-visible region as a normalized rect (0…1 in each
+    /// axis, y measured from the board TOP down — matching screen/board layout).
+    /// The fullscreen overview draws and drags this "you are here" box. Clamped to
+    /// the board; spans the whole board when it fits the viewport.
+    public func visibleNormalizedRect() -> CGRect {
+        let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
+        guard board.width > 0, board.height > 0 else {
+            return CGRect(x: 0, y: 0, width: 1, height: 1)
+        }
+        let scale = cameraNode.xScale
+        let halfW = size.width / 2 * scale
+        let halfH = size.height / 2 * scale
+        let cam = cameraNode.position
+        let minX = max(0, (cam.x - halfW) / board.width)
+        let maxX = min(1, (cam.x + halfW) / board.width)
+        // World y is up; flip to top-down. The camera's high-y edge is the board
+        // top, so the rect's top (small normalized y) comes from the high world y.
+        let topY = max(0, 1 - (cam.y + halfH) / board.height)
+        let botY = min(1, 1 - (cam.y - halfH) / board.height)
+        return CGRect(x: minX, y: topY, width: maxX - minX, height: botY - topY)
+    }
+
     /// Full rebuild: drop all cell nodes and rebuild those in the visible range.
     /// Called on a board-state change (`revision`) or palette change.
     func rebuild() {
