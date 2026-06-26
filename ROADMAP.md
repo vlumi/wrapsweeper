@@ -118,14 +118,16 @@ data-model ceiling (proven in tests) but not yet a selectable preset.
       when the board fits). The navigation aid + the unlock for any 1M preset.
 - [x] **Window sizing** (earlier): grow-to-fit is Classic-only; Modern (square,
       can be huge) keeps the window and pans/zooms.
+- [x] **Save/restore camera view**: `GameSnapshot` persists the camera centre (as
+      a normalized board point) + zoom, so resuming a saved game returns to where
+      you were looking. Window-independent — re-clamped to the current viewport, so
+      it restores sensibly even if the window/device changed since the save.
 
 **Deferred / still open (pick from these):**
 
 - [ ] **iCloud score sync** — the other 0.2.0 pillar (above); not started.
 - [ ] **Minimap drag-to-reposition** — move the HUD out of the way (the toggle
       hides it; dragging relocates it). Immediate next minimap follow-up.
-- [ ] **Save/restore camera zoom + position** in `GameSnapshot`, so title→back
-      (and resume) keep the exact view. (Do with a persistence pass.)
 - [ ] **Zoomed-all-the-way-out perf** (slice 2c): `SKTileMapNode` / single drawn
       texture for when the whole huge board is visible (culling can't help then —
       every cell is on screen). Partly mitigated by bounded zoom-out; only needed

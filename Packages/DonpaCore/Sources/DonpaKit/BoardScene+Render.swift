@@ -19,7 +19,14 @@ extension BoardScene {
             lastAnimatedResultID = -1  // a fresh game can animate its own result
             effectsLayer.removeAllChildren()
             boardLayer.position = .zero  // clear any leftover shake offset
-            centerCamera()
+            // A resumed game adopts its saved view as the sticky restore target
+            // (consume the VM's one-shot hand-off); a fresh game has none, so the
+            // target is cleared and we fall back to the default fit. The target
+            // survives the launch-time resizes that would otherwise re-centre over
+            // it (cleared once the player pans/zooms — see BoardScene+Pan).
+            restoreCameraTarget = viewModel.pendingCameraRestore
+            viewModel.pendingCameraRestore = nil
+            applyDesiredCameraOrCenter()
         }
         if viewModel.revision != lastRevision {
             lastRevision = viewModel.revision

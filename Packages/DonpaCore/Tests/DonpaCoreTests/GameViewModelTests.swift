@@ -170,4 +170,35 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertNil(other.lastResult, "restoring a live game clears the prior outcome")
         XCTAssertEqual(other.inputMode, .reveal, "restore resets to reveal mode")
     }
+
+    // MARK: Camera save/restore wiring
+
+    func testSnapshotCarriesTheLiveCameraView() {
+        let vm = startedGame()
+        let camera = CameraView(centerX: 0.4, centerY: 0.6, scale: 1.8)
+        vm.cameraView = camera  // the scene keeps this current each frame
+        XCTAssertEqual(vm.snapshot()?.camera, camera, "snapshot persists the live camera view")
+    }
+
+    func testRestoreQueuesThePendingCameraForTheScene() {
+        let vm = startedGame()
+        let camera = CameraView(centerX: 0.2, centerY: 0.9, scale: 3.0)
+        vm.cameraView = camera
+        let snapshot = try? XCTUnwrap(vm.snapshot())
+        guard let snapshot else { return }
+
+        let restored = GameViewModel(config: .beginner)
+        restored.restore(from: snapshot)
+        XCTAssertEqual(
+            restored.pendingCameraRestore, camera,
+            "restore queues the saved view for the scene to apply on rebuild")
+    }
+
+    func testNewGameClearsThePendingCamera() {
+        let vm = startedGame()
+        vm.pendingCameraRestore = CameraView(centerX: 0.5, centerY: 0.5, scale: 2)
+        vm.newGame()
+        XCTAssertNil(vm.pendingCameraRestore, "a fresh game centres on its own fit, not a resume")
+        XCTAssertNil(vm.cameraView)
+    }
 }

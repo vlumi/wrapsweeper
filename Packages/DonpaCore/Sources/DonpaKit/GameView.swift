@@ -4,6 +4,8 @@ import SwiftUI
 
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 /// The actual game surface. Lives below `GameView`'s `.preferredColorScheme`, so
@@ -30,6 +32,21 @@ struct GameContent: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Heartbeat for the periodic autosave (crash protection): a save can't be
+    /// counted on between board moves — pure pan/zoom doesn't bump `revision` —
+    /// so an unflushed reframe (or a long think) would be lost to a crash. This
+    /// flushes roughly once a minute while a game is live. (Deliberate exits —
+    /// background, Home, pause — save immediately; this is the safety net.)
+    private let autosaveHeartbeat =
+        Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    #if os(macOS)
+    /// Fires just before the app quits — the macOS save-on-exit hook (see body).
+    private var appWillTerminate: NotificationCenter.Publisher {
+        NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
+    }
+    #endif
 
     /// One resolved scheme for both the chrome and the scene. Driven by the
     /// user's setting; `.system` reads the real OS appearance (see
@@ -76,6 +93,27 @@ struct GameContent: View {
                 autosave()
             }
         }
+        // Pausing flushes a save (it's a natural "I'm stepping away" moment, and
+        // the manual pause button doesn't change game state, so `revision` won't
+        // fire). Only on the transition into paused.
+        .onChangeCompat(of: viewModel.isPaused) { paused in
+            if paused { autosave() }
+        }
+        // Periodic crash-protection save while the app is active — bounds how much
+        // a crash can lose (esp. pan/zoom, which doesn't bump `revision`).
+        .onReceive(autosaveHeartbeat) { _ in
+            if scenePhase == .active { autosave() }
+        }
+        // macOS quit (⌘Q) doesn't reliably deliver a `scenePhase` change before the
+        // process exits, so the background-save above can miss it. `willTerminate`
+        // fires synchronously just before exit; the atomic write completes in time.
+        // (iOS gets this via the `scenePhase` background transition instead.)
+        #if os(macOS)
+        .onReceive(appWillTerminate) { _ in
+            viewModel.pause()
+            autosave()
+        }
+        #endif
         .sheet(isPresented: $navigator.showingScores) {
             ScoreboardView(scoreboard: scoreboard, available: windowSize)
         }

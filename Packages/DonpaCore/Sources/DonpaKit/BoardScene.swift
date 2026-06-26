@@ -82,6 +82,14 @@ public final class BoardScene: SKScene {
     /// fullscreen overview. Set by `GameContent` via `BoardView`.
     var onOpenOverview: (() -> Void)?
 
+    /// A saved camera view (centre + zoom) to hold onto across the launch dance,
+    /// instead of the default fit. It's STICKY rather than one-shot: the window
+    /// settles to its restored frame *after* the scene mounts, firing `didMove`
+    /// and `didChangeSize`, each of which would otherwise re-centre — so the
+    /// target is re-applied (re-clamped to the new size) at every such point until
+    /// the player actually pans/zooms (or starts a new game), then it's cleared.
+    var restoreCameraTarget: CameraView?
+
     /// The active color palette. Set by the host when the system appearance
     /// changes; updating it recolors the background and rebuilds the cells.
     public var palette: Palette = .dark {
@@ -111,7 +119,7 @@ public final class BoardScene: SKScene {
     public override func didMove(to view: SKView) {
         super.didMove(to: view)
         rebuildIfNeeded()
-        centerCamera()
+        applyDesiredCameraOrCenter()
         installGestureRecognizers(on: view)
         #if os(macOS)
         // Take first responder so the scene receives key events (Space) without
@@ -128,6 +136,9 @@ public final class BoardScene: SKScene {
         buildVisibleCells()
         refreshModeGlow()
         refreshMinimap()
+        // Keep the view model's live camera view current (after any restore in
+        // rebuildIfNeeded), so an autosave persists where the player is looking.
+        viewModel.cameraView = currentCameraView()
     }
 
     // MARK: Rendering — cell nodes + viewport culling live in BoardScene+Render.
@@ -226,7 +237,7 @@ public final class BoardScene: SKScene {
 
     public override func didChangeSize(_ oldSize: CGSize) {
         super.didChangeSize(oldSize)
-        centerCamera()
+        applyDesiredCameraOrCenter()
     }
 
     // MARK: Input mapping

@@ -1,5 +1,25 @@
 import Foundation
 
+/// The camera view to restore with a saved game: where the player was looking
+/// and how far zoomed in. Stored window-independently so a game saved on one
+/// window size (or device) restores sensibly on another:
+/// - `centerX` / `centerY` are the camera centre as a **normalized board point**
+///   (0…1 of board width/height), so the same board point is recentred regardless
+///   of window size; the renderer re-clamps it to the new viewport's bounds.
+/// - `scale` is the camera's world-units-per-point (bigger = more zoomed out) —
+///   a board↔point ratio, independent of window size, so it restores as-is.
+public struct CameraView: Codable, Sendable, Equatable {
+    public let centerX: Double
+    public let centerY: Double
+    public let scale: Double
+
+    public init(centerX: Double, centerY: Double, scale: Double) {
+        self.centerX = centerX
+        self.centerY = centerY
+        self.scale = scale
+    }
+}
+
 /// A compact, `Codable` capture of an in-progress game, for save/restore across
 /// app launches. Stores the *config* (which carries the topology kind + params,
 /// so the existential `any Topology` is never encoded) plus the placed mine
@@ -27,6 +47,10 @@ public struct GameSnapshot: Codable, Sendable {
     public let lossCoord: Coord?
     /// Banked play time; the live span is always folded in before saving.
     public let elapsedCentiseconds: Int
+    /// The camera view (centre + zoom) to restore, or nil if none was captured
+    /// (older saves, or a board that fits the viewport so the camera is locked
+    /// centred anyway). Additive + optional, so older saves still decode.
+    public let camera: CameraView?
 
     /// Tolerant decode: `config` + `mines` are required (no game without them);
     /// everything else defaults if absent, so older/forward saves still load.
@@ -42,11 +66,14 @@ public struct GameSnapshot: Codable, Sendable {
         lossCoord = try c.decodeIfPresent(Coord.self, forKey: .lossCoord)
         elapsedCentiseconds =
             try c.decodeIfPresent(Int.self, forKey: .elapsedCentiseconds) ?? 0
+        camera = try c.decodeIfPresent(CameraView.self, forKey: .camera)
     }
 
     /// Capture a snapshot of a live game. Returns nil for a game not worth saving
     /// (not started, or already finished) — only a genuine in-progress game is.
-    public init?(game: Game, config: GameConfig, elapsedCentiseconds: Int) {
+    public init?(
+        game: Game, config: GameConfig, elapsedCentiseconds: Int, camera: CameraView? = nil
+    ) {
         guard game.status == .playing else { return nil }
         self.version = Self.currentVersion
         self.config = config
@@ -57,6 +84,7 @@ public struct GameSnapshot: Codable, Sendable {
         self.revealedSafeCount = game.revealedSafeCount
         self.lossCoord = game.lossCoord
         self.elapsedCentiseconds = elapsedCentiseconds
+        self.camera = camera
     }
 
     /// Rebuild the `Game` this snapshot describes (topology from the config).

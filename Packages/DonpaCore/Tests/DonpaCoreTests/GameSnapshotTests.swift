@@ -100,6 +100,36 @@ final class GameSnapshotTests: XCTestCase {
             try JSONDecoder().decode(GameSnapshot.self, from: Data(noMines.utf8)))
     }
 
+    // MARK: Camera view (save/restore where the player was looking)
+
+    func testCameraViewRoundTrips() throws {
+        let (game, config) = playingGame()
+        let camera = CameraView(centerX: 0.7, centerY: 0.3, scale: 2.4)
+        let snap = try XCTUnwrap(
+            GameSnapshot(game: game, config: config, elapsedCentiseconds: 0, camera: camera))
+        let decoded = try JSONDecoder().decode(
+            GameSnapshot.self, from: try JSONEncoder().encode(snap))
+        XCTAssertEqual(decoded.camera, camera, "the saved camera view survives a round-trip")
+    }
+
+    func testCameraDefaultsToNilWhenNotCaptured() throws {
+        let (game, config) = playingGame()
+        // The no-camera init (e.g. a board that fits, or pre-camera save path).
+        let snap = try XCTUnwrap(GameSnapshot(game: game, config: config, elapsedCentiseconds: 0))
+        XCTAssertNil(snap.camera)
+        let decoded = try JSONDecoder().decode(
+            GameSnapshot.self, from: try JSONEncoder().encode(snap))
+        XCTAssertNil(decoded.camera, "no camera encodes/decodes as nil, not a default view")
+    }
+
+    func testOlderSaveWithoutCameraDecodesToNil() throws {
+        // A save written before the camera field existed must still decode (the
+        // field is additive + optional), with camera == nil.
+        let json = #"{"config":{"classic":{"_0":"beginner"}},"mines":[[0,0]]}"#
+        let snap = try JSONDecoder().decode(GameSnapshot.self, from: Data(json.utf8))
+        XCTAssertNil(snap.camera)
+    }
+
     /// A corrupt/tampered save with off-board coordinates must restore to a valid
     /// in-bounds board — no phantom cells, no skewed counts — never a broken game.
     func testRestoreIgnoresOutOfBoundsCoords() throws {

@@ -81,6 +81,18 @@ public final class GameViewModel: ObservableObject {
     /// toggle (nothing to show when the whole board fits).
     @Published public var boardExceedsViewport = false
 
+    /// The live camera view (centre + zoom), kept current by `BoardScene` as the
+    /// player pans/zooms, so `snapshot()` can persist where they were looking.
+    /// Plain (not `@Published`) — it's written every frame and nothing observes it.
+    public var cameraView: CameraView?
+
+    /// A one-shot camera view to restore, set by `restore(from:)` from the saved
+    /// snapshot and consumed by `BoardScene` when it handles the new game (it reads
+    /// then clears it, so the next new/normal game falls back to the default fit).
+    /// Distinct from `cameraView` — which the scene overwrites every frame — so the
+    /// pending value survives until the scene applies it.
+    public var pendingCameraRestore: CameraView?
+
     public init(config: GameConfig = .classic(.beginner)) {
         self.config = config
         self.game = Game(config: config)
@@ -125,6 +137,9 @@ public final class GameViewModel: ObservableObject {
         lastWin = nil
         lastResult = nil
         inputMode = .reveal  // every game starts in reveal mode
+        // A brand-new game centres on its own default fit, not a resumed view.
+        pendingCameraRestore = nil
+        cameraView = nil
         resetTimer()
         gameID &+= 1
         bump()
@@ -133,7 +148,9 @@ public final class GameViewModel: ObservableObject {
     /// A `GameSnapshot` of the current game, or nil if it's not a live game worth
     /// saving. The live timer span is folded in so the saved elapsed is exact.
     public func snapshot() -> GameSnapshot? {
-        GameSnapshot(game: game, config: config, elapsedCentiseconds: currentCentiseconds())
+        GameSnapshot(
+            game: game, config: config, elapsedCentiseconds: currentCentiseconds(),
+            camera: cameraView)
     }
 
     /// Restore a persisted game: rebuild the board/state, set the clock to the
@@ -144,6 +161,12 @@ public final class GameViewModel: ObservableObject {
         lastWin = nil
         lastResult = nil
         inputMode = .reveal
+        // Hand the saved view to the scene to apply on the upcoming rebuild; a
+        // game with no saved camera (older save / board fits) falls back to the
+        // default fit. cameraView is overwritten by the scene each frame, so the
+        // pending value lives separately until consumed.
+        pendingCameraRestore = snapshot.camera
+        cameraView = snapshot.camera
         // Restore the banked time and resume the clock from there.
         timer?.cancel()
         accumulatedCentiseconds = snapshot.elapsedCentiseconds

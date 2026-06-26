@@ -39,6 +39,20 @@ final class SaveStoreTests: XCTestCase {
         XCTAssertEqual(loaded?.mines, snap.mines)
     }
 
+    func testCameraViewSurvivesTheDiskRoundTrip() {
+        // The saved camera view must survive an actual save→file→load cycle (the
+        // real persistence path), not just an in-memory Codable round-trip — so a
+        // resumed game after a quit/relaunch returns to where you were looking.
+        let config = GameConfig.classic(.beginner)
+        var game = Game(config: config)
+        game.reveal(Coord(0, 0))
+        let camera = CameraView(centerX: 0.65, centerY: 0.25, scale: 2.2)
+        let snap = GameSnapshot(
+            game: game, config: config, elapsedCentiseconds: 500, camera: camera)!
+        store.save(snap)
+        XCTAssertEqual(store.load()?.camera, camera, "the camera view persists to disk and back")
+    }
+
     func testAppSupportFactoryProducesAUsableStore() {
         // Exercise the production factory (App Support dir), but with a unique
         // filename so it can't touch a real save; clean up after.
