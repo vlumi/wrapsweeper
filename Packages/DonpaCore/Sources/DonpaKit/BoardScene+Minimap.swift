@@ -161,19 +161,54 @@ extension BoardScene {
         // Pixel-per-cell, capped so a 1000² board still renders to a sane bitmap.
         let maxDim = 240
         let ppc = max(1, min(maxDim / max(boardW, boardH), 4))
-        guard let cg = boardOverviewImage(pixelsPerCell: ppc) else { return }
-        let texture = SKTexture(cgImage: cg)
-        texture.filteringMode = .nearest  // crisp cell blocks, no blur
-        minimapImage?.texture = texture
+        // Render OFF the main thread: on a 1M-cell board this per-cell loop is slow
+        // enough to swallow an in-progress end-game animation if run inline. Snapshot
+        // the board + colours (Sendable) now; apply the texture back on the main
+        // actor, but only if no newer board state has superseded this render.
+        let board = viewModel.game.board
+        let colors = overviewColors
+        let generation = lastMinimapRevision
+        Task {
+            let cg = await Task.detached {
+                Self.renderOverview(
+                    board: board, width: boardW, height: boardH, ppc: ppc, colors: colors)
+            }.value
+            guard let cg, generation == lastMinimapRevision else { return }
+            let texture = SKTexture(cgImage: cg)
+            texture.filteringMode = .nearest  // crisp cell blocks, no blur
+            minimapImage?.texture = texture
+        }
+    }
+
+    /// The fill colours the overview uses, bundled so the render can run off the
+    /// main actor (it can't touch `palette` there). `Sendable` — CGColors are
+    /// immutable and read-only here.
+    struct OverviewColors: Sendable {
+        let hidden, revealed, mine, flag: CGColor
+    }
+    var overviewColors: OverviewColors {
+        OverviewColors(
+            hidden: palette.hiddenTile.cgColor, revealed: palette.revealedTile.cgColor,
+            mine: palette.mineTile.cgColor, flag: palette.flagGlyph.cgColor)
     }
 
     /// A downsampled image of the whole board — one `ppc`×`ppc` pixel block per
     /// cell, hidden / revealed / mine / flag shaded distinctly. Shared by the
     /// corner minimap and the fullscreen overview. O(cells); board row 0 paints at
-    /// CG y=0 (the orientation the minimap's viewport-rect math expects).
+    /// CG y=0 (the orientation the minimap's viewport-rect math expects). The
+    /// fullscreen overview calls this synchronously (one-shot, on open); the live
+    /// minimap renders it OFF the main thread (see `refreshMinimap`) because on a
+    /// 1M-cell board this loop is heavy enough to swallow an in-progress animation.
     func boardOverviewImage(pixelsPerCell ppc: Int) -> CGImage? {
-        let boardW = viewModel.boardWidth
-        let boardH = viewModel.boardHeight
+        Self.renderOverview(
+            board: viewModel.game.board, width: viewModel.boardWidth,
+            height: viewModel.boardHeight, ppc: ppc, colors: overviewColors)
+    }
+
+    /// Pure renderer — no `self`, so it runs on any thread. Inputs are `Sendable`.
+    nonisolated static func renderOverview(
+        board: Board, width boardW: Int, height boardH: Int, ppc: Int, colors: OverviewColors
+    ) -> CGImage? {
         let pxW = boardW * ppc
         let pxH = boardH * ppc
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -183,20 +218,15 @@ extension BoardScene {
                 space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         else { return nil }
 
-        ctx.setFillColor(palette.hiddenTile.cgColor)
+        ctx.setFillColor(colors.hidden)
         ctx.fill(CGRect(x: 0, y: 0, width: pxW, height: pxH))
-
-        let board = viewModel.game.board
-        let revealed = palette.revealedTile.cgColor
-        let mine = palette.mineTile.cgColor
-        let flag = palette.flagGlyph.cgColor
         for y in 0..<boardH {
             for x in 0..<boardW {
                 let cell = board[Coord(x, y)]
                 let color: CGColor?
                 switch cell.state {
-                case .revealed: color = cell.isMine ? mine : revealed
-                case .flagged: color = flag
+                case .revealed: color = cell.isMine ? colors.mine : colors.revealed
+                case .flagged: color = colors.flag
                 case .hidden: color = nil  // background already painted
                 }
                 guard let color else { continue }
