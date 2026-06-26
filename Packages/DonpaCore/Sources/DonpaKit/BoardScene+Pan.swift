@@ -33,13 +33,37 @@ extension BoardScene {
         cameraNode.run(move)
     }
 
-    /// Multiply the current zoom by `factor` (>1 zooms in). Never zooms out past
-    /// `maxZoomOutScale` (whole board OR the min interactive cell size, whichever
-    /// keeps cells tappable — so a huge board can't be zoomed out to an untappable
-    /// sea of cells), and caps how far in you can go.
+    /// Multiply the current zoom by `factor` (>1 zooms in), anchored on the
+    /// camera centre. Never zooms out past `maxZoomOutScale` (whole board OR the
+    /// min interactive cell size, whichever keeps cells tappable), and caps how
+    /// far in you can go.
     public func zoom(by factor: CGFloat) {
-        let next = cameraNode.xScale / factor
-        cameraNode.setScale(min(max(next, 0.1), maxZoomOutScale))
+        zoom(by: factor, aroundViewPoint: nil)
+    }
+
+    /// Zoom anchored on a point in the hosting view's coordinates (the pinch
+    /// midpoint / cursor) so the board point under it stays put — "zoom to
+    /// cursor". `nil` anchors on the camera centre (plain centre zoom).
+    ///
+    /// Done by reading the scene point under the anchor *before* and *after* the
+    /// scale change (via `SKView`'s own view↔scene transform) and shifting the
+    /// camera by the difference — so we never hand-derive the projection and it
+    /// stays correct regardless of `anchorPoint` / Y-flip conventions.
+    public func zoom(by factor: CGFloat, aroundViewPoint viewAnchor: CGPoint?) {
+        let old = cameraNode.xScale
+        let new = min(max(old / factor, 0.1), maxZoomOutScale)
+        guard new != old else { return }
+
+        let before = viewAnchor.map { convertPoint(fromView: $0) }
+        cameraNode.setScale(new)
+        if let before, let viewAnchor {
+            // The same view point now maps to a different scene point; nudge the
+            // camera so the board point that was under the cursor returns to it.
+            let after = convertPoint(fromView: viewAnchor)
+            cameraNode.position = CGPoint(
+                x: cameraNode.position.x + (before.x - after.x),
+                y: cameraNode.position.y + (before.y - after.y))
+        }
         // A smaller scale shows more board, which may pull empty space into
         // view; re-clamp so the board rests at the margin edge.
         cameraNode.position = clampedCameraPosition(cameraNode.position)

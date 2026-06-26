@@ -318,7 +318,9 @@ public final class BoardScene: SKScene {
     }
 
     @objc private func handlePinch(_ g: UIPinchGestureRecognizer) {
-        zoom(by: g.scale)
+        // Zoom toward the pinch midpoint so the board point under the fingers
+        // stays put, rather than zooming the camera centre.
+        zoom(by: g.scale, aroundViewPoint: g.location(in: g.view))
         g.scale = 1
     }
 
@@ -332,7 +334,9 @@ public final class BoardScene: SKScene {
     }
     #elseif os(macOS)
     @objc private func handlePinch(_ g: NSMagnificationGestureRecognizer) {
-        zoom(by: 1 + g.magnification)
+        // Zoom toward the trackpad pinch centroid so the board point under it
+        // stays put, rather than zooming the camera centre.
+        zoom(by: 1 + g.magnification, aroundViewPoint: g.location(in: g.view))
         g.magnification = 0
     }
 
