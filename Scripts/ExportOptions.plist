@@ -8,8 +8,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- "app-store" was renamed to "app-store-connect" (Xcode 16); the old name
+         still works but warns at export. -->
     <key>method</key>
-    <string>app-store</string>
+    <string>app-store-connect</string>
     <key>destination</key>
     <string>export</string>
     <key>teamID</key>
