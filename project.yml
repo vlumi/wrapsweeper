@@ -51,7 +51,7 @@ targets:
         # User-visible app/bundle name; without this it'd be the target name
         # "Donpa-iOS". Module name stays Donpa_iOS (PRODUCT_MODULE_NAME).
         PRODUCT_NAME: Donpa Squad
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.2.0"
         # Build number is shared across iOS + macOS (kept in lock-step by
         # Scripts/bump-build.sh) — bump both together so the two apps never diverge.
         CURRENT_PROJECT_VERSION: "4"
@@ -121,7 +121,7 @@ targets:
         # Cmd-Tab switcher, .app filename). Without this it's the target name
         # "Donpa-macOS". The module name stays Donpa_macOS (PRODUCT_MODULE_NAME).
         PRODUCT_NAME: Donpa Squad
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.2.0"
         # Build number is shared across iOS + macOS (kept in lock-step by
         # Scripts/bump-build.sh) — bump both together so the two apps never diverge.
         CURRENT_PROJECT_VERSION: "4"

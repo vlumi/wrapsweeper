@@ -1,0 +1,4 @@
+{
+  "//": "Keep a Changelog repeats ### Added/Changed/Fixed across version sections; allow duplicate headings as long as they're not siblings under the same parent.",
+  "MD024": { "siblings_only": true }
+}

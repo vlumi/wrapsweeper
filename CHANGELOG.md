@@ -6,7 +6,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Work toward the first release, **v0.1.0** (classic Minesweeper on iOS and macOS).
+Work toward **v0.2.0** — cross-device sync & big boards (see ROADMAP.md). The
+big-board pillar largely landed; iCloud score sync is still open.
+
+### Added
+
+- **Big boards, XS–XXXL.** The Modern size ladder is now XS / S / M / L / XL /
+  XXL / XXXL (9 / 16 / 25 / 50 / 100 / 300 / 1000²; ja 極小…超巨大). XS is the new
+  floor, L (50²) fills the old gap, XXL (300²) is an epic-but-finishable summit,
+  and XXXL (1000², 1M cells) is the sandbox extreme. Scoreboard keys are
+  geometry-based, so the rename leaves existing scores intact.
+- **Save/restore camera view.** Resuming a saved game returns to where you were
+  looking — `GameSnapshot` persists the camera centre (normalized) + zoom,
+  re-clamped to the current viewport so it restores sensibly across window/device.
+
+### Changed
+
+- **Huge boards are responsive.** Reveal/mine-placement compute off the main
+  thread (the board never freezes; a debounced overlay gates input); mines are
+  pre-armed off-thread on New Game so the first tap is instant; placement and
+  end-game effects scale with the mine count, not the cell count; the minimap
+  overview renders off the main thread; autosave is debounced + written on a
+  background actor; `Cell` is bit-packed to one byte. Mine-hit shows the burst
+  tile instantly; Esc closes the fullscreen overview.
+- Build number is shared across iOS + macOS (one value, bumped together).
+
+### Fixed
+
+- A crash when the visible cell range inverted transiently (launch palette push /
+  camera settle), and a zoom-out gesture that could jump to the most-zoomed-in
+  limit.
+
+### Tooling
+
+- `Scripts/bump-build.sh` bumps the shared build number (+ optional PR), and
+  `Scripts/distribute.sh` archives → exports → uploads to App Store Connect via an
+  ASC API key (credentials kept outside the repo).
+
+## [0.1.0] - 2026-06-27
+
+First release — classic Minesweeper on iOS and macOS (TestFlight pre-release).
 
 ### Added
 
@@ -117,4 +156,5 @@ Work toward the first release, **v0.1.0** (classic Minesweeper on iOS and macOS)
   cleared-cell count from the board, so a corrupt or tampered save can't produce a
   broken or unwinnable game.
 
-[Unreleased]: https://github.com/vlumi/donpa/commits/main
+[Unreleased]: https://github.com/vlumi/donpa/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/vlumi/donpa/releases/tag/v0.1.0
