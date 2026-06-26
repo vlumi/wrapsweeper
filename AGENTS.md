@@ -46,8 +46,8 @@ donpa/
 ├── Sources/{iOS,macOS}/         Thin @main app shells
 ├── Sources/Shared/              Assets shared by both targets (the AppIcon set)
 └── Packages/DonpaCore/    Swift package — most of the code
-    ├── Sources/DonpaCore/ Pure logic (GameConfig, Solver, …), fully tested
-    ├── Sources/DonpaKit/  SpriteKit + SwiftUI, depends on Core
+    ├── Sources/DonpaCore/ Pure logic (GameConfig, Solver, CellLayout, …), tested + coverage-gated
+    ├── Sources/DonpaKit/  SpriteKit + SwiftUI, depends on Core; coverage-ignored wholesale
     └── Sources/TierAnalysis/    Dev-only CLI: `swift run TierAnalysis` (not shipped)
 ```
 

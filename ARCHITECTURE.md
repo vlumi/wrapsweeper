@@ -9,9 +9,14 @@ seams, repo layout) see [AGENTS.md](AGENTS.md); for what shipped see
 ## Module split: `DonpaCore` vs `DonpaKit`
 
 - **`DonpaCore`** — pure game logic and value types (`Game`, `Board`, `Cell`,
-  `Coord`, `GameConfig`, `Topology`, `Solver`, `GameSnapshot`). No SwiftUI, no
-  SpriteKit, no platform APIs. Fully unit-tested; deterministic.
-- **`DonpaKit`** — the SwiftUI + SpriteKit UI layer; depends on Core.
+  `Coord`, `GameConfig`, `Topology`, `Solver`, `GameSnapshot`), plus the
+  headlessly-testable logic that supports the UI without depending on it:
+  `CellLayout` (coordinate → pixel mapping, CoreGraphics only), `SaveStore`,
+  `Scoreboard`, `TimeFormat`. No SwiftUI, no SpriteKit, no platform UI APIs.
+  Fully unit-tested; deterministic.
+- **`DonpaKit`** — the SwiftUI + SpriteKit UI layer; depends on Core. Includes
+  the observable view-models (`GameViewModel`, `Settings`) and `Palette` (which
+  carries `Color`/`SKColor`), which stay here because they import UI frameworks.
 - The two app targets (`Sources/{iOS,macOS}`) are thin `@main` shells hosting
   `GameView()`.
 
@@ -19,6 +24,13 @@ Why: keeping the rules platform- and rendering-free means they're trivially
 testable and the "epic" variants (hex, torus) drop in as new `Topology`
 conformers without touching UI. It also keeps `swift test` fast (no Xcode
 project, no simulator) as the inner loop.
+
+**The target split *is* the coverage boundary.** Codecov gates `DonpaCore` and
+ignores `DonpaKit/**` wholesale (the SpriteKit/SwiftUI layer needs UI automation
+this project doesn't run). So the rule is: anything genuinely unit-testable lives
+in `DonpaCore` and is covered automatically; the view layer lives in `DonpaKit`
+and is ignored by a single glob — no per-file `codecov.yml` edits when a view
+file is added or split for the lint length limit.
 
 ## Game state lives in value types; the view model bridges
 
