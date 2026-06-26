@@ -52,7 +52,8 @@ targets:
         # "Donpa-iOS". Module name stays Donpa_iOS (PRODUCT_MODULE_NAME).
         PRODUCT_NAME: Donpa Squad
         MARKETING_VERSION: "0.1.0"
-        # Build number is per-app, independent of macOS.
+        # Build number is shared across iOS + macOS (kept in lock-step by
+        # Scripts/bump-build.sh) — bump both together so the two apps never diverge.
         CURRENT_PROJECT_VERSION: "3"
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -121,8 +122,9 @@ targets:
         # "Donpa-macOS". The module name stays Donpa_macOS (PRODUCT_MODULE_NAME).
         PRODUCT_NAME: Donpa Squad
         MARKETING_VERSION: "0.1.0"
-        # Build number is per-app, independent of iOS.
-        CURRENT_PROJECT_VERSION: "1"
+        # Build number is shared across iOS + macOS (kept in lock-step by
+        # Scripts/bump-build.sh) — bump both together so the two apps never diverge.
+        CURRENT_PROJECT_VERSION: "3"
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_HARDENED_RUNTIME: YES
         # Mac App Store requires App Sandbox; the entitlement enables it.
