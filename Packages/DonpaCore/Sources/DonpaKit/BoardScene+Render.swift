@@ -32,11 +32,21 @@ extension BoardScene {
             lastRevision = viewModel.revision
             rebuild()
         }
-        // After the board reflects the final state, play the end-game effect
-        // once. No further revisions occur post-end, so this fires exactly once.
+        // After the board reflects the final state, play the end-game effect once
+        // (no further revisions occur post-end). Defer the start to the next runloop
+        // turn so the heavy reveal+rebuild of this turn has flushed and rendering has
+        // caught up first — otherwise the animation's opening frames are dropped
+        // while the thread is still busy, and on a big/slow board the whole thing
+        // "flashes by". Starting fresh on an idle turn lets the shockwave play out.
         if let event = viewModel.lastResult, event.id != lastAnimatedResultID {
             lastAnimatedResultID = event.id
-            playEndGameEffects(event.result)
+            let result = event.result
+            Task { @MainActor in
+                // A short beat lets this turn's rebuild flush and rendering catch up
+                // on slower devices, so the animation starts on a clean frame.
+                try? await Task.sleep(nanoseconds: 80_000_000)
+                self.playEndGameEffects(result)
+            }
         }
     }
 

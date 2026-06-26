@@ -24,6 +24,8 @@ struct OverviewView: View {
     /// Live viewport rect (normalized, y-down) — re-read each drag so the box
     /// tracks where the camera actually landed (after clamping).
     @State private var viewport: CGRect = .init(x: 0, y: 0, width: 1, height: 1)
+    /// Keyboard focus so Esc reaches `.onExitCommand` (macOS); unused on iOS.
+    @FocusState private var focused: Bool
 
     var body: some View {
         ZStack {
@@ -72,6 +74,17 @@ struct OverviewView: View {
             closeButton
         }
         .onAppear { viewport = scene.visibleNormalizedRect() }
+        #if os(macOS)
+        // Hold keyboard focus (ring suppressed) so Esc closes the overview — the
+        // SpriteKit board would otherwise keep first responder and swallow it.
+        // `.onExitCommand` is the proper Escape hook (same as the result panel);
+        // iOS has no Esc, so this is macOS-only (the API is unavailable on iOS).
+        .focusable()
+        .focused($focused)
+        .focusEffectDisabled()
+        .onAppear { focused = true }
+        .onExitCommand { onClose() }
+        #endif
         .id(revision)  // rebuild the image when the board state changes
     }
 
