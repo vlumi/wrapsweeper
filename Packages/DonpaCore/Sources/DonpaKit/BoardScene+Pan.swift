@@ -84,8 +84,14 @@ extension BoardScene {
     /// stays correct regardless of `anchorPoint` / Y-flip conventions.
     public func zoom(by factor: CGFloat, aroundViewPoint viewAnchor: CGPoint?) {
         restoreCameraTarget = nil  // the player took over; stop re-applying the saved view
+        // A fast trackpad zoom-out can deliver `magnification ≤ −1`, so the caller's
+        // `1 + magnification` factor arrives ≤ 0; dividing by it yields ∞ or a
+        // negative scale that clamps to the most-zoomed-IN limit — the "jumps to a
+        // very close zoom" bug. Floor the factor to a small positive step so a
+        // single gesture can only zoom out so far per event.
+        let safeFactor = max(factor, 0.1)
         let old = cameraNode.xScale
-        let new = min(max(old / factor, 0.1), maxZoomOutScale)
+        let new = min(max(old / safeFactor, 0.1), maxZoomOutScale)
         guard new != old else { return }
 
         let before = viewAnchor.map { convertPoint(fromView: $0) }
