@@ -18,6 +18,16 @@ final class GameViewModelTests: XCTestCase {
         return vm
     }
 
+    /// A cell that's still hidden after the opening reveal — the first reveal can
+    /// flood-fill arbitrarily far, so a fixed corner isn't reliably unrevealed.
+    private func aHiddenCell(_ vm: GameViewModel) -> Coord {
+        for c in vm.game.board.allCoords where vm.game.board[c].state == .hidden {
+            return c
+        }
+        XCTFail("no hidden cell after the opening reveal")
+        return Coord(0, 0)
+    }
+
     // MARK: New game / counters
 
     func testNewGameBumpsGameIDAndRevision() {
@@ -51,7 +61,7 @@ final class GameViewModelTests: XCTestCase {
         let vm = startedGame()
         let before = vm.flagsRemaining
         // Flag a still-hidden cell far from the opened origin region.
-        let target = Coord(vm.boardWidth - 1, vm.boardHeight - 1)
+        let target = aHiddenCell(vm)
         vm.toggleFlag(target)
         XCTAssertEqual(vm.flagsRemaining, before - 1, "flagging a cell uses one flag")
         vm.toggleFlag(target)
@@ -65,8 +75,8 @@ final class GameViewModelTests: XCTestCase {
         vm.pause()
         let revBefore = vm.revision
         let revealedBefore = vm.game.revealedSafeCount
-        // Reveal a still-hidden corner; while paused it must do nothing.
-        vm.reveal(Coord(vm.boardWidth - 1, vm.boardHeight - 1))
+        // Reveal a still-hidden cell; while paused it must do nothing.
+        vm.reveal(aHiddenCell(vm))
         XCTAssertEqual(
             vm.game.revealedSafeCount, revealedBefore, "paused reveal must not open cells")
         XCTAssertEqual(vm.revision, revBefore, "paused reveal must not request a redraw")
@@ -76,7 +86,7 @@ final class GameViewModelTests: XCTestCase {
         let vm = startedGame()
         vm.pause()
         let flagsBefore = vm.flagsRemaining
-        vm.toggleFlag(Coord(vm.boardWidth - 1, vm.boardHeight - 1))
+        vm.toggleFlag(aHiddenCell(vm))
         XCTAssertEqual(vm.flagsRemaining, flagsBefore, "paused flag toggle must be inert")
     }
 
@@ -85,7 +95,7 @@ final class GameViewModelTests: XCTestCase {
         vm.pause()
         vm.resume()
         let revBefore = vm.revision
-        vm.toggleFlag(Coord(vm.boardWidth - 1, vm.boardHeight - 1))
+        vm.toggleFlag(aHiddenCell(vm))
         XCTAssertGreaterThan(vm.revision, revBefore, "input works again after resume")
     }
 
@@ -129,7 +139,7 @@ final class GameViewModelTests: XCTestCase {
     func testRestoreRebuildsTheGameState() {
         let vm = startedGame()
         // Make some moves so the restored state is non-trivial.
-        vm.toggleFlag(Coord(vm.boardWidth - 1, vm.boardHeight - 1))
+        vm.toggleFlag(aHiddenCell(vm))
         let snapshot = try? XCTUnwrap(vm.snapshot())
         guard let snapshot else { return }
 
