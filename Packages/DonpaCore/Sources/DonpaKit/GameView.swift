@@ -20,6 +20,11 @@ struct GameContent: View {
 
     @State private var panel: MangaPanelView.Kind?
     @State private var panelTask: Task<Void, Never>?
+    /// Coalesces the per-move autosave: snapshotting a huge board scans every cell
+    /// and JSON-encodes hundreds of thousands of coords, so doing it on *every*
+    /// reveal stalls the main thread on big boards. Instead we save once activity
+    /// settles; the periodic/pause/Home/quit saves are the durability backstops.
+    @State private var autosaveTask: Task<Void, Never>?
     // Internal so the chrome extension (GameContentChrome) can read it.
     @State var restartPop = false
     @State private var windowSize: CGSize = .zero
@@ -27,8 +32,11 @@ struct GameContent: View {
     /// Under the UI-test launch arg it's a clean ephemeral store, so tests never
     /// read or write the real saved game; otherwise the production Application
     /// Support store.
-    @State private var saveStore =
-        SaveStore.isUITestCleanLaunch ? SaveStore.ephemeral() : SaveStore.appSupport()
+    @State private var saveStore: SaveStore
+    /// Writes the save off the main thread (encode + atomic write), so a save on a
+    /// huge board never stalls input. The snapshot is still BUILT on the main actor
+    /// (a consistent read of game state); only the expensive tail is handed here.
+    @State private var saveWriter: BackgroundSaveWriter
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -47,6 +55,23 @@ struct GameContent: View {
         NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
     }
     #endif
+
+    init(
+        viewModel: GameViewModel, scoreboard: Scoreboard, settings: Settings,
+        navigator: Navigator, scene: BoardScene
+    ) {
+        self.viewModel = viewModel
+        self.scoreboard = scoreboard
+        self.settings = settings
+        self.navigator = navigator
+        self.scene = scene
+        // One store backs both the synchronous reads (load on launch) and the
+        // background writer (encode + atomic write off the main thread).
+        let store =
+            SaveStore.isUITestCleanLaunch ? SaveStore.ephemeral() : SaveStore.appSupport()
+        _saveStore = State(initialValue: store)
+        _saveWriter = State(initialValue: BackgroundSaveWriter(store: store))
+    }
 
     /// One resolved scheme for both the chrome and the scene. Driven by the
     /// user's setting; `.system` reads the real OS appearance (see
@@ -82,15 +107,16 @@ struct GameContent: View {
         .onChangeCompat(of: viewModel.lastResult?.id) { _ in handleResult() }
         // Any new game (New Game / Retry / ⌘R) clears a lingering panel.
         .onChangeCompat(of: viewModel.gameID) { _ in dismissPanel() }
-        // Autosave on every state change while playing (crash protection); clear
-        // the save once the game is no longer in progress.
-        .onChangeCompat(of: viewModel.revision) { _ in autosave() }
+        // A move schedules a debounced save (see `autosaveSoon`) rather than saving
+        // synchronously — on a huge board a per-move snapshot stalls the main
+        // thread. Durability is covered by the periodic/pause/Home/quit saves.
+        .onChangeCompat(of: viewModel.revision) { _ in autosaveSoon() }
         // Leaving the foreground auto-pauses and saves; the atomic write means a
         // background-kill can't corrupt the save.
         .onChangeCompat(of: scenePhase) { phase in
             if phase != .active {
                 viewModel.pause()
-                autosave()
+                autosaveBlocking()  // process may suspend/exit; write inline
             }
         }
         // Pausing flushes a save (it's a natural "I'm stepping away" moment, and
@@ -111,7 +137,7 @@ struct GameContent: View {
         #if os(macOS)
         .onReceive(appWillTerminate) { _ in
             viewModel.pause()
-            autosave()
+            autosaveBlocking()  // process is exiting; the write must finish inline
         }
         #endif
         .sheet(isPresented: $navigator.showingScores) {
@@ -164,11 +190,44 @@ struct GameContent: View {
     }
 
     /// Persist the live game, or clear the save once it's no longer in progress.
+    /// The snapshot is BUILT here on the main actor (a consistent read of the game
+    /// state), then the encode + atomic write is handed to `saveWriter` so the
+    /// disk work never stalls input — even on a huge board. The actor serializes
+    /// writes, so they land in order and a clear can't race a pending write.
     private func autosave() {
+        autosaveTask?.cancel()  // an explicit save subsumes any pending debounce
+        if let snapshot = viewModel.snapshot() {
+            Task { await saveWriter.write(snapshot) }
+        } else {
+            Task { await saveWriter.clear() }
+        }
+    }
+
+    /// A SYNCHRONOUS save for app-exit paths (backgrounding, macOS ⌘Q): the
+    /// process may terminate the instant the handler returns, before a background
+    /// task could run, so the write must finish inline here. Rare, so the
+    /// main-thread cost is acceptable; the atomic write keeps it crash-safe.
+    private func autosaveBlocking() {
+        autosaveTask?.cancel()
         if let snapshot = viewModel.snapshot() {
             saveStore.save(snapshot)
         } else {
             saveStore.clear()
+        }
+    }
+
+    /// Schedule a save shortly after the last move, coalescing a burst of reveals
+    /// into one write. Snapshotting a huge board is expensive (it scans every cell
+    /// and encodes the revealed/flagged sets), so saving on *every* reveal stalls
+    /// the main thread on XXL/XXXL; debouncing keeps taps responsive while the
+    /// periodic/pause/Home/quit saves remain the durability backstops. A finished
+    /// game still resolves quickly — `autosave()` clears the save when not playing.
+    private func autosaveSoon() {
+        autosaveTask?.cancel()
+        autosaveTask = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            autosave()
         }
     }
 
