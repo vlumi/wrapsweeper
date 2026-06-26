@@ -76,6 +76,20 @@ struct DonpaApp: App {
 
                 Divider()
 
+                // ⌘+ / ⌘− zoom the board (about its centre). Bind zoom-in to the
+                // "+" *character*, not a physical key: SwiftUI matches on the char
+                // the keystroke produces, so this follows "+" wherever a layout puts
+                // it — Finnish ⌘+ (its own key), US ⌘⇧=, JIS ⌘⇧;. Binding to "="
+                // instead failed on Finnish, where "=" isn't on that key.
+                Button("Zoom In") { navigator.zoomInRequested &+= 1 }
+                    .keyboardShortcut("+", modifiers: .command)
+                    .disabled(modalOpen)
+                Button("Zoom Out") { navigator.zoomOutRequested &+= 1 }
+                    .keyboardShortcut("-", modifiers: .command)
+                    .disabled(modalOpen)
+
+                Divider()
+
                 classicButton(.beginner, key: "1")
                 classicButton(.intermediate, key: "2")
                 classicButton(.expert, key: "3")

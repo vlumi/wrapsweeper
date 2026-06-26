@@ -33,6 +33,13 @@ public final class Navigator: ObservableObject {
     /// of discarding it. A counter so repeated requests always fire.
     @Published public var homeRequested = 0
 
+    /// Bumped to request a zoom in / out (macOS ⌘+ / ⌘− menu commands). Routed
+    /// through `GameContent` to the board scene, which zooms about the board
+    /// centre (keyboard has no cursor to anchor on). Counters so repeated presses
+    /// always fire. The on-mouse/trackpad zoom paths don't use these.
+    @Published public var zoomInRequested = 0
+    @Published public var zoomOutRequested = 0
+
     /// Whether the fullscreen board overview (big navigable map) is presented.
     /// Opened from the minimap's expand icon; navigation happens in that view.
     @Published public var showingOverview = false
