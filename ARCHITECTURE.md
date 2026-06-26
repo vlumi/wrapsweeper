@@ -12,11 +12,13 @@ seams, repo layout) see [AGENTS.md](AGENTS.md); for what shipped see
   `Coord`, `GameConfig`, `Topology`, `Solver`, `GameSnapshot`), plus the
   headlessly-testable logic that supports the UI without depending on it:
   `CellLayout` (coordinate → pixel mapping, CoreGraphics only), `SaveStore`,
-  `Scoreboard`, `TimeFormat`. No SwiftUI, no SpriteKit, no platform UI APIs.
-  Fully unit-tested; deterministic.
-- **`DonpaKit`** — the SwiftUI + SpriteKit UI layer; depends on Core. Includes
-  the observable view-models (`GameViewModel`, `Settings`) and `Palette` (which
-  carries `Color`/`SKColor`), which stay here because they import UI frameworks.
+  `Scoreboard`, `TimeFormat`, and `GameViewModel` (the `@MainActor`
+  `ObservableObject` orchestration — it's pure Combine/Foundation, no UI
+  framework). No SwiftUI, no SpriteKit, no platform UI APIs. Fully unit-tested;
+  deterministic.
+- **`DonpaKit`** — the SwiftUI + SpriteKit UI layer; depends on Core. The bits
+  that *must* import a UI framework stay here: `Settings` (imports SwiftUI for
+  `ColorScheme` and alignment helpers) and `Palette` (carries `Color`/`SKColor`).
 - The two app targets (`Sources/{iOS,macOS}`) are thin `@main` shells hosting
   `GameView()`.
 

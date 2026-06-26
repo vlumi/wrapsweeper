@@ -1,3 +1,4 @@
+import DonpaCore
 import SpriteKit
 import SwiftUI
 
