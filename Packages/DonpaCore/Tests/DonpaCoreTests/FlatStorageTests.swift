@@ -56,6 +56,26 @@ final class FlatStorageTests: XCTestCase {
         XCTAssertEqual(board[Coord(0, 0)].state, .hidden)
     }
 
+    /// Cell is bit-packed into one byte (state + isMine + adjacentMines), so a
+    /// 1000² board's cell array is ~1MB, not ~16MB. Guard against a field being
+    /// widened back to a padded struct. Also check the packed fields round-trip
+    /// independently (no bit clobbering between them).
+    func testCellIsByteSizedAndFieldsAreIndependent() {
+        XCTAssertEqual(MemoryLayout<Cell>.stride, 1, "Cell must stay one byte")
+        var board = Board(topology: BoundedSquareTopology(width: 3, height: 3))
+        board.placeMines(at: [Coord(0, 0)])  // (1,1) gets adjacentMines = 1, not a mine
+        board[Coord(1, 1)].state = .flagged
+        let c = board[Coord(1, 1)]
+        XCTAssertEqual(c.state, .flagged)
+        XCTAssertFalse(c.isMine)
+        XCTAssertEqual(c.adjacentMines, 1)  // setting state didn't clobber the count
+        // A max neighbour count (8) fits the 4 bits.
+        var full = Board(topology: BoundedSquareTopology(width: 3, height: 3))
+        let ring = [(0, 0), (1, 0), (2, 0), (0, 1), (2, 1), (0, 2), (1, 2), (2, 2)]
+        full.placeMines(at: Set(ring.map { Coord($0.0, $0.1) }))
+        XCTAssertEqual(full[Coord(1, 1)].adjacentMines, 8)
+    }
+
     func testDerivedCoordSetsMatchWrites() {
         var board = Board(topology: BoundedSquareTopology(width: 6, height: 6))
         board.placeMines(at: [Coord(1, 1), Coord(2, 2)])

@@ -5,12 +5,46 @@ public enum CellState: Sendable {
     case flagged
 }
 
-/// One cell's full state.
+/// One cell's full state, bit-packed into a single byte — `state` (2 bits),
+/// `isMine` (1 bit), `adjacentMines` (4 bits, 0…8). On a 1000² board this makes
+/// the cell array 1MB instead of 16MB (the unpacked struct strides 16 bytes), so
+/// the whole board copies ~16× cheaper (matters for the per-move COW copy and
+/// overall memory). The public API is unchanged — `state`/`isMine`/`adjacentMines`
+/// are still settable vars — so nothing outside this file is affected.
 public struct Cell: Sendable {
-    public var state: CellState = .hidden
-    public var isMine: Bool = false
+    private var bits: UInt8 = 0  // [ adjacent:4 | mine:1 | state:2 ], bit 7 unused
+
+    public init() {}
+
+    public var state: CellState {
+        get {
+            switch bits & 0b11 {
+            case 1: return .revealed
+            case 2: return .flagged
+            default: return .hidden
+            }
+        }
+        set {
+            let code: UInt8
+            switch newValue {
+            case .hidden: code = 0
+            case .revealed: code = 1
+            case .flagged: code = 2
+            }
+            bits = (bits & ~0b11) | code
+        }
+    }
+
+    public var isMine: Bool {
+        get { bits & 0b100 != 0 }
+        set { bits = newValue ? (bits | 0b100) : (bits & ~0b100) }
+    }
+
     /// Number of mines among this cell's neighbours. Valid once mines are placed.
-    public var adjacentMines: Int = 0
+    public var adjacentMines: Int {
+        get { Int(bits >> 3) }
+        set { bits = (bits & 0b111) | (UInt8(newValue) << 3) }
+    }
 }
 
 /// Dense flat cell storage for a rectangular board — `index = y·width + x`, the
