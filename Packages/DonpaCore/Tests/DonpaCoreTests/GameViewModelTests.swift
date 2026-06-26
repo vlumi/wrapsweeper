@@ -119,9 +119,15 @@ final class GameViewModelTests: XCTestCase {
         let mine = try? XCTUnwrap(vm.game.board.mineCoords.first)
         guard let mine else { return }
         XCTAssertTrue(vm.canRevealHitMine(mine), "a hidden mine cell would detonate")
-        // A safe hidden cell would not.
-        XCTAssertFalse(
-            vm.canRevealHitMine(aHiddenCell(vm)), "a hidden non-mine cell would not detonate")
+        // A hidden NON-MINE cell would not. (aHiddenCell can land on a mine, so
+        // pick a hidden cell that isn't one — else this flakes on the layout.)
+        let hiddenSafe = vm.game.board.allCoords.first {
+            vm.game.board[$0].state == .hidden && !vm.game.board[$0].isMine
+        }
+        if let hiddenSafe {
+            XCTAssertFalse(
+                vm.canRevealHitMine(hiddenSafe), "a hidden non-mine cell would not detonate")
+        }
         // Blocked while paused (input gate).
         vm.pause()
         XCTAssertFalse(vm.canRevealHitMine(mine), "no detonation preview while input is gated")
