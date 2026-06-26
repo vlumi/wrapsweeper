@@ -80,6 +80,19 @@ public struct GameView: View {
                 .zIndex(2)
             }
 
+            // The fullscreen board overview (big navigable map). Above the board,
+            // below the splash. Drives the live camera as you drag/tap it.
+            if navigator.showingOverview {
+                OverviewView(
+                    scene: scene,
+                    onClose: { navigator.showingOverview = false },
+                    settings: settings,
+                    revision: viewModel.revision
+                )
+                .transition(.opacity)
+                .zIndex(2.5)
+            }
+
             // The in-app splash sits on top of everything (zIndex 3) and fades
             // out after a beat, revealing the title beneath.
             if showSplash {
@@ -94,6 +107,7 @@ public struct GameView: View {
         }
         .preferredColorScheme(settings.appearance.colorScheme)
         .animation(.easeInOut(duration: 0.2), value: navigator.showingNewGame)
+        .animation(.easeInOut(duration: 0.2), value: navigator.showingOverview)
     }
 
     /// Start a fresh game with the popup's current selection and leave the title.

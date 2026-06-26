@@ -1020,6 +1020,23 @@
           }
         }
       }
+    },
+    "Open overview": {
+      "comment": "Toolbar button: open the fullscreen board overview. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Avaa yleisnäkymä"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "全体マップを開く"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

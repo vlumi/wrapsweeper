@@ -66,6 +66,11 @@ public final class BoardScene: SKScene {
     var minimapImage: SKSpriteNode?
     /// The "you are here" viewport rectangle, repositioned each frame.
     var minimapViewport: SKShapeNode?
+    /// Small expand-icon node in the minimap corner — tap it to open the overview.
+    var minimapExpand: SKNode?
+    /// The expand icon's hit rect in CAMERA space (screen-fixed), set in layout so
+    /// the tap handler can test against it. nil while the minimap is hidden.
+    var minimapExpandHitRect: CGRect?
     /// Board revision the overview image was last rendered for (rebuild on change).
     var lastMinimapRevision = -1
     /// Cached board size the minimap was built for, to detect new-game/resize.
@@ -73,6 +78,9 @@ public final class BoardScene: SKScene {
     /// User preference (pushed from the chrome's toolbar toggle, via BoardView):
     /// show the minimap when the board exceeds the viewport. Default on.
     var showMinimap = true
+    /// Called when the minimap's expand icon is tapped — the host opens the
+    /// fullscreen overview. Set by `GameContent` via `BoardView`.
+    var onOpenOverview: (() -> Void)?
 
     /// The active color palette. Set by the host when the system appearance
     /// changes; updating it recolors the background and rebuilds the cells.
@@ -241,6 +249,8 @@ public final class BoardScene: SKScene {
     /// whatever the current input mode says (reveal or flag). This is the
     /// safety mechanism: in Flag mode a stray tap can't open a tile.
     private func tapAction(atScenePoint p: CGPoint) {
+        // A tap on the minimap's expand icon opens the overview, not a board move.
+        if handleMinimapTap(atScenePoint: p) { return }
         guard let c = coord(atScenePoint: p) else { return }
         if viewModel.game.board[c].state == .revealed {
             viewModel.chord(c)

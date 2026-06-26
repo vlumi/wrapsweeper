@@ -99,6 +99,8 @@ struct GameContent: View {
     /// game, stay on the title and prime the board with the persisted config so an
     /// immediate New Game matches their last selection.
     private func onLaunch() {
+        // Tapping the minimap's expand badge opens the fullscreen overview.
+        scene.onOpenOverview = { navigator.showingOverview = true }
         if let snapshot = saveStore.load() {
             viewModel.restore(from: snapshot)
             navigator.showingTitle = false
