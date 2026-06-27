@@ -1,86 +1,9 @@
 import Foundation
 
-/// Per-config stats. "Best" fields are idempotent merges (min/max); the cumulative
-/// counts are `DeviceCounter`s so they sum correctly across devices. Counts are
-/// tracked per-config here even though several are only *displayed* as global
-/// totals (summed across configs) — keeping the per-config breakdown for possible
-/// per-tier views later, at no extra cost.
-public struct ScoreRecord: Equatable, Sendable {
-    /// Games cleared. (Displayed per-config in the scoreboard table.)
-    public var wins: DeviceCounter
-    /// Games finished (won or lost). Never shown as a ratio with `wins` — a
-    /// win-rate readout would just discourage; the raw totals stay neutral.
-    public var gamesPlayed: DeviceCounter
-    /// Safe cells revealed across all games on this config.
-    public var tilesOpened: DeviceCounter
-    /// Flags placed (each flag action).
-    public var flagsPlaced: DeviceCounter
-    /// Mines detonated (losing moves).
-    public var minesHit: DeviceCounter
-    /// Mines correctly flagged at game end ("disarmed") — a positive accuracy stat.
-    public var minesDisarmed: DeviceCounter
-    /// Time spent in games, in centiseconds.
-    public var playtimeCentiseconds: DeviceCounter
-    /// Fastest winning time in centiseconds (hundredths), or nil if none yet.
-    public var bestCentiseconds: Int?
-    /// Best fraction (0...1) of safe cells revealed in a *losing* game. A win is
-    /// implicitly 100%, so this only tracks losses; `wins.total > 0` means 100% at
-    /// display time. Optional so old saved records (without it) decode cleanly.
-    public var bestLossProgress: Double?
-
-    public init(
-        wins: DeviceCounter = .init(), gamesPlayed: DeviceCounter = .init(),
-        tilesOpened: DeviceCounter = .init(), flagsPlaced: DeviceCounter = .init(),
-        minesHit: DeviceCounter = .init(), minesDisarmed: DeviceCounter = .init(),
-        playtimeCentiseconds: DeviceCounter = .init(),
-        bestCentiseconds: Int? = nil, bestLossProgress: Double? = nil
-    ) {
-        self.wins = wins
-        self.gamesPlayed = gamesPlayed
-        self.tilesOpened = tilesOpened
-        self.flagsPlaced = flagsPlaced
-        self.minesHit = minesHit
-        self.minesDisarmed = minesDisarmed
-        self.playtimeCentiseconds = playtimeCentiseconds
-        self.bestCentiseconds = bestCentiseconds
-        self.bestLossProgress = bestLossProgress
-    }
-}
-
-extension ScoreRecord: Codable {
-    enum CodingKeys: String, CodingKey {
-        case wins, gamesPlayed, tilesOpened, flagsPlaced, minesHit, minesDisarmed
-        case playtimeCentiseconds, bestCentiseconds, bestLossProgress
-    }
-
-    /// Tolerant decode. **Best time / best %% are idempotent (min/max) fields, not
-    /// per-device — they decode unchanged, so existing high scores SURVIVE.** The
-    /// cumulative counters use `try?`: a missing field (older save) *or* a legacy
-    /// scalar `wins` (a bare Int from before per-device counters) both yield an
-    /// empty counter, so the counts reset to zero without dropping the record (and
-    /// its preserved high scores). No migration code to carry forever.
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        func counter(_ key: CodingKeys) -> DeviceCounter {
-            // `try?` so a legacy scalar (old bare-Int `wins`) or missing field
-            // yields an empty counter rather than throwing and dropping the record.
-            (try? c.decode(DeviceCounter.self, forKey: key)) ?? .init()
-        }
-        wins = counter(.wins)
-        gamesPlayed = counter(.gamesPlayed)
-        tilesOpened = counter(.tilesOpened)
-        flagsPlaced = counter(.flagsPlaced)
-        minesHit = counter(.minesHit)
-        minesDisarmed = counter(.minesDisarmed)
-        playtimeCentiseconds = counter(.playtimeCentiseconds)
-        bestCentiseconds = try c.decodeIfPresent(Int.self, forKey: .bestCentiseconds)
-        bestLossProgress = try c.decodeIfPresent(Double.self, forKey: .bestLossProgress)
-    }
-}
-
-/// Local per-difficulty stats store (clears + best time), persisted in
-/// `UserDefaults`. No security beyond the OS's per-app preferences file — a
-/// determined user can edit it, which is fine for a local high-score table.
+/// Per-difficulty stats store (clears + best time + career counters), persisted
+/// in `UserDefaults` with optional cross-device sync via iCloud KVS (see
+/// `CloudStatsStore` / `StatsMerge`). The `ScoreRecord` value type lives in
+/// `ScoreRecord.swift`.
 @MainActor
 public final class Scoreboard: ObservableObject {
     /// THIS device's own records — the source of truth for our counts (every
@@ -102,6 +25,13 @@ public final class Scoreboard: ObservableObject {
 
     private let defaults: UserDefaults
     private let key = "donpa.stats.v1"
+    /// Cache of the last computed cross-device merge (own + others), persisted so
+    /// the combined totals survive going offline — otherwise others' contributions
+    /// would vanish on an airplane / signed-out and the displayed totals would
+    /// collapse to this device's own, then jump back on reconnect. Only written
+    /// while sync is on and the cloud is reachable; read as the display when sync
+    /// is on but the cloud is momentarily unavailable.
+    private let mergedKey = "donpa.stats.merged.v1"
 
     // MARK: Cross-device sync (iCloud KVS)
 
@@ -156,10 +86,17 @@ public final class Scoreboard: ObservableObject {
         self.syncEnabled = syncEnabled
         let own = Self.load(from: defaults, key: key)
         records = own
-        displayRecords = own
+        // Start from the cached merge if sync is on (so an offline launch shows the
+        // last-known combined totals, not just this device's); own-only otherwise.
+        if syncEnabled, let cached = Self.loadIfPresent(from: defaults, key: mergedKey) {
+            displayRecords = cached
+        } else {
+            displayRecords = own
+        }
         // Re-merge when another device syncs or the iCloud account changes.
         cloud?.onExternalChange = { [weak self] in self?.refreshDisplay() }
-        // Initial reconcile: publish our blob and pull everyone's.
+        // Initial reconcile: publish our blob and pull everyone's (refreshes the
+        // cache when reachable; leaves the cached merge in place when offline).
         pushAndMerge()
     }
 
@@ -189,10 +126,22 @@ public final class Scoreboard: ObservableObject {
     }
 
     /// Recompute `displayRecords` = own records merged with the other devices'
-    /// cloud blobs. Falls back to own-only when sync is off/unavailable.
+    /// cloud blobs, and cache it for offline. Behaviour by state:
+    /// - sync OFF (user opted out): show own-only and drop the cache.
+    /// - sync ON but cloud unreachable (offline / signed out): KEEP the last-known
+    ///   cached merge, so combined totals don't collapse on an airplane.
+    /// - sync ON and reachable: re-merge from the cloud and refresh the cache.
     private func refreshDisplay() {
-        guard syncEnabled, let cloud, cloud.isAvailable else {
+        guard syncEnabled else {
             displayRecords = records
+            defaults.removeObject(forKey: mergedKey)  // user opted out → forget others
+            return
+        }
+        guard let cloud, cloud.isAvailable else {
+            // Offline: leave displayRecords showing the cached merge (loaded at
+            // init or last computed online). Only fall back to own-only if there's
+            // no cache yet (never synced).
+            if defaults.data(forKey: mergedKey) == nil { displayRecords = records }
             return
         }
         let blobs = cloud.readAllBlobs()
@@ -202,7 +151,13 @@ public final class Scoreboard: ObservableObject {
             // one corrupt foreign blob can't break the merge.
             others[id] = Self.decodeBlob(data)
         }
-        displayRecords = StatsMerge.merge(mine: records, others: others)
+        let merged = StatsMerge.merge(mine: records, others: others)
+        displayRecords = merged
+        // Cache the merged totals so they persist across launches / offline.
+        let file = StatsFile(version: Self.currentVersion, records: merged)
+        if let data = try? JSONEncoder().encode(file) {
+            defaults.set(data, forKey: mergedKey)
+        }
     }
 
     /// Load the stats, resilient to partial corruption and old formats:
@@ -215,6 +170,15 @@ public final class Scoreboard: ObservableObject {
     private static func load(from defaults: UserDefaults, key: String) -> [String: ScoreRecord] {
         guard let data = defaults.data(forKey: key) else { return [:] }
         return decodeBlob(data)
+    }
+
+    /// Like `load`, but nil when the key is absent (vs an empty table) — so the
+    /// caller can tell "no cached merge yet" from "a cached empty table".
+    private static func loadIfPresent(from defaults: UserDefaults, key: String) -> [String:
+        ScoreRecord]?
+    {
+        guard defaults.data(forKey: key) != nil else { return nil }
+        return load(from: defaults, key: key)
     }
 
     /// Decode a stats blob (local or a cloud per-device blob) into records,
