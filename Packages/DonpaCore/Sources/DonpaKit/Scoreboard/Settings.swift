@@ -30,19 +30,17 @@ public enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The concrete scheme to render with. For `.system` this resolves the live
-    /// OS appearance directly (on macOS the ambient `@Environment(\.colorScheme)`
-    /// is unreliable under a sibling `.preferredColorScheme`), so the SwiftUI
-    /// chrome and the imperatively-colored SpriteKit scene always agree.
+    /// The concrete scheme to render with, so the SwiftUI chrome and the
+    /// imperatively-coloured SpriteKit scene agree. For `.system` this resolves the
+    /// live OS appearance directly.
     public func resolvedScheme(systemFallback: ColorScheme) -> ColorScheme {
         switch self {
         case .light: return .light
         case .dark: return .dark
         case .system:
-            // macOS: the ambient `@Environment(\.colorScheme)` is unreliable
-            // under a sibling `.preferredColorScheme`, so read AppKit directly.
-            // iOS: the ambient value is authoritative once the forced scheme is
-            // cleared, so use the fallback (the view updates when it settles).
+            // macOS: the ambient `@Environment(\.colorScheme)` is unreliable under
+            // a sibling `.preferredColorScheme`, so read AppKit directly. iOS: the
+            // ambient value is authoritative once the forced scheme clears.
             #if canImport(AppKit)
             let match = NSApp?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
             return match == .darkAqua ? .dark : .light
@@ -53,11 +51,9 @@ public enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// Which bottom corner the floating reveal/flag toggle sits in, so it suits the
-/// player's grip. `.left` is the default: a right-handed player taps the board
-/// with the right hand and reaches the toggle with the *other* (left) hand, so
-/// the left corner is the natural place for it. Left-handed players (or anyone
-/// who prefers it) can switch the toggle to the right in Settings.
+/// Which bottom corner the floating reveal/flag toggle sits in. Default `.left`:
+/// a right-handed player taps with the right hand and reaches the toggle with the
+/// left. Switchable in Settings.
 public enum Handedness: String, CaseIterable, Identifiable, Sendable {
     case right
     case left
@@ -85,9 +81,8 @@ public enum GameMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// App language override. `.system` follows the device language; the others
-/// force a specific localization. Applied by writing `AppleLanguages`, which the
-/// system reads at launch — so a change takes effect on the next launch.
+/// App language override. Applied by writing `AppleLanguages`, which the system
+/// reads at launch — so a change takes effect next launch.
 public enum LanguagePreference: String, CaseIterable, Identifiable, Sendable {
     case system
     case english
@@ -106,7 +101,7 @@ public enum LanguagePreference: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Each language shown in its own name (plus "System" localized).
+    /// Each language in its own name (plus localized "System").
     public var label: String {
         switch self {
         case .system: return String(localized: "System", bundle: .module)
@@ -118,8 +113,7 @@ public enum LanguagePreference: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// Persisted user settings (appearance + last board selection), backed by
-/// `UserDefaults`. Remembering the mode and the Modern size/density lets the
-/// picker restore the player's last choice across launches.
+/// `UserDefaults`, so the picker restores the player's last choice across launches.
 @MainActor
 public final class Settings: ObservableObject {
     @Published public var appearance: AppearancePreference {
@@ -137,24 +131,21 @@ public final class Settings: ObservableObject {
     @Published public var classicPreset: ClassicPreset {
         didSet { defaults.set(classicPreset.rawValue, forKey: presetKey) }
     }
-    /// Which bottom corner the floating reveal/flag toggle sits in.
     @Published public var handedness: Handedness {
         didSet { defaults.set(handedness.rawValue, forKey: handednessKey) }
     }
-    /// Whether to show the big-board minimap overview. A user preference (the
-    /// minimap only actually appears when the board also exceeds the viewport).
+    /// Show the big-board minimap overview (only appears when the board also
+    /// exceeds the viewport).
     @Published public var showMinimap: Bool {
         didSet { defaults.set(showMinimap, forKey: showMinimapKey) }
     }
-    /// Whether to sync the scoreboard across the player's devices via iCloud.
-    /// **Opt-in: OFF by default** — scores stay strictly local until the player
-    /// turns it on. (There's no iCloud permission prompt — KVS rides on the system
-    /// sign-in — so this toggle is our own opt-in, not a system grant.)
+    /// Sync the scoreboard across devices via iCloud. Opt-in, off by default — our
+    /// own toggle, not a system grant (KVS rides on the system sign-in).
     @Published public var syncScores: Bool {
         didSet { defaults.set(syncScores, forKey: syncScoresKey) }
     }
-    /// Language override. Persisted as our own preference *and* written to
-    /// `AppleLanguages` so the system picks it up on the next launch.
+    /// Language override. Persisted as our preference and written to
+    /// `AppleLanguages` for the system to pick up next launch.
     @Published public var language: LanguagePreference {
         didSet {
             defaults.set(language.rawValue, forKey: languageKey)
@@ -183,10 +174,8 @@ public final class Settings: ObservableObject {
             defaults.string(forKey: appearanceKey).flatMap(AppearancePreference.init(rawValue:))
             ?? .system
         mode = defaults.string(forKey: modeKey).flatMap(GameMode.init(rawValue:)) ?? .classic
-        // Size raw values were renamed to shirt sizes (small/medium/… → xs/s/…),
-        // so a value persisted under an old name no longer decodes; it falls back
-        // to `.s` (16², the long-time default). Self-healing — the next size pick
-        // persists the new name.
+        // Old size raw names (small/medium/…) no longer decode; fall back to `.s`
+        // (the long-time default). Self-healing — the next pick persists the new name.
         modernSize = defaults.string(forKey: sizeKey).flatMap(BoardSize.init(rawValue:)) ?? .s
         modernDensity =
             defaults.string(forKey: densityKey).flatMap(Density.init(rawValue:)) ?? .normal
@@ -194,8 +183,8 @@ public final class Settings: ObservableObject {
             defaults.string(forKey: presetKey).flatMap(ClassicPreset.init(rawValue:)) ?? .beginner
         handedness =
             defaults.string(forKey: handednessKey).flatMap(Handedness.init(rawValue:)) ?? .left
-        // Default ON: absent key → show. (`bool(forKey:)` is false when missing,
-        // so check presence explicitly to default true.)
+        // Default ON: check presence explicitly, since `bool(forKey:)` is false when
+        // the key is missing.
         showMinimap = defaults.object(forKey: showMinimapKey) as? Bool ?? true
         syncScores = defaults.object(forKey: syncScoresKey) as? Bool ?? false
         language =

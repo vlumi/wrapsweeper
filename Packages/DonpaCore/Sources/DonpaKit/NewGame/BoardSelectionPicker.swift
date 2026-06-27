@@ -3,48 +3,37 @@ import SwiftUI
 
 /// The board-config chooser: a Classic/Modern mode switch over the matching
 /// picker (3 classic presets, or Size × Density for Modern). Binds directly to
-/// `Settings` with no side effects — picking here updates the *pending* choice;
-/// the host decides when to actually start a game (the home hub's Start button).
+/// `Settings` — the pending choice; the host decides when to start a game.
 ///
-/// The difficulty/size rows are `CarouselPicker` drums (name-only cards under a
-/// fixed center window), with a detail line below the selected card showing its
-/// facts (dimensions / mine %) and a short flavor tagline. The drum replaced a
-/// segmented control, whose labels truncated once a row had many or long options
-/// (Size's 7 tiers, "Intermediate"). Mode stays a segmented control — two short
-/// options fit fine.
+/// The difficulty/size rows are `CarouselPicker` drums with a detail/tagline line
+/// below the selected card. Mode stays a segmented control (two short options).
 ///
-/// On macOS it's keyboard-drivable: up/down move between rows (Mode / Size /
-/// Difficulty), left/right cycle the selection within the focused row. The
-/// focused row is highlighted. `focusedRow` is owned by the host (the popup,
-/// which holds the keyboard focus) and clamped here as the row set changes
-/// (Classic has 2 rows, Modern 3). Cycling mutates `Settings`, and each carousel
-/// follows its bound value, so the keys drive the drums without extra wiring.
+/// On macOS it's keyboard-drivable: up/down move between rows, left/right cycle
+/// within the focused row. `focusedRow` is owned by the host and clamped here as
+/// the row set changes (Classic 2 rows, Modern 3). Cycling mutates `Settings` and
+/// each carousel follows its bound value, so the keys drive the drums.
 struct BoardSelectionPicker: View {
     @ObservedObject var settings: Settings
-    /// Index of the keyboard-focused row, or nil when not keyboard-driven (iOS,
-    /// or before the first arrow press). Highlighted when set.
+    /// Keyboard-focused row, or nil when not keyboard-driven (iOS, or before the
+    /// first arrow press).
     var focusedRow: Int?
-    /// Ask the host to move keyboard focus to a row — so clicking a control on
-    /// macOS focuses that row, and the arrow keys then act on it. nil on iOS (no
-    /// keyboard focus there).
+    /// Ask the host to move keyboard focus to a row. nil on iOS.
     var onFocusRow: ((Int) -> Void)?
 
     var body: some View {
         VStack(spacing: 12) {
-            // Row 0: Mode — a plain segmented control (two short options fit).
+            // Row 0: Mode.
             Picker("Mode", selection: $settings.mode) {
                 ForEach(GameMode.allCases) { Text(verbatim: $0.label).tag($0) }
             }
             .labelsHidden()
             .pickerStyle(.segmented)
             .modifier(FocusRing(focused: focusedRow == 0))
-            // Changing the mode (a click on the segmented control) focuses row 0.
             .onChange(of: settings.mode) { _ in onFocusRow?(0) }
 
             switch settings.mode {
             case .classic:
-                // Difficulty (row 1) lines up with Modern's difficulty row across
-                // the mode switch.
+                // Difficulty is row 1, lining up with Modern's difficulty row.
                 carouselRow(
                     1,
                     labels: ClassicPreset.allCases.map(\.label),
@@ -58,7 +47,6 @@ struct BoardSelectionPicker: View {
                     index: densityIndex,
                     detail: settings.modernDensity.detail,
                     tagline: settings.modernDensity.tagline,
-                    // Rank insignia above each label, matching the status-bar patch.
                     symbol: { i in
                         let all = Density.allCases
                         return all.indices.contains(i) ? DensityInsignia.markImage(all[i]) : nil
@@ -83,10 +71,8 @@ struct BoardSelectionPicker: View {
                 labels: labels, selection: index, focused: focusedRow == row, symbol: symbol,
                 onInteract: { onFocusRow?(row) }
             )
-            // Give each label set its own identity, so switching mode (which
-            // swaps a row's options) builds a FRESH carousel that centers on
-            // its current selection — rather than reusing the old scroll view
-            // with a stale offset (ring/value/detail would disagree).
+            // Identity per label set, so switching mode builds a fresh carousel
+            // centred on its selection rather than reusing a stale scroll offset.
             .id(labels)
             HStack(spacing: 6) {
                 Text(verbatim: detail).fontWeight(.bold).foregroundStyle(.primary)
@@ -94,13 +80,10 @@ struct BoardSelectionPicker: View {
                 Text(verbatim: tagline).italic().foregroundStyle(.primary.opacity(0.75))
             }
             .font(.body)
-            // Wrap rather than shrink — so a longer line (e.g. the difficulty
-            // detail) keeps the SAME font size as a shorter one (the size detail),
-            // instead of scaling down to fit one line.
+            // Wrap rather than shrink, so a longer line keeps the same font size.
             .lineLimit(2)
             .multilineTextAlignment(.center)
-            // The line content swaps as the selection scrolls by — keep it from
-            // reflowing the layout while the drum animates.
+            // Fixed width so the swapping content doesn't reflow while the drum animates.
             .frame(maxWidth: .infinity)
             .animation(.snappy, value: detail)
         }
@@ -118,8 +101,8 @@ struct BoardSelectionPicker: View {
         enumIndex(\.modernSize, all: BoardSize.allCases)
     }
 
-    /// A `Binding<Int>` over a `Settings` enum property, mapping case↔offset in
-    /// `allCases` so the carousel can drive it. Out-of-range writes are clamped.
+    /// A `Binding<Int>` over a `Settings` enum, mapping case↔index in `allCases`.
+    /// Out-of-range writes are ignored.
     private func enumIndex<T: Equatable>(
         _ keyPath: ReferenceWritableKeyPath<Settings, T>, all: [T]
     ) -> Binding<Int> {
@@ -137,9 +120,7 @@ private struct FocusRing: ViewModifier {
     let focused: Bool
     func body(content: Content) -> some View {
         content
-            // Same always-present panel as the carousel rows, recoloured on focus
-            // (never resizes), so the focused row reads consistently and the layout
-            // doesn't wobble as keyboard focus moves.
+            // Always-present panel, recoloured on focus (never resizes).
             .padding(6)
             .background(
                 RoundedRectangle(cornerRadius: 12)

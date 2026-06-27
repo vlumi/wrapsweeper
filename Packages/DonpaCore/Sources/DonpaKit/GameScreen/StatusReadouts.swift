@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// A fixed-width 3-digit LED-style readout with a leading glyph (⚑ / ⏱) — the
-/// mine count and the timer in the thin top metrics strip. Shrinks to fit very
-/// narrow windows rather than clipping. The glyph is meaningless to VoiceOver,
-/// so a real `a11y` label is spoken instead.
+/// A fixed-width LED-style readout with a leading glyph (⚑ / ⏱) — the mine count
+/// and timer. Shrinks to fit narrow windows. The glyph is meaningless to
+/// VoiceOver, so a real `a11y` label is spoken instead.
 struct CounterReadout: View {
     let glyph: String
     let value: String
@@ -24,18 +23,15 @@ struct CounterReadout: View {
         .accessibilityValue(Text(verbatim: value))
     }
 
-    /// Flag/mine count: a fixed 3-digit readout (e.g. `010`).
+    /// Flag/mine count, fixed 3-digit (e.g. `010`).
     static func mines(_ value: Int, tint: Color) -> CounterReadout {
         CounterReadout(
             glyph: "⚑", value: String(format: "%03d", max(0, value)),
             a11y: "Mines remaining", tint: tint)
     }
 
-    /// The whole-second timer. Under 1000s it's the classic zero-padded 3-digit
-    /// readout (e.g. `047`) — the nostalgic look for normal games. Beyond that
-    /// (long huge-board games easily exceed 999s) it rolls over to `m:ss`
-    /// (e.g. `17:23`) instead of sticking at 999. Capped at 99:59 so the field
-    /// can't grow without bound.
+    /// Whole-second timer: zero-padded 3-digit (e.g. `047`) under 1000s, then `m:ss`
+    /// instead of sticking at 999. Capped at 99:59.
     static func time(centiseconds: Int, tint: Color) -> CounterReadout {
         let seconds = max(0, centiseconds / 100)
         let value: String
@@ -56,13 +52,9 @@ struct ProgressReadout: View {
     let tint: Color
 
     var body: some View {
-        // Floor, not round-to-nearest — matching the scoreboard's "Best %": you
-        // haven't reached 4% until you've actually cleared 4%, so 3.6% reads "3%".
-        // (Rounding here made the live readout disagree with the scoreboard.)
+        // Floor, matching the scoreboard's "Best %" (so 3.6% reads "3%").
         let pct = Int((progress * 100).rounded(.down))
-        // Zero-pad to a fixed 3-digit field (e.g. `072%`, `100%`) so the readout's
-        // width never jitters as the value crosses 1→2→3 digits — matching the
-        // zero-padded 3-digit mine/timer counters.
+        // Zero-pad to 3 digits so the width never jitters across 1→2→3 digits.
         return HStack(spacing: 4) {
             Image(systemName: "chart.bar.fill").font(.body)
             Text(verbatim: String(format: "%03d%%", pct))

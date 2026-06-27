@@ -1,8 +1,7 @@
 import SwiftUI
 
 /// App "About": name, version, and credits. Shown from the title screen's "i"
-/// button (both platforms) and, on macOS, also the app menu ("About Donpa
-/// Squad") — one shared view so the entry points never drift.
+/// button and, on macOS, the app menu — one shared view.
 public struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -11,8 +10,7 @@ public struct AboutView: View {
 
     private var palette: Palette { Palette.resolved(for: colorScheme) }
 
-    /// `CFBundleShortVersionString` (build) read from the main bundle, e.g.
-    /// "0.1.0 (1)". Falls back gracefully if absent.
+    /// "short (build)" from the main bundle, e.g. "0.1.0 (1)".
     private var versionString: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "—"
@@ -20,28 +18,24 @@ public struct AboutView: View {
         return "\(short) (\(build))"
     }
 
-    /// The git commit the build was stamped with (`GitCommitSHA`, injected by
-    /// Scripts/embed-commit-sha.sh at build time). Absent on builds made before
-    /// that script existed (e.g. 0.1.0 (2)) — hidden when missing rather than
-    /// showing a placeholder.
+    /// The build's git commit (`GitCommitSHA`, injected at build time). Absent on
+    /// older builds — hidden when missing.
     private var commitSHA: String? {
         Bundle.main.infoDictionary?["GitCommitSHA"] as? String
     }
 
-    /// Whether the UI is in Japanese. The app name and author name are the same
-    /// entities written in two scripts (not translated text), so both pick their
-    /// form from this rather than going through the string catalog.
+    /// Whether the UI is in Japanese. The app/author names are the same entities in
+    /// two scripts (not translated text), so they pick their form from this rather
+    /// than the string catalog.
     private var isJapanese: Bool {
         Bundle.module.preferredLocalizations.first?.hasPrefix("ja") ?? false
     }
 
-    /// App name and author name in the script matching the UI: kana/kanji in
-    /// Japanese, romaji elsewhere. Symmetric local choices, not catalog strings.
+    /// App/author names in the script matching the UI.
     private var appName: String { isJapanese ? "ドンパ隊" : "Donpa Squad" }
     private var authorName: String { isJapanese ? "三﨑ヴィッレ" : "Ville Misaki" }
 
-    /// Measured natural height of the content, for the iOS fit-content detent
-    /// (same compact-card treatment as the Settings / Scores sheets).
+    /// Measured content height, for the iOS fit-content detent.
     @State private var contentHeight: CGFloat = 0
 
     public var body: some View {
@@ -50,7 +44,7 @@ public struct AboutView: View {
             .accessibilityElement(children: .contain)
     }
 
-    /// The shared credits content (no chrome / Done button).
+    /// The shared credits content (no chrome).
     private var content: some View {
         VStack(spacing: 16) {
             appIcon
@@ -60,7 +54,7 @@ public struct AboutView: View {
 
             VStack(spacing: 4) {
                 Text(verbatim: appName).font(.title2.bold())
-                // Show the kana subtitle only when the title isn't already kana.
+                // Kana subtitle only when the title isn't already kana.
                 if !isJapanese {
                     Text(verbatim: "ドンパ隊").font(.title3).foregroundStyle(.secondary)
                 }
@@ -71,8 +65,7 @@ public struct AboutView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            // Version in a rounded badge — the same pill language as the in-game
-            // config badge, so About reads as part of the app, not a system sheet.
+            // Version pill, matching the in-game config badge.
             Text("Version \(versionString)", bundle: .module)
                 .font(.footnote.monospaced().weight(.semibold))
                 .foregroundStyle(palette.counter)
@@ -81,8 +74,7 @@ public struct AboutView: View {
                 .background(Capsule().fill(palette.counter.opacity(0.15)))
                 .overlay(Capsule().stroke(palette.counter.opacity(0.3), lineWidth: 1))
 
-            // The build's git commit, when stamped in — small and quiet, for
-            // matching a TestFlight/App Store build back to its source.
+            // The build's git commit, for matching a build back to its source.
             if let sha = commitSHA {
                 Text(verbatim: sha)
                     .font(.caption2.monospaced())
@@ -107,9 +99,8 @@ public struct AboutView: View {
         }
     }
 
-    /// iOS wraps the content in a NavigationStack with a toolbar "Done" and a
-    /// fit-content detent — matching the Settings / Scores sheets. macOS keeps the
-    /// inline layout with a bottom Done button (right in a macOS sheet).
+    /// iOS: NavigationStack with a toolbar "Done" + fit-content detent. macOS:
+    /// inline layout with a bottom Done button.
     @ViewBuilder private var chrome: some View {
         #if os(iOS)
         NavigationStack {
@@ -157,8 +148,8 @@ public struct AboutView: View {
     }
     #endif
 
-    /// The app icon from the asset catalog. The 1024 icon image is the only one
-    /// directly loadable by name; the `AppIcon` set itself isn't a UI image.
+    /// The app icon, dug out of the bundle (the `AppIcon` set isn't directly
+    /// loadable as a UI image).
     @ViewBuilder private var appIcon: some View {
         #if os(macOS)
         if let nsImage = NSApplication.shared.applicationIconImage {

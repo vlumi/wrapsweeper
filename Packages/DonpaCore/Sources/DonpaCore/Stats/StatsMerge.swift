@@ -2,31 +2,23 @@ import Foundation
 
 /// The pure, deterministic merge at the heart of cross-device scoreboard sync.
 ///
-/// Each device owns one blob of `records` in the cloud, keyed by its `DeviceID`,
-/// holding ONLY its own counts (every `DeviceCounter.mine`; `othersTotal` in a
-/// stored blob is ignored on read, so there's no transitive double-counting).
-/// To display the cross-device view, a device merges its own records with every
-/// *other* device's blob:
+/// Each device owns one cloud blob keyed by its `DeviceID`, holding ONLY its own
+/// counts (a stored `othersTotal` is ignored on read, so no double-counting). To
+/// display the cross-device view, a device merges its own records with every
+/// other device's blob:
 ///
-/// - **Cumulative counters** (wins, gamesPlayed, tiles, …): `mine` stays this
-///   device's own precise count; `othersTotal` becomes the sum of every other
-///   device's `mine`. So `total = mine + Σ others` — conflict-free, order- and
-///   duplicate-independent (re-reading the same blob can't inflate it), and
-///   concurrent play on two devices Just Works.
-/// - **"Best" fields** (bestCentiseconds, bestLossProgress): idempotent
-///   `min`/`max` across ALL blobs (mine + others), nil-safe.
+/// - **Cumulative counters**: `mine` stays this device's count; `othersTotal`
+///   becomes Σ of every other device's `mine`. So `total = mine + Σ others` —
+///   conflict-free, order- and duplicate-independent.
+/// - **"Best" fields**: idempotent `min`/`max` across all blobs, nil-safe.
 ///
-/// Pure: no I/O, no clock, no globals — just (mine, others) → merged. That's what
-/// makes it unit-testable headless (the high-value tests; KVS itself can only be
-/// verified on real devices).
+/// Pure (no I/O, no clock), so it's unit-testable headless.
 enum StatsMerge {
-    /// Merge this device's records with the other devices' record blobs into the
-    /// display records. `mine` is this device's own table; `others` is keyed by
-    /// the other devices' ids (this device's own id must NOT be in `others`).
+    /// Merge this device's records (`mine`) with the other devices' blobs
+    /// (`others`, which must NOT contain this device's own id).
     static func merge(
         mine: [String: ScoreRecord], others: [String: [String: ScoreRecord]]
     ) -> [String: ScoreRecord] {
-        // Every config key that appears anywhere.
         var configKeys = Set(mine.keys)
         for table in others.values { configKeys.formUnion(table.keys) }
 

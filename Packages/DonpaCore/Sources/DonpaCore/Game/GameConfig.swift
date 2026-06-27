@@ -1,17 +1,15 @@
-/// A fully-specified, playable board configuration — the single source of board
-/// dimensions, mine count, topology, display label, and (critically) the
-/// **stable persistence key** used by the scoreboard.
+/// A fully-specified, playable board configuration — the single source of
+/// dimensions, mine count, topology, display label, and the stable persistence
+/// key used by the scoreboard.
 ///
-/// Two modes are first-class:
-/// - **Classic** — the three original Minesweeper presets, exact dims/mines.
-/// - **Modern** — a curated `Size × Density` grid (square boards; density is a
-///   mine percentage, so size and difficulty compose independently).
+/// Two modes: **Classic** (the three original presets) and **Modern** (a curated
+/// `Size × Density` grid; density is a mine percentage so size and difficulty
+/// compose independently).
 ///
-/// Future "epic" axes (hex shape, wrapped edges) are represented in the storage
-/// key *now* with explicit defaults (`sq`, `bounded`), so adding them later
-/// never invalidates existing keys — no migration. The key also encodes the
-/// concrete geometry (`WxH|mN`), so re-tuning a tier later simply produces a new
-/// key (a new scoreboard entry) rather than silently re-pointing old scores.
+/// Future axes (hex shape, wrapped edges) are encoded in the storage key now with
+/// explicit defaults (`sq`, `bounded`), so adding them never invalidates existing
+/// keys. The key also encodes concrete geometry (`WxH|mN`), so re-tuning a tier
+/// produces a new key (new scoreboard entry) rather than re-pointing old scores.
 
 import Foundation
 
@@ -41,8 +39,7 @@ public enum ClassicPreset: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// Concrete facts for the selected preset, shown under the picker carousel:
-    /// board dimensions and mine count.
+    /// Board dimensions and mine count, shown under the picker carousel.
     public var detail: String {
         let d = dimensions
         return String(
@@ -50,8 +47,7 @@ public enum ClassicPreset: String, CaseIterable, Sendable, Codable {
             comment: "Classic preset detail: WIDTH×HEIGHT · N mines")
     }
 
-    /// A short, playful tagline conveying how the preset *feels* to play — shown
-    /// under the picker carousel alongside `detail`.
+    /// A short, playful tagline shown under the picker carousel.
     public var tagline: String {
         switch self {
         case .beginner: return String(localized: "Boots on, recruit", bundle: .module)
@@ -61,15 +57,10 @@ public enum ClassicPreset: String, CaseIterable, Sendable, Codable {
     }
 }
 
-/// Modern board sizes (square), named as shirt sizes (XS…XXXL). Side lengths
-/// chosen via solver analysis. XS–XL (9…100) are the "sane" playable tiers. XXL
-/// (300×300 = 90k cells) is the epic-but-finishable summit — a few resumable
-/// sessions for a strong player. XXXL (1000×1000 = 1M cells) is the sandbox flex:
-/// effectively unwinnable (~15–40h even on the easiest density, with no undo), a
-/// "we go to a million" spectacle rather than a tuned challenge. Both XXL/XXXL are
-/// far larger than any viewport — panned/zoomed via the minimap, and the stress
-/// case for viewport culling. Labels show verbatim in EN/FI; Japanese uses size
-/// words (極小…超巨大) instead of the Latin letters.
+/// Modern board sizes (square), shirt-sized XS…XXXL; side lengths chosen via
+/// solver analysis. XS–XL (9…100) are the playable tiers; XXL (300²) is the
+/// epic-but-finishable summit; XXXL (1000² = 1M cells) is effectively unwinnable
+/// and the stress case for viewport culling.
 public enum BoardSize: String, CaseIterable, Sendable, Codable {
     case xs, s, m, l, xl, xxl, xxxl
 
@@ -97,16 +88,14 @@ public enum BoardSize: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// Board dimensions for the selected size, shown under the picker carousel.
+    /// Board dimensions, shown under the picker carousel.
     public var detail: String {
         String(
             localized: "\(side)×\(side)", bundle: .module,
             comment: "Board size detail: SIDE×SIDE")
     }
 
-    /// A short, playful tagline conveying the *commitment* a size demands — from a
-    /// coffee-break sweep up to the effectively-endless XXXL. Shown under the
-    /// picker carousel alongside `detail`.
+    /// A short, playful tagline shown under the picker carousel.
     public var tagline: String {
         switch self {
         case .xs: return String(localized: "Over before your coffee", bundle: .module)
@@ -121,7 +110,7 @@ public enum BoardSize: String, CaseIterable, Sendable, Codable {
 }
 
 /// Modern difficulty = mine density (fraction of cells). Tiers chosen via solver
-/// analysis to ramp from fair (Easy) to near-unsolvable-by-logic (Insane).
+/// analysis, from fair (easy) to near-unsolvable-by-logic (insane).
 public enum Density: String, CaseIterable, Sendable, Codable {
     case easy, normal, hard, brutal, insane
 
@@ -135,10 +124,8 @@ public enum Density: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// Display labels are sapper-themed skill tiers (ascending difficulty),
-    /// tying difficulty to the game's combat-engineer character. These are
-    /// display-only — the `rawValue` (easy/normal/…) is unchanged, so scoreboard
-    /// keys keyed on it are unaffected.
+    /// Sapper-themed skill tiers (ascending). Display-only — the `rawValue`
+    /// (easy/normal/…) is unchanged, so scoreboard keys are unaffected.
     public var label: String {
         switch self {
         case .easy: return String(localized: "Trainee", bundle: .module)
@@ -149,16 +136,14 @@ public enum Density: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// Mine density as a whole percent, shown under the picker carousel. (Density
-    /// has no fixed board size — that's the orthogonal Size axis.)
+    /// Mine density as a whole percent, shown under the picker carousel.
     public var detail: String {
         String(
             localized: "\(Int((fraction * 100).rounded()))% mines", bundle: .module,
             comment: "Modern difficulty detail: N% mines")
     }
 
-    /// A short, playful tagline conveying how punishing a density plays — from
-    /// room-to-breathe up to abandon-hope. Shown under the picker carousel.
+    /// A short, playful tagline shown under the picker carousel.
     public var tagline: String {
         switch self {
         case .easy: return String(localized: "Easy does it", bundle: .module)
@@ -169,11 +154,8 @@ public enum Density: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// Ascending rank insignia for the tier, shown instead of the (long, hard-to-
-    /// localize) text in the compact difficulty picker — so the rank reads at a
-    /// glance, language-free. The `label` stays the accessibility name. Lower
-    /// ranks are enlisted chevron stripes; the top two are officer marks (a star,
-    /// then a star in a laurel wreath for the apex).
+    /// Ascending rank insignia, shown language-free in the compact difficulty
+    /// picker; `label` stays the accessibility name.
     public enum Insignia: Sendable {
         case chevrons(Int)  // N stacked stripes
         case star  // single officer star
@@ -190,8 +172,8 @@ public enum Density: String, CaseIterable, Sendable, Codable {
     }
 }
 
-/// Topology axes — only one value each ships now; the rest exist so the storage
-/// key can name them explicitly and stay forward-compatible.
+/// Topology axes — one value each ships now; named in the storage key for
+/// forward-compatibility.
 public enum BoardShape: String, Sendable { case square = "sq" }
 public enum BoardEdges: String, Sendable { case bounded }
 
@@ -219,14 +201,13 @@ public enum GameConfig: Hashable, Sendable, Codable {
     }
 
     /// The board geometry to play on. Square + bounded today; the shape/edges
-    /// axes will select hex/wrapped topologies later (all dense rectangles —
-    /// hence `RectangularTopology`, which `Board` requires for flat storage).
+    /// axes select other topologies later (all `RectangularTopology`, which
+    /// `Board` requires for flat storage).
     public var topology: any RectangularTopology {
         BoundedSquareTopology(width: width, height: height)
     }
 
-    /// Human-facing label. Classic configs keep their nostalgic names; modern
-    /// configs read as "Size · Density".
+    /// Human-facing label; modern configs read as "Size · Density".
     public var label: String {
         switch self {
         case .classic(let preset):
@@ -242,8 +223,7 @@ public enum GameConfig: Hashable, Sendable, Codable {
         return nil
     }
 
-    /// The Modern difficulty tier, or nil for a Classic config. Lets the chrome
-    /// show the rank insignia for the density part of a Modern config.
+    /// The Modern difficulty tier, or nil for a Classic config.
     public var modernDensity: Density? {
         if case .modern(_, let density) = self { return density }
         return nil

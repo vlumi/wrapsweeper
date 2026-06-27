@@ -7,20 +7,18 @@ import UIKit
 import AppKit
 #endif
 
-/// The high-score table: clears + best time per config. Classic configs always
-/// show; Modern configs appear once they've been played (to avoid 15 empty
-/// rows). Stored by geometry, so re-tuned tiers would list as separate entries.
+/// The high-score table: clears + best time per config. Classic always shows;
+/// Modern appears once played (to avoid 15 empty rows). Stored by geometry.
 struct ScoreboardView: View {
     @ObservedObject var scoreboard: Scoreboard
     @ObservedObject var settings: Settings
-    /// Size of the presenting window, so the sheet grows with it and never
-    /// overflows. `.zero` → fall back to the screen.
+    /// Presenting window size, so the sheet grows with it. `.zero` → use the screen.
     var available: CGSize = .zero
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingReset = false
 
-    /// Modern configs the player has played at all — has a win *or* a recorded
-    /// best progress from a loss (so partially-cleared hard boards still show).
+    /// Modern configs the player has played at all — a win or a recorded best
+    /// progress from a loss.
     private var playedModern: [GameConfig] {
         GameConfig.modernConfigs.filter { scoreboard.record(for: $0) != nil }
     }
@@ -42,17 +40,15 @@ struct ScoreboardView: View {
             }
     }
 
-    /// iOS: a NavigationStack with Reset / Done as nav-bar items (chrome, not
-    /// content) over the scrolling list. macOS: the inline title + bottom buttons,
-    /// window-sized so the sheet grows with the window without overflowing.
+    /// iOS: a NavigationStack with Reset / Done nav-bar items over the list. macOS:
+    /// inline title + bottom buttons, window-sized.
     @ViewBuilder private var sheetChrome: some View {
         #if os(iOS)
         NavigationStack {
             content
                 .padding(.vertical, 8)
                 .padding(.horizontal, 14)
-                // Sync control pinned to the bottom so it's always visible, not
-                // buried under the scrolling stats.
+                // Sync control pinned to the bottom, not buried under the stats.
                 .safeAreaInset(edge: .bottom) {
                     VStack(spacing: 0) {
                         Divider()
@@ -89,7 +85,6 @@ struct ScoreboardView: View {
             content  // sizes to content; capped by the sheet's maxHeight below
 
             Divider()
-            // Footer: sync control on the left, Reset / Done on the right.
             HStack(spacing: 12) {
                 SyncFooterControl(settings: settings, scoreboard: scoreboard)
                 Spacer()
@@ -109,19 +104,17 @@ struct ScoreboardView: View {
         }
         .padding(.vertical, 24)
         .padding(.horizontal, 14)  // rest of the side margin lives on the rows
-        // Width is driven firmly (a sheet otherwise shrinks to content and never
-        // widens for two columns). Height is a CAP only — the sheet sizes to its
-        // content and only grows to `sheetHeight` (then the scores column scrolls),
-        // so a short table doesn't leave a tall empty sheet.
+        // Width is driven firmly (else the sheet shrinks to content and won't widen
+        // for two columns). Height is a cap only — the sheet sizes to content and
+        // only grows to `sheetHeight` (then the scores column scrolls).
         .frame(width: sheetWidth)
         .frame(maxHeight: sheetHeight)
         #endif
     }
 
     #if os(macOS)
-    /// Container size to bound against: the presenting window, or the screen as a
-    /// fallback before the window size is known. (macOS only — iOS uses a
-    /// NavigationStack sheet that sizes itself.)
+    /// Container to bound against: the presenting window, or the screen as a
+    /// fallback before its size is known.
     private var container: CGSize {
         if available != .zero { return available }
         let h = NSScreen.main?.visibleFrame.height ?? 800
@@ -129,33 +122,27 @@ struct ScoreboardView: View {
         return CGSize(width: w, height: h)
     }
 
-    /// Tall in a big window, short in a small one — bounded so it never overflows.
+    /// Tall in a big window, short in a small one, bounded so it never overflows.
     private var sheetHeight: CGFloat { min(1100, max(380, container.height * 0.94)) }
-    /// Likewise for width, so a narrow window can't push the sheet off the sides.
-    /// Cap is comfortably past the two-column breakpoint so a roomy window gives
-    /// Career + High Scores side by side; a small window still shrinks to fit.
+    /// Cap past the two-column breakpoint so a roomy window gives two columns; a
+    /// small window still shrinks to fit.
     private var sheetWidth: CGFloat { min(820, max(300, container.width * 0.9)) }
     #endif
 
-    /// Gutter reserved to the right of the whole table so the scroll indicator
-    /// sits clear of it — rows *and* their divider hairlines end before the bar.
+    /// Gutter at the right of the table so the scroll indicator sits clear of the
+    /// rows and their dividers.
     private static let scrollbarGutter: CGFloat = 16
-    /// Horizontal breathing room inside each row, so the record-highlight band
-    /// (and the rows generally) aren't flush against the text. Pulled in from the
-    /// sheet's outer padding so the overall margin stays about the same.
+    /// Horizontal breathing room inside each row (and the record-highlight band).
     private static let rowInset: CGFloat = 10
 
-    /// One scrolling sheet (no tabs): Career first, then High Scores, then the
-    /// sync footer. On a wide enough sheet the two stat groups sit side by side;
-    /// otherwise they stack. (A future Achievements section slots in after Career.)
+    /// One scrolling sheet: Career, then High Scores, then the sync footer. Two
+    /// columns when wide enough, otherwise stacked.
     @ViewBuilder private var content: some View {
-        // Decide columns from the known layout width (no GeometryReader — that's
-        // greedy on height and would force a tall, half-empty sheet). The sheet
-        // sizes to content; the scores column scrolls only once it exceeds the cap.
+        // Decide columns from the known layout width (no GeometryReader — greedy on
+        // height, forcing a tall half-empty sheet).
         if layoutWidth >= Self.twoColumnMinWidth {
-            // Wide: Career is a fixed column (short, static); only the High Scores
-            // ROWS scroll — its header stays pinned above them. Both top-aligned so
-            // a short table doesn't stretch.
+            // Wide: Career is a fixed column; only the High Scores rows scroll, its
+            // header pinned. Top-aligned so a short table doesn't stretch.
             HStack(alignment: .top, spacing: 28) {
                 careerSection
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,8 +169,8 @@ struct ScoreboardView: View {
         }
     }
 
-    /// Width to base the column decision on. macOS knows the sheet width; iOS uses
-    /// the presenting window (the sheet fills it on iPhone, is narrower on iPad).
+    /// Width for the column decision: the sheet width (macOS) or presenting window
+    /// (iOS).
     private var layoutWidth: CGFloat {
         #if os(macOS)
         return sheetWidth
@@ -192,13 +179,12 @@ struct ScoreboardView: View {
         #endif
     }
 
-    /// Below this width the two stat groups stack instead of going side-by-side.
-    /// Generous so two columns only appear when each is comfortably wide (no label
-    /// wrapping like "Aloittelija"/"Keskitaso").
+    /// Below this width the two stat groups stack. Generous so each column is
+    /// comfortably wide before splitting (avoids label wrapping).
     private static let twoColumnMinWidth: CGFloat = 680
 
-    /// Lifetime totals. Deliberately NO win rate / loss ratio — raw, neutral counts
-    /// (a win% only discourages); honest but never framed as "you lose most games".
+    /// Lifetime totals. Deliberately no win rate — raw, neutral counts (a win%
+    /// only discourages).
     @ViewBuilder private var careerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Tour of Duty")
@@ -227,8 +213,8 @@ struct ScoreboardView: View {
         }
     }
 
-    /// Per-board best time + clears, with the section header (used in the narrow
-    /// single-scroll layout, where the header scrolls with the rows).
+    /// Score tables with the section header — the narrow layout, where the header
+    /// scrolls with the rows.
     @ViewBuilder private var scoresSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Commendations")
@@ -236,8 +222,8 @@ struct ScoreboardView: View {
         }
     }
 
-    /// Just the score tables (no header) — for the wide layout where the header is
-    /// pinned above the scroll. Classic always shows; Modern once played.
+    /// Score tables without the header — the wide layout, header pinned above the
+    /// scroll. Classic always shows; Modern once played.
     @ViewBuilder private var scoresRows: some View {
         VStack(alignment: .leading, spacing: 16) {
             section("Classic", configs: GameConfig.classicConfigs)
@@ -247,7 +233,6 @@ struct ScoreboardView: View {
         }
     }
 
-    /// A bold section heading for the Career / High Scores groups.
     private func sectionHeader(_ title: LocalizedStringKey) -> some View {
         Text(title, bundle: .module)
             .font(.title3.bold())
@@ -264,12 +249,12 @@ struct ScoreboardView: View {
         .padding(.horizontal, Self.rowInset)
     }
 
-    /// Coarse human duration for lifetime playtime (hours/minutes, not the precise
-    /// A count formatted with the locale's grouping separator (e.g. `1,234,567` /
-    /// `1 234 567`), for the lifetime totals which can run large.
+    /// A count with the locale's grouping separator (e.g. `1,234,567`), for the
+    /// large lifetime totals.
     static func grouped(_ value: Int) -> String { value.formatted(.number) }
 
-    /// per-game m:ss.t). E.g. `14h 23m`, `45m`, `< 1m`.
+    /// Coarse human duration for lifetime playtime (hours/minutes). E.g. `14h 23m`,
+    /// `45m`, `< 1m`.
     static func durationLabel(_ centiseconds: Int) -> String {
         let totalMinutes = centiseconds / 6000
         let h = totalMinutes / 60
@@ -312,9 +297,8 @@ struct ScoreboardView: View {
 
     private func row(_ config: GameConfig) -> some View {
         HStack {
-            // Modern rows: the difficulty rank insignia in a fixed-width column
-            // (so the size letters line up), then the size name. Classic rows show
-            // their preset name.
+            // Modern rows: rank insignia in a fixed-width column (so size letters
+            // line up), then the size name. Classic rows show their preset name.
             if let size = config.modernSize, let density = config.modernDensity {
                 DensityInsignia.image(density)
                     .resizable().scaledToFit().frame(width: 30, height: 20)
@@ -328,9 +312,7 @@ struct ScoreboardView: View {
                 .frame(width: 56, alignment: .trailing)
             Group {
                 if let progress = scoreboard.bestProgress(for: config) {
-                    // Floor, not round: a 99.7%-cleared loss must not read "100%"
-                    // (which would be indistinguishable from an actual clear).
-                    // Only a genuine 1.0 shows 100%.
+                    // Floor, not round: a 99.7%-cleared loss must not read "100%".
                     Text("\(Int((progress * 100).rounded(.down)))%").font(.body.monospaced())
                 } else {
                     Text("—").foregroundStyle(.secondary)
@@ -351,8 +333,8 @@ struct ScoreboardView: View {
         .background(rowHighlight(for: config))
     }
 
-    /// Tinted band behind the row whose record was just set, so a fresh best
-    /// stands out when the scoreboard opens. Persists until the next game ends.
+    /// Tinted band behind the row whose record was just set. Persists until the
+    /// next game ends.
     @ViewBuilder private func rowHighlight(for config: GameConfig) -> some View {
         if scoreboard.recentRecord == config.storageKey {
             RoundedRectangle(cornerRadius: 8)

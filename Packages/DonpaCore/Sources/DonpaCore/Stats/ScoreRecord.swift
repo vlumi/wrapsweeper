@@ -1,31 +1,21 @@
 import Foundation
 
-/// Per-config stats. "Best" fields are idempotent merges (min/max); the cumulative
-/// counts are `DeviceCounter`s so they sum correctly across devices. Counts are
-/// tracked per-config here even though several are only *displayed* as global
-/// totals (summed across configs) — keeping the per-config breakdown for possible
-/// per-tier views later, at no extra cost.
+/// Per-config stats. "Best" fields are idempotent merges (min/max); cumulative
+/// counts are `DeviceCounter`s so they sum correctly across devices.
 public struct ScoreRecord: Equatable, Sendable {
-    /// Games cleared. (Displayed per-config in the scoreboard table.)
     public var wins: DeviceCounter
-    /// Games finished (won or lost). Never shown as a ratio with `wins` — a
-    /// win-rate readout would just discourage; the raw totals stay neutral.
+    /// Games finished (won or lost). Deliberately never shown as a win-rate ratio.
     public var gamesPlayed: DeviceCounter
-    /// Safe cells revealed across all games on this config.
     public var tilesOpened: DeviceCounter
-    /// Flags placed (each flag action).
     public var flagsPlaced: DeviceCounter
-    /// Mines detonated (losing moves).
     public var minesHit: DeviceCounter
-    /// Mines correctly flagged at game end ("disarmed") — a positive accuracy stat.
+    /// Mines correctly flagged at game end ("disarmed").
     public var minesDisarmed: DeviceCounter
-    /// Time spent in games, in centiseconds.
     public var playtimeCentiseconds: DeviceCounter
-    /// Fastest winning time in centiseconds (hundredths), or nil if none yet.
+    /// Fastest winning time in centiseconds, or nil if none yet.
     public var bestCentiseconds: Int?
-    /// Best fraction (0...1) of safe cells revealed in a *losing* game. A win is
-    /// implicitly 100%, so this only tracks losses; `wins.total > 0` means 100% at
-    /// display time. Optional so old saved records (without it) decode cleanly.
+    /// Best fraction (0...1) of safe cells revealed in a *losing* game; a win is
+    /// implicitly 100% (`wins.total > 0`). Optional so old records decode.
     public var bestLossProgress: Double?
 
     public init(
@@ -53,17 +43,13 @@ extension ScoreRecord: Codable {
         case playtimeCentiseconds, bestCentiseconds, bestLossProgress
     }
 
-    /// Tolerant decode. **Best time / best %% are idempotent (min/max) fields, not
-    /// per-device — they decode unchanged, so existing high scores SURVIVE.** The
-    /// cumulative counters use `try?`: a missing field (older save) *or* a legacy
-    /// scalar `wins` (a bare Int from before per-device counters) both yield an
-    /// empty counter, so the counts reset to zero without dropping the record (and
-    /// its preserved high scores). No migration code to carry forever.
+    /// Tolerant decode: best time / best %% are idempotent (min/max) fields, so
+    /// they decode unchanged and existing high scores survive. Counters use `try?`
+    /// — a missing field or a legacy scalar `wins` (bare Int) yields an empty
+    /// counter, resetting counts to zero rather than dropping the record.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         func counter(_ key: CodingKeys) -> DeviceCounter {
-            // `try?` so a legacy scalar (old bare-Int `wins`) or missing field
-            // yields an empty counter rather than throwing and dropping the record.
             (try? c.decode(DeviceCounter.self, forKey: key)) ?? .init()
         }
         wins = counter(.wins)
@@ -78,6 +64,5 @@ extension ScoreRecord: Codable {
     }
 }
 
-/// Local per-difficulty stats store (clears + best time), persisted in
-/// `UserDefaults`. No security beyond the OS's per-app preferences file — a
-/// determined user can edit it, which is fine for a local high-score table.
+// Local per-difficulty stats are persisted in `UserDefaults` — no security
+// beyond the OS preferences file, which is fine for a local high-score table.

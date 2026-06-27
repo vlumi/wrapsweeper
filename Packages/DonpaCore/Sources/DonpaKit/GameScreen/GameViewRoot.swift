@@ -2,28 +2,23 @@ import DonpaCore
 import SwiftUI
 
 /// The full game surface: a status bar over a pannable/zoomable SpriteKit board.
-/// Hosts a single long-lived `BoardScene`, which owns all board input (tap,
-/// flag, chord, pan, zoom) natively; this view only renders chrome.
-///
-/// Thin wrapper that owns the stores and applies the user's appearance choice.
-/// `.preferredColorScheme` is applied HERE so the descendant `GameContent` reads
-/// the resolved scheme via `@Environment(\.colorScheme)` — a view cannot observe
-/// a scheme it forces on itself, so the read must happen below the modifier.
+/// A thin wrapper that owns the stores and hosts a single long-lived `BoardScene`
+/// (which owns all board input natively). `.preferredColorScheme` is applied HERE
+/// so the descendant `GameContent` can read the resolved scheme — a view can't
+/// observe a scheme it forces on itself, so the read must be below the modifier.
 public struct GameView: View {
     @StateObject private var viewModel: GameViewModel
     @StateObject private var scoreboard: Scoreboard
     @StateObject private var settings: Settings
     @ObservedObject private var navigator: Navigator
     @State private var scene: BoardScene
-    /// Brief in-app splash on first launch, mirroring the OS launch image so its
-    /// hand-off into the title is seamless. (The OS launch screen itself can't be
-    /// delayed — it's pre-process — so this app-controlled splash is what lingers.)
+    /// Brief in-app splash mirroring the OS launch image (which can't be delayed,
+    /// being pre-process) so the hand-off into the title is seamless.
     @State private var showSplash = true
 
     public init(config: GameConfig = .classic(.beginner)) {
-        // The scoreboard can sync across the player's devices via iCloud KVS, gated
-        // by the `syncScores` setting (opt-in, OFF by default); the cloud store also
-        // no-ops when signed out, so it's local-only until explicitly enabled.
+        // Scoreboard iCloud sync is gated by `syncScores` (opt-in, OFF by default);
+        // the cloud store also no-ops when signed out.
         let syncOn = UserDefaults.standard.object(forKey: "donpa.syncScores") as? Bool ?? false
         self.init(
             viewModel: GameViewModel(config: config),
@@ -32,8 +27,8 @@ public struct GameView: View {
             navigator: Navigator())
     }
 
-    /// Use this when the host (e.g. the macOS menu bar) needs to drive the same
-    /// view model / navigation that the board renders.
+    /// For a host (e.g. the macOS menu bar) that drives the same view model /
+    /// navigation the board renders.
     public init(
         viewModel: GameViewModel, scoreboard: Scoreboard, settings: Settings,
         navigator: Navigator
@@ -50,15 +45,13 @@ public struct GameView: View {
             GameContent(
                 viewModel: viewModel, scoreboard: scoreboard, settings: settings,
                 navigator: navigator, scene: scene)
-            // The title fades out over the (always-mounted) board. The fade is
-            // scoped to this overlay alone via `.animation(_:value:)` — an
-            // imperative `withAnimation` here would also animate the chrome's
-            // first layout underneath, making the status bar visibly settle.
+            // Title fade scoped to this overlay via `.animation(_:value:)` — an
+            // imperative `withAnimation` would also animate the chrome's first
+            // layout, making the status bar visibly settle.
             TitleScreen(
                 settings: settings,
-                // "Press start": resume the saved game if there is one, else open
-                // the New Game config popup. The save lives in GameContent, so the
-                // tap just signals intent (a counter bump) and GameContent decides.
+                // "Press start": GameContent decides resume vs. New Game (it owns
+                // the save), so the tap just signals intent via a counter bump.
                 onStart: { navigator.startRequested &+= 1 },
                 onSettings: { navigator.showingSettings = true },
                 onScores: { navigator.showingScores = true },
@@ -69,11 +62,8 @@ public struct GameView: View {
             .animation(.easeInOut(duration: 0.3), value: navigator.showingTitle)
             .zIndex(1)
 
-            // The New Game config popup sits ABOVE both the board and the title
-            // (zIndex 2): it's opened from the in-game New Game button, the result
-            // screen, and the title art — so it must never be occluded by the
-            // still-visible title. Dimmed overlay with tap-outside / X / Esc to
-            // dismiss, matching the result screen's pattern across platforms.
+            // New Game popup above both board and title (zIndex 2) so the
+            // still-visible title can't occlude it. Tap-outside / X / Esc dismiss.
             if navigator.showingNewGame {
                 NewGamePopup(
                     settings: settings,
@@ -84,8 +74,7 @@ public struct GameView: View {
                 .zIndex(2)
             }
 
-            // The fullscreen board overview (big navigable map). Above the board,
-            // below the splash. Drives the live camera as you drag/tap it.
+            // Fullscreen board overview (navigable map). Drives the live camera.
             if navigator.showingOverview {
                 OverviewView(
                     scene: scene,
@@ -97,8 +86,7 @@ public struct GameView: View {
                 .zIndex(2.5)
             }
 
-            // The in-app splash sits on top of everything (zIndex 3) and fades
-            // out after a beat, revealing the title beneath.
+            // In-app splash on top (zIndex 3), fading out after a beat.
             if showSplash {
                 SplashView()
                     .transition(.opacity)
@@ -116,9 +104,8 @@ public struct GameView: View {
         .onChangeCompat(of: settings.syncScores) { scoreboard.syncEnabled = $0 }
     }
 
-    /// Start a fresh game with the popup's current selection and leave the title.
-    /// The single entry point used by the in-game New Game button, the result
-    /// screen, and the title art tap.
+    /// Start a fresh game with the popup's selection and leave the title — the
+    /// single entry point for the New Game button, result screen, and title tap.
     private func startSelectedGame() {
         navigator.showingNewGame = false
         viewModel.newGame(config: settings.currentConfig)

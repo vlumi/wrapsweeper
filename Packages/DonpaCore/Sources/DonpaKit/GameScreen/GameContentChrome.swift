@@ -1,32 +1,24 @@
 import DonpaCore
 import SwiftUI
 
-/// The in-game action buttons, in their fixed far-edge → toggle order. (Starting
-/// a different game lives in the status-bar config badge, not here.)
+/// The in-game action buttons, in their fixed far-edge → toggle order.
 enum GameAction: Hashable { case home, retry, pause, minimap }
 
-/// The in-game chrome for `GameContent`: the thin top metrics strip, the board +
-/// its control strip (actions + flag toggle), and the pause overlay. Split out of
-/// GameView.swift to keep that file within length limits.
+/// The in-game chrome for `GameContent`: the top metrics strip, the board + its
+/// control strip (actions + flag toggle), and the pause overlay.
 extension GameContent {
     // MARK: Board + control strip
 
     var leftHanded: Bool { settings.handedness == .left }
 
-    /// The board plus the control strip (centered actions + the flag toggle in
-    /// the handed corner). The strip never overlaps the grid: it sits *below* the
-    /// board when the board leaves vertical room, or *beside* it (on the handed
-    /// side) when it leaves horizontal room. The board takes the remaining space
-    /// and the SpriteKit scene fits/centres the grid, so it shrinks in tight
-    /// cases rather than being covered. The strip stays visible after the game
-    /// ends so New Game / Retry / Home remain reachable (the flag toggle hides,
-    /// since a finished board takes no input).
+    /// The board plus the control strip (actions + flag toggle in the handed
+    /// corner). The strip sits below or beside the board (never overlapping); the
+    /// board takes the rest and the scene fits the grid into it. The strip stays
+    /// visible after the game ends so the actions remain reachable.
     var boardArea: some View {
         GeometryReader { geo in
-            // Put the strip wherever the *board* leaves the most room: compare the
-            // window's aspect to the board's. Proportionally wider than the board
-            // → spare width → side strip; else spare height → bottom strip. (A wide
-            // board like Expert in a wide window still gets a bottom strip.)
+            // Put the strip where the board leaves the most room: window wider than
+            // the board → side strip, else bottom strip.
             let windowAspect = geo.size.width / max(geo.size.height, 1)
             let boardAspect = CGFloat(viewModel.boardWidth) / CGFloat(max(viewModel.boardHeight, 1))
             let sideStrip = windowAspect > boardAspect
@@ -46,19 +38,16 @@ extension GameContent {
         }
     }
 
-    /// The dig/flag toggle. Always present so the control set stays stable, but
-    /// disabled (and dimmed) once the board is finished, since a finished board
-    /// takes no input.
+    /// The dig/flag toggle. Always present (stable control set), disabled + dimmed
+    /// once the board is finished.
     var toggleControl: some View {
         modeToggle
             .disabled(!gameInProgress)
             .opacity(gameInProgress ? 1 : 0.4)
     }
 
-    /// Bottom strip: the flag toggle pinned hard to the handed end (under the
-    /// thumb), the action group pinned hard to the opposite end, and a single
-    /// spacer between them — so each is flush to its own edge (not "almost
-    /// centred") and they never overlap.
+    /// Bottom strip: flag toggle pinned to the handed end (under the thumb), actions
+    /// to the opposite end, one spacer between.
     var bottomControlStrip: some View {
         HStack(spacing: 8) {
             if leftHanded { toggleControl; Spacer(minLength: 8) }
@@ -68,8 +57,7 @@ extension GameContent {
         .padding(.horizontal, 12)
     }
 
-    /// Side strip (on the handed side): actions pinned to the top, the flag toggle
-    /// pinned to the bottom for thumb reach, a spacer between.
+    /// Side strip: actions at the top, flag toggle at the bottom for thumb reach.
     var sideControlStrip: some View {
         VStack(spacing: 8) {
             actionButtons(vertical: true)
@@ -80,30 +68,19 @@ extension GameContent {
     }
 
     var board: some View {
-        // Palette passed as a value: BoardView's updateUIView/NSView pushes it to
-        // the scene whenever the resolved scheme changes — reliable where
-        // .onChange on the SwiftUI side was not.
         BoardView(
             scene: scene, palette: palette, inputMode: viewModel.inputMode,
-            // Custom reveal/flag cursor only during a live game; otherwise the
-            // normal arrow (title screen, result panel, or a finished board
-            // you're just inspecting — where a flag cursor is stale).
-            // No custom reveal/flag cursor while paused: the board is blurred
-            // under the pause panel, so a dig/flag cursor there is stale.
+            // Custom reveal/flag cursor only during a live, non-paused game; the
+            // normal arrow elsewhere (title, result panel, finished board, paused).
             boardCursorActive: gameInProgress && !navigator.showingTitle && !viewModel.isPaused,
             showMinimap: settings.showMinimap
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Per-cell VoiceOver is a future task (needs a scalable cursor model for
-        // huge boards); for now announce a useful summary.
+        // Per-cell VoiceOver is a future task; for now announce a summary.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Board", bundle: .module))
         .accessibilityValue(boardSummary)
         .accessibilityIdentifier("game.board")
-        // The mode hint is a manga screentone (dig dots / flag hatch) over the
-        // unopened tiles, drawn inside the SpriteKit scene — see
-        // BoardScene.refreshModeGlow.
-        // Result screen dims the board ONLY, leaving the control strip live.
         .overlay { mangaPanel }
         .overlay { pauseOverlay }
         .overlay { processingOverlay }
@@ -112,12 +89,8 @@ extension GameContent {
         .clipped()  // keep the dimmed backdrop within the board's bounds
     }
 
-    /// Shown while a reveal/chord/new-board is being computed off the main thread (a
-    /// big board's mine placement / flood-fill). Board input is blocked meanwhile
-    /// (the view model's `canTakeInput`), so this must make "disabled" obvious — a
-    /// dim wash over the whole board plus a centred spinner, not a subtle corner
-    /// badge that left taps feeling broken. Dimmer than the pause overlay (it's
-    /// transient, the board needn't be hidden), but unmistakably "not now".
+    /// Shown while a reveal/chord/new-board computes off the main thread (input is
+    /// gated meanwhile): a dim wash + centred spinner, making "not now" obvious.
     @ViewBuilder var processingOverlay: some View {
         if showProcessing {
             ZStack {
@@ -134,26 +107,23 @@ extension GameContent {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
             }
             .transition(.opacity)
-            .allowsHitTesting(false)  // never intercept; input is gated in the model
+            .allowsHitTesting(false)  // input is gated in the model
         }
     }
 
-    /// Covers the board while paused so it can't be studied; tap (or the strip's
-    /// resume) continues the game. Blurs rather than blacks out so it reads as
-    /// "paused", not "blank".
+    /// Covers the board while paused; tap (or the strip's resume) continues. Blurs
+    /// rather than blacks out so it reads as "paused", not "blank".
     @ViewBuilder var pauseOverlay: some View {
         if viewModel.isPaused {
             GeometryReader { geo in
                 ZStack {
-                    // Blur still hides the board (can't study it while paused); the
-                    // "squad resting" manga panel sits on top as the pause art.
+                    // Blur hides the board; the pause art sits on top.
                     Rectangle()
                         .fill(.ultraThinMaterial)
                         .overlay(palette.pageBackground.opacity(0.5))
-                    // Sized like the win/loss result panel: off the shorter window
-                    // dimension, clamped — so the pause art matches them. Reserve
-                    // room for the hint so the panel + hint stay grouped and
-                    // centred (not the hint stranded at the screen bottom).
+                    // Sized like the result panel (off the shorter window dimension,
+                    // clamped) so they match; reserve room so panel + hint stay
+                    // grouped and centred.
                     let shorter = min(geo.size.width, geo.size.height)
                     let panelW = min(max(shorter * 0.82, 220), 900)
                     VStack(spacing: 12) {
@@ -184,24 +154,16 @@ extension GameContent {
         }
     }
 
-    /// The in-game actions, pinned to the end of the strip opposite the flag
-    /// toggle. Ordered *from the far edge inward toward the toggle*: Home (leaving
-    /// the game — furthest, so it's hardest to mis-tap), then Retry, and Pause
-    /// last so the most-used mid-play control sits nearest the thumb/toggle.
-    /// (Starting a different game lives in the status-bar config badge, mirroring
-    /// the title screen, so there's no New Game button here.) For a left-handed
-    /// strip the toggle is on the other end, so the order is mirrored to keep
-    /// Pause adjacent to it. A row in the bottom strip, a column in the narrow
-    /// side strip.
+    /// The in-game actions, far-edge → toggle: Home (furthest, hardest to mis-tap),
+    /// Retry, then Pause nearest the thumb. Mirrored for a left-handed strip so
+    /// Pause stays next to the toggle. A row in the bottom strip, a column in the side.
     @ViewBuilder
     func actionButtons(vertical: Bool) -> some View {
         let layout =
             vertical
             ? AnyLayout(VStackLayout(spacing: 16)) : AnyLayout(HStackLayout(spacing: 16))
-        // `actionOrder` is far-edge → toggle. The vertical strip is always
-        // toggle-at-bottom, so top→bottom matches it directly. The horizontal
-        // strip only needs reversing when the toggle is on the LEFT (left-handed),
-        // so Pause still lands next to it.
+        // Vertical (toggle-at-bottom) matches top→bottom directly; the horizontal
+        // strip reverses only when the toggle is on the LEFT.
         let reverse = !vertical && leftHanded
         let ordered = reverse ? Array(actionOrder.reversed()) : actionOrder
         layout {
@@ -211,9 +173,8 @@ extension GameContent {
         }
     }
 
-    /// The fixed action sequence, far-edge → toggle. Always the same set (so the
-    /// control row never reflows); Pause and Minimap are just disabled when they
-    /// don't apply (off-play / board fits the viewport).
+    /// Fixed action sequence (so the row never reflows); Pause/Minimap disable when
+    /// they don't apply.
     private var actionOrder: [GameAction] { [.home, .retry, .pause, .minimap] }
 
     @ViewBuilder
@@ -225,9 +186,8 @@ extension GameContent {
         case .retry:
             actionButton(.retry, help: "Retry", tint: newGameTint) { viewModel.newGame() }
         case .pause:
-            // Pause/Resume toggle: shows Play while paused so the same button
-            // resumes. Always present (stable layout); enabled while the game is
-            // live (playing or paused), dimmed otherwise.
+            // Pause/Resume toggle: shows Play while paused. Enabled while live
+            // (playing or paused), dimmed otherwise.
             let paused = viewModel.isPaused
             let live = viewModel.status == .playing
             actionButton(
@@ -239,11 +199,9 @@ extension GameContent {
             .opacity(live || paused ? 1 : 0.4)
             .accessibilityIdentifier("game.pause")
         case .minimap:
-            // Toggle the corner minimap. Tint reflects ITS OWN on/off state — a
-            // fixed accent when shown, secondary when hidden — NOT `newGameTint`
-            // (that's the game-outcome colour for Retry; a map toggle has nothing
-            // to do with won/lost). Only meaningful when the board exceeds the
-            // viewport. (The fullscreen overview opens from an icon ON the minimap.)
+            // Toggle the corner minimap; tint reflects its own on/off state (not
+            // `newGameTint`, the outcome colour). Only meaningful when the board
+            // exceeds the viewport.
             mapButton(
                 .minimap, help: "Overview map", id: "game.minimap",
                 tint: settings.showMinimap ? palette.counter : .secondary
@@ -251,9 +209,7 @@ extension GameContent {
         }
     }
 
-    /// A toolbar button for a big-board map control (minimap toggle / open
-    /// overview): disabled + dimmed when the board fits the viewport, since
-    /// there's nothing off-screen to map.
+    /// A toolbar button for a map control: disabled + dimmed when the board fits.
     @ViewBuilder
     private func mapButton(
         _ symbol: MangaIcon.Symbol, help: LocalizedStringKey, id: String,
@@ -305,8 +261,7 @@ extension GameContent {
     }
 
     var newGameTint: Color {
-        // Neutral while idle/playing; colour is reserved for the outcome so it
-        // can't be mistaken for the (red) loss state.
+        // Neutral while idle/playing; colour reserved for the outcome.
         switch viewModel.status {
         case .won: return .green
         case .lost: return .red
@@ -314,9 +269,8 @@ extension GameContent {
         }
     }
 
-    /// Distinct colours for the two input modes — the armed toggle half, matching
-    /// the board mode-glow. Sourced from the palette so the toggle and the
-    /// SpriteKit glow never drift.
+    /// Input-mode colours, from the palette so the toggle and the SpriteKit glow
+    /// never drift.
     var digColor: Color { palette.digColor }
     var flagColor: Color { palette.flagColor }
 
@@ -329,19 +283,16 @@ extension GameContent {
         return Button(action: action) {
             MangaIcon(symbol: symbol, size: size, tint: .secondary)
                 .frame(width: 44, height: 44)  // Apple's min touch target
-                .contentShape(Rectangle())  // whole frame tappable, not just the glyph
+                .contentShape(Rectangle())  // whole frame tappable
         }
         .buttonStyle(.plain)
         .help(label)
-        .accessibilityLabel(label)  // the symbol alone says nothing to VoiceOver
+        .accessibilityLabel(label)
     }
 
-    /// Toggle between reveal- and flag-mode for plain taps. A *segmented pair*
-    /// (dig | flag) shows both tools at once so it's self-evident the control
-    /// switches modes and which one is armed — but the WHOLE pill is one button
-    /// that just flips the mode, so you never have to aim at a half with your
-    /// thumb. The armed half is filled (teal for dig, orange for flag); Space
-    /// also toggles.
+    /// Reveal/flag toggle as a segmented dig|flag pair (both tools visible, armed
+    /// half filled), but the WHOLE pill is one button that flips the mode — no need
+    /// to aim at a half. Space also toggles.
     var modeToggle: some View {
         let flagging = viewModel.inputMode == .flag
         return Button(action: { viewModel.inputMode.toggle() }) {
@@ -370,19 +321,15 @@ extension GameContent {
         .accessibilityHint(Text("Toggles between revealing and flagging", bundle: .module))
     }
 
-    /// One half of the dig|flag pair — pure visual (the whole pill is the button).
-    /// The armed half is filled with its mode colour and a white glyph; both
-    /// halves carry the mode's manga screentone (dots for dig, hatch for flag)
-    /// behind the glyph, matching the board's unopened-tile texture.
+    /// One half of the dig|flag pair (pure visual; the whole pill is the button).
+    /// The armed half is filled; both carry the mode's screentone behind the glyph,
+    /// matching the board's unopened-tile texture.
     private func modeSegment(_ symbol: MangaIcon.Symbol, active: Bool, fill: Color) -> some View {
         MangaIcon(symbol: symbol, size: 34, tint: active ? .white : .secondary)
             .frame(width: 50, height: 60)
             .background {
                 ZStack {
                     if active { fill }
-                    // Screentone on top of the fill (white ink on the coloured
-                    // armed side; muted ink on the empty side) — same dots/hatch
-                    // vocabulary as the board.
                     ScreentonePattern(
                         dots: symbol == .reveal,
                         color: active ? .white.opacity(0.35) : .primary.opacity(0.18))

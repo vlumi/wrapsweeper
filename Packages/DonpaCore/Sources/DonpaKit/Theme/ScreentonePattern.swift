@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The manga screentone used on the mode toggle's segment backgrounds — Ben-Day
-/// dots (dig) or diagonal hatch (flag), the SwiftUI counterpart to the board's
-/// `BoardScene.screentoneTexture` so the toggle and field share the texture.
+/// Manga screentone for the mode toggle's segment backgrounds: Ben-Day dots (dig)
+/// or diagonal hatch (flag). The SwiftUI counterpart to `BoardScene`'s texture.
 struct ScreentonePattern: View {
     let dots: Bool
     let color: Color

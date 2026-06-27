@@ -1,41 +1,35 @@
 import Foundation
 
-/// The cloud side of scoreboard sync, abstracted so `Scoreboard` doesn't depend
-/// on `NSUbiquitousKeyValueStore` directly (and so it's mockable in tests).
-///
-/// The layout is **one blob per device**: each device writes only its own
-/// `records` table under a key derived from its `DeviceID`, and reads every
-/// device's blob to merge (see `StatsMerge`). No device writes another's slot, so
-/// there's nothing to conflict-resolve.
+/// The cloud side of scoreboard sync, abstracted off `NSUbiquitousKeyValueStore`
+/// so it's mockable in tests. Layout is **one blob per device**: each writes only
+/// its own slot (keyed by `DeviceID`) and reads all blobs to merge (`StatsMerge`),
+/// so there's nothing to conflict-resolve.
 @MainActor
 public protocol CloudStatsStore: AnyObject {
-    /// Whether the cloud is currently available (signed into iCloud). When false,
-    /// reads/writes are no-ops and the app stays local-only.
+    /// Whether iCloud is available; when false, reads/writes are no-ops.
     var isAvailable: Bool { get }
 
     /// Write this device's encoded records blob to its own slot.
     func writeOwnBlob(_ data: Data, deviceID: String)
 
-    /// Remove this device's own slot from the cloud (when the player turns sync off
-    /// or resets) — so it stops contributing to other devices' totals. Other
-    /// devices' slots are untouched.
+    /// Remove this device's own slot (on sync-off / reset) so it stops contributing
+    /// to other devices' totals. Other slots are untouched.
     func deleteOwnBlob(deviceID: String)
 
     /// Every device's blob, keyed by device id (including this device's own).
     func readAllBlobs() -> [String: Data]
 
-    /// Hint the store to push/pull now (best-effort; not a guarantee).
+    /// Hint the store to push/pull now (best-effort).
     func synchronize()
 
-    /// Called when the cloud changes externally (another device synced) or the
-    /// iCloud account changes — so the host can re-merge and refresh status.
+    /// Called on external cloud change or iCloud account change, so the host
+    /// re-merges and refreshes status.
     var onExternalChange: (() -> Void)? { get set }
 }
 
 #if canImport(Foundation)
 /// `NSUbiquitousKeyValueStore`-backed store. Per-device blobs live under keys
-/// prefixed `donpa.stats.blob.` so they're easy to enumerate and never collide
-/// with any other KVS use.
+/// prefixed `donpa.stats.blob.`, so they're easy to enumerate and never collide.
 @MainActor
 public final class UbiquitousStatsStore: CloudStatsStore {
     private static let blobPrefix = "donpa.stats.blob."
@@ -52,8 +46,7 @@ public final class UbiquitousStatsStore: CloudStatsStore {
 
     deinit { NotificationCenter.default.removeObserver(self) }
 
-    /// Signed into iCloud iff there's a ubiquity identity token. (KVS itself has no
-    /// per-app permission — it rides on the system iCloud sign-in.)
+    /// Signed into iCloud iff there's a ubiquity identity token.
     public var isAvailable: Bool { FileManager.default.ubiquityIdentityToken != nil }
 
     public func writeOwnBlob(_ data: Data, deviceID: String) {
@@ -82,7 +75,7 @@ public final class UbiquitousStatsStore: CloudStatsStore {
     public func synchronize() { kvs.synchronize() }
 
     @objc private func externalChange(_ note: Notification) {
-        // Fires for server changes AND account changes; either way, re-merge.
+        // Fires for server and account changes; either way, re-merge.
         onExternalChange?()
     }
 }

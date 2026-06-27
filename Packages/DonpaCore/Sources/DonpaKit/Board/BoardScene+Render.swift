@@ -7,11 +7,9 @@ import UIKit
 import AppKit
 #endif
 
-/// Board rendering: cell-node construction and **viewport culling**. Only cells
-/// within the camera's visible rect are built (kept in `cellNodes`), so the live
-/// node count stays ~one screenful regardless of board size — the path that makes
-/// huge boards (e.g. 100×100) tractable. Split out of BoardScene.swift to keep
-/// that file within length limits.
+/// Cell-node construction and **viewport culling**: only cells in the camera's
+/// visible rect are built (kept in `cellNodes`), so the live node count stays ~one
+/// screenful regardless of board size — what makes huge boards tractable.
 extension BoardScene {
     func rebuildIfNeeded() {
         if viewModel.gameID != lastGameID {
@@ -20,10 +18,8 @@ extension BoardScene {
             effectsLayer.removeAllChildren()
             boardLayer.position = .zero  // clear any leftover shake offset
             // A resumed game adopts its saved view as the sticky restore target
-            // (consume the VM's one-shot hand-off); a fresh game has none, so the
-            // target is cleared and we fall back to the default fit. The target
-            // survives the launch-time resizes that would otherwise re-centre over
-            // it (cleared once the player pans/zooms — see BoardScene+Pan).
+            // (consuming the VM's one-shot hand-off); a fresh game clears it and
+            // falls back to the default fit.
             restoreCameraTarget = viewModel.pendingCameraRestore
             viewModel.pendingCameraRestore = nil
             applyDesiredCameraOrCenter()
@@ -32,10 +28,8 @@ extension BoardScene {
             lastRevision = viewModel.revision
             rebuild()
         }
-        // After the board reflects the final state, play the end-game effect once
-        // (no further revisions occur post-end). It runs in the same turn as the
-        // rebuild so the shockwave radiates over the just-revealed mines in sync —
-        // the minimap render that used to stall this turn now happens off-thread.
+        // Play the end-game effect once, in the same turn as the rebuild so the
+        // shockwave radiates over the just-revealed mines in sync.
         if let event = viewModel.lastResult, event.id != lastAnimatedResultID {
             lastAnimatedResultID = event.id
             playEndGameEffects(event.result)
@@ -43,7 +37,6 @@ extension BoardScene {
     }
 
     /// An inclusive rectangular range of cell coordinates (the visible window).
-    /// Internal so the +Effects extension can cull the mode-glow to the same range.
     struct CellRange: Equatable {
         let minX, maxX, minY, maxY: Int
         func contains(_ c: Coord) -> Bool {
@@ -70,8 +63,8 @@ extension BoardScene {
         let halfH = size.height / 2 * scale
         let cam = cameraNode.position
         let cell = layout.cellSize
-        // World rect → cell indices (SquareLayout: cell = floor(world / cellSize)).
-        // +1 cell of margin each side so cells appear before scrolling fully in.
+        // World rect → cell indices, +1 cell of margin each side so cells appear
+        // before fully scrolling in.
         let minX = max(0, Int(((cam.x - halfW) / cell).rounded(.down)) - 1)
         let maxX = min(w - 1, Int(((cam.x + halfW) / cell).rounded(.down)) + 1)
         let minY = max(0, Int(((cam.y - halfH) / cell).rounded(.down)) - 1)
@@ -79,10 +72,8 @@ extension BoardScene {
         return CellRange(minX: minX, maxX: maxX, minY: minY, maxY: maxY)
     }
 
-    /// The camera's currently-visible region as a normalized rect (0…1 in each
-    /// axis, y measured from the board TOP down — matching screen/board layout).
-    /// The fullscreen overview draws and drags this "you are here" box. Clamped to
-    /// the board; spans the whole board when it fits the viewport.
+    /// The camera's visible region as a normalized rect (0…1, y from the board TOP
+    /// down). The fullscreen overview draws and drags this "you are here" box.
     public func visibleNormalizedRect() -> CGRect {
         let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
         guard board.width > 0, board.height > 0 else {
@@ -94,8 +85,7 @@ extension BoardScene {
         let cam = cameraNode.position
         let minX = max(0, (cam.x - halfW) / board.width)
         let maxX = min(1, (cam.x + halfW) / board.width)
-        // World y is up; flip to top-down. The camera's high-y edge is the board
-        // top, so the rect's top (small normalized y) comes from the high world y.
+        // World y is up; flip to top-down (high world y = board top).
         let topY = max(0, 1 - (cam.y + halfH) / board.height)
         let botY = min(1, 1 - (cam.y - halfH) / board.height)
         return CGRect(x: minX, y: topY, width: maxX - minX, height: botY - topY)
@@ -110,18 +100,14 @@ extension BoardScene {
         buildVisibleCells()
     }
 
-    /// Bring the built cell nodes in line with the current visible range: add
-    /// newly-visible cells, remove newly-hidden ones. O(visible), not O(board) —
-    /// the core of culling. Idempotent, so it's safe to call on every viewport
-    /// change (pan/zoom) and after a rebuild.
+    /// Sync built cell nodes to the visible range: add newly-visible, remove
+    /// newly-hidden. O(visible), idempotent — safe to call on every viewport change.
     func buildVisibleCells() {
         let range = visibleRange()
         guard range != builtRange else { return }
-        // An empty/inverted range (min > max) can occur transiently before the
-        // scene has a valid size or the camera has been clamped onto the board —
-        // e.g. a palette push during launch, or a restored camera mid-settle.
-        // `minY...maxY` would trap on an inverted range, so bail this frame; a
-        // later frame (with a real size / clamped camera) builds correctly.
+        // An inverted range (min > max) can occur transiently before the scene has
+        // a valid size or the camera is clamped; `minY...maxY` would trap, so bail
+        // this frame and let a later one build.
         guard range.minX <= range.maxX, range.minY <= range.maxY else { return }
         let game = viewModel.game
 
@@ -144,19 +130,11 @@ extension BoardScene {
         builtRange = range
     }
 
-    /// A cell as `SKSpriteNode`s over cached, shared textures (tile background +
-    /// number/mine glyph), so hundreds of visible cells batch into few draw calls
-    /// rather than each being a freshly-tessellated `SKShapeNode`. The rare drawn
-    /// glyphs — the swallowtail flag and the loss burst-mine — stay as their own
-    /// nodes (few on screen at once, not worth caching).
-    /// Instant mine-hit feedback: swap the tapped cell's node to its revealed
-    /// hit-mine face (mine-tile background + burst-mine mark) synchronously on tap,
-    /// before the off-thread reveal runs — so the burst-mine tile appears the moment
-    /// you click, not when the whole board finishes revealing. The detonation FX and
-    /// the other mines follow when the reveal lands (playLoss); we deliberately
-    /// DON'T play the explosion here, so it doesn't cover the just-shown tile.
-    /// The rebuild after the reveal produces an identical node, so the handoff is
-    /// seamless.
+    /// Instant mine-hit feedback: swap the tapped cell to its revealed hit-mine
+    /// face synchronously on tap, before the off-thread reveal — so it appears the
+    /// moment you click. The detonation FX follows when the reveal lands (playLoss);
+    /// no explosion here, so it doesn't cover the just-shown tile. The post-reveal
+    /// rebuild produces an identical node, so the handoff is seamless.
     func revealHitTileInstantly(at c: Coord) {
         let size = layout.cellSize
         cellNodes[c]?.removeFromParent()
@@ -180,11 +158,9 @@ extension BoardScene {
         tile.size = CGSize(width: size, height: size)
         container.addChild(tile)
 
-        // Overlay above the tile. The flag and burst are SKShapeNode-based; an
-        // SKSpriteNode (the tile) and SKShapeNodes render in separate passes, so
-        // without an explicit higher zPosition the shapes draw *under* the sprite
-        // tile and vanish. Texture glyphs (also sprites) layer fine, but set z on
-        // all overlays uniformly so the rule is one line, not per-branch.
+        // Overlay above the tile. SKShapeNodes (flag, burst) render in a separate
+        // pass from the sprite tile; without an explicit higher z they draw under
+        // it and vanish. Set z on all overlays uniformly.
         let overlay: SKNode?
         if cell.state == .revealed, cell.isMine, coord == viewModel.game.lossCoord {
             overlay = burstMineNode(size: size)
@@ -216,7 +192,7 @@ extension BoardScene {
     private func glyph(for cell: Cell) -> (text: String, color: SKColor)? {
         switch cell.state {
         case .flagged:
-            return nil  // drawn as a swallowtail flagNode, not a text glyph
+            return nil  // drawn as a flagNode, not a text glyph
         case .hidden:
             return nil
         case .revealed:
@@ -228,9 +204,8 @@ extension BoardScene {
 
     // MARK: Cached cell textures
 
-    /// Cell-sized rounded-rect tile background (inset 1pt, corner 3pt — matching
-    /// the previous `SKShapeNode`), cached by fill colour + pixel size. ~3 distinct
-    /// textures (hidden / revealed / mine) shared across every tile on screen.
+    /// Cell-sized rounded-rect tile background, cached by fill colour + pixel size.
+    /// ~3 distinct textures (hidden / revealed / mine) shared across every tile.
     private func tileTexture(for cell: Cell) -> SKTexture {
         tileTexture(forFill: fillColor(for: cell))
     }
@@ -262,11 +237,9 @@ extension BoardScene {
         return texture
     }
 
-    /// A cell-sized texture of a centred glyph (a number or the `✸` mine), cached
-    /// by text + colour + pixel size, so all "3" cells (say) share one texture.
-    /// Drawn via the platform image renderer (which handles the text coordinate
-    /// system correctly) rather than text into a raw CGContext — the latter
-    /// renders flipped/off-canvas, so glyphs didn't appear.
+    /// Cell-sized texture of a centred glyph (number or `✸` mine), cached by text +
+    /// colour + pixel size. Drawn via the platform image renderer, not text into a
+    /// raw CGContext — the latter renders flipped/off-canvas.
     private func glyphTexture(_ text: String, color: SKColor) -> SKTexture {
         let px = max(4, Int(layout.cellSize.rounded()))
         let key = "glyph-\(text)-\(px)-\(color)"
@@ -315,9 +288,8 @@ extension BoardScene {
         return texture
     }
 
-    /// Render a square `dim×dim` transparent image with `draw`, returning the
-    /// CGImage for an `SKTexture`. Used by the tile texture builder (shapes only;
-    /// text uses the platform renderer in `glyphTexture`).
+    /// Render a square `dim×dim` transparent image with `draw` into a CGImage for an
+    /// `SKTexture`. Shapes only; text uses the platform renderer in `glyphTexture`.
     private func drawCellImage(dim: Int, _ draw: (CGContext) -> Void) -> CGImage {
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
         let ctx = CGContext(

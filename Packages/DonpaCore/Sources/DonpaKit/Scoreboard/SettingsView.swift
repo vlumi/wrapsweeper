@@ -7,21 +7,19 @@ import UIKit
 import AppKit
 #endif
 
-/// App settings. Currently just appearance; more rows (e.g. language) slot in
-/// under the same VStack later.
+/// App settings: appearance, toggle side, language.
 struct SettingsView: View {
     @ObservedObject var settings: Settings
     @Environment(\.dismiss) private var dismiss
-    /// The language in effect when this sheet appeared. If the picker moves away
-    /// from it, the app needs a restart to actually switch — surfaced loudly.
+    /// The language in effect when this sheet appeared. Moving away from it needs a
+    /// restart to switch, surfaced via `restartNotice`.
     @State private var launchLanguage: LanguagePreference?
 
     private var languageChanged: Bool {
         launchLanguage != nil && settings.language != launchLanguage
     }
 
-    /// Measured natural height of the content, used to size the iOS sheet to fit
-    /// (a compact card) rather than the default near-fullscreen page sheet.
+    /// Measured content height, to size the iOS sheet to a compact card.
     @State private var contentHeight: CGFloat = 0
 
     var body: some View {
@@ -30,7 +28,6 @@ struct SettingsView: View {
             .animation(.easeInOut(duration: 0.2), value: languageChanged)
     }
 
-    /// The settings rows, shared by both platforms.
     private var settingsList: some View {
         VStack(alignment: .leading, spacing: 20) {
             settingRow("Appearance") {
@@ -65,15 +62,12 @@ struct SettingsView: View {
                 }
             }
 
-            // iCloud score sync lives in the scoreboard's Career tab (where the
-            // totals it affects are shown), not here. About lives on the title
-            // screen's "i" button + the macOS app menu.
+            // Score sync lives in the scoreboard; About on the title screen.
         }
     }
 
-    /// iOS wraps the rows in a NavigationStack with a "Done" toolbar item (reads
-    /// as chrome, not content) and a fit-content detent. macOS keeps the inline
-    /// title + bottom Done button, which look right in a macOS sheet.
+    /// iOS: NavigationStack with a "Done" toolbar item + fit-content detent. macOS:
+    /// inline title + bottom Done button.
     @ViewBuilder private var sheetChrome: some View {
         #if os(iOS)
         NavigationStack {
@@ -94,8 +88,7 @@ struct SettingsView: View {
                     }
                 }
         }
-        // Size the sheet to its content (compact card) instead of the default
-        // near-fullscreen page sheet. +64 leaves room for the nav bar + grabber.
+        // +64 leaves room for the nav bar + grabber.
         .presentationDetents(contentHeight > 0 ? [.height(contentHeight + 64)] : [.medium])
         #else
         VStack(alignment: .leading, spacing: 20) {
@@ -117,7 +110,7 @@ struct SettingsView: View {
         #endif
     }
 
-    /// A labelled settings row: a headline over its control(s).
+    /// A headline over its control(s).
     private func settingRow<Content: View>(
         _ title: LocalizedStringKey, @ViewBuilder _ content: () -> Content
     ) -> some View {
@@ -135,8 +128,7 @@ struct SettingsView: View {
         }
     }
 
-    /// Prominent notice shown once the language picker is changed: a tinted
-    /// callout making clear the app must be restarted to switch language.
+    /// Tinted callout shown once the language picker changes: restart to switch.
     private var restartNotice: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")

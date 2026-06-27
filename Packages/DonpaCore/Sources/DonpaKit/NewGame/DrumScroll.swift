@@ -27,10 +27,8 @@ struct DrumScroll<Content: View>: UIViewRepresentable {
         scroll.showsHorizontalScrollIndicator = false
         scroll.decelerationRate = .fast
         scroll.delegate = context.coordinator
-        // Clip to the row's own bounds so off-centre cards don't bleed past the New
-        // Game modal's edges on a narrow iPhone. Neighbours still peek — the scroll
-        // view spans the full row width (wider than one card), so adjacent cards
-        // show *inside* the frame; they just can't spill outside it.
+        // Clip so off-centre cards don't bleed past the modal; neighbours still peek
+        // inside the full-width frame.
         scroll.clipsToBounds = true
         scroll.cardWidth = cardWidth
         scroll.step = step
@@ -70,9 +68,8 @@ struct DrumScroll<Content: View>: UIViewRepresentable {
         context.coordinator.parent = self
         context.coordinator.refresh(self)
         scroll.indexProvider = { selection }
-        // Centering (inset + offset) is handled in the scroll view's
-        // layoutSubviews, so it lands correctly once bounds are final — not only
-        // after the first touch. Here we just nudge it to the new selection.
+        // Centering is handled in layoutSubviews (lands once bounds are final);
+        // here we just nudge to the new selection.
         scroll.recenter(animated: false)
     }
 
@@ -99,10 +96,7 @@ struct DrumScroll<Content: View>: UIViewRepresentable {
             parent.selection = i
         }
 
-        // The card nearest the viewport centre, given the current offset. A
-        // half-card inset at each end lets every card — including the first and
-        // last — be scrolled to centre; UIScrollView clamps the offset to the inset
-        // range, so there's no dead over-scroll past the ends.
+        // The card nearest the viewport centre for the current offset.
         private func centered(_ scroll: UIScrollView) -> Int {
             let raw = (scroll.contentOffset.x + scroll.contentInset.left) / parent.step
             return min(max(Int(raw.rounded()), 0), parent.count - 1)
@@ -126,11 +120,10 @@ struct DrumScroll<Content: View>: UIViewRepresentable {
     }
 }
 
-/// A `UIScrollView` for the drum: a half-card inset at each end so EVERY card
-/// (including the first/last) can be scrolled to centre, while UIScrollView's own
-/// clamp to that inset range stops any dead over-scroll past the ends. "Centered =
-/// selected." Lays out across passes (the inset depends on the final width, unknown
-/// on the first `updateUIView`), so it re-pins in `layoutSubviews`.
+/// The drum's `UIScrollView`: a half-card inset at each end so every card
+/// (including first/last) can reach centre, with UIScrollView's own inset clamp
+/// preventing dead over-scroll. The inset depends on the final width (unknown on
+/// the first `updateUIView`), so it re-pins in `layoutSubviews`.
 final class CenteringScrollView: UIScrollView {
     var cardWidth: CGFloat = 0
     var step: CGFloat = 1
@@ -141,7 +134,6 @@ final class CenteringScrollView: UIScrollView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        // Half-card inset each side so the first/last card can reach centre.
         let side = max(0, (bounds.width - cardWidth) / 2)
         if abs(contentInset.left - side) > 0.5 {
             contentInset = UIEdgeInsets(top: 0, left: side, bottom: 0, right: side)
@@ -151,8 +143,7 @@ final class CenteringScrollView: UIScrollView {
         }
     }
 
-    /// Scroll the current selection toward centre (clamped to the edges), unless
-    /// the user is interacting.
+    /// Scroll the selection toward centre, unless the user is interacting.
     func recenter(animated: Bool) {
         guard !isDragging, !isDecelerating else { return }
         let target = offset(forIndex: indexProvider())
@@ -164,14 +155,11 @@ final class CenteringScrollView: UIScrollView {
 
 #elseif os(macOS)
 
-/// SwiftUI carousel for macOS (the `NSScrollView` drum's fling/snap geometry was
-/// fragile under a flipped doc view). No scroll physics: the cards are an `HStack`
-/// slid so the selected card sits under the center window. When the window is wide
-/// enough to show every card at once, the whole strip is simply centered with no
-/// per-selection slide — so a roomy window needs no scrolling and any card is one
-/// click away. Below that width it falls back to centering on the selection.
-/// Click a card to select it, or use the arrow keys (the host cycles `Settings`,
-/// which this follows); a horizontal drag also steps the selection.
+/// SwiftUI carousel for macOS (no scroll physics — the NSScrollView drum's
+/// fling/snap was fragile under a flipped doc view). Cards are an `HStack` slid so
+/// the selected card sits under the centre window; if the window fits all cards
+/// the whole strip is just centred. Click, arrow keys, or a horizontal drag step
+/// the selection.
 struct DrumScroll<Content: View>: View {
     let count: Int
     @Binding var selection: Int
@@ -181,19 +169,14 @@ struct DrumScroll<Content: View>: View {
     @ViewBuilder let content: (Int) -> Content
 
     private var step: CGFloat { cardWidth + spacing }
-    /// Total width to lay all cards side by side.
     private var contentWidth: CGFloat { CGFloat(count) * cardWidth + CGFloat(count - 1) * spacing }
 
     var body: some View {
         GeometryReader { geo in
             let centerX = geo.size.width / 2
             let fitsAll = contentWidth <= geo.size.width
-            // If everything fits, center the whole strip (no scroll). Otherwise
-            // slide so the selected card's center lands at centerX — but CLAMP so
-            // the strip stops with the first card flush left (offset 0) and the
-            // last flush right (offset = width − contentWidth), with no dead
-            // over-scroll past the ends. So a middle pick centers, while the ends
-            // sit at the edges — one move to easiest/smallest or hardest/biggest.
+            // Fits all → centre the whole strip. Otherwise slide the selected card
+            // to centre, clamped so the ends sit flush (no dead over-scroll).
             let ideal = centerX - (CGFloat(selection) * step + cardWidth / 2)
             let minOffset = geo.size.width - contentWidth  // last card flush right
             let offset =
@@ -210,12 +193,9 @@ struct DrumScroll<Content: View>: View {
             }
             .padding(.vertical, 2)
             .offset(x: offset)
-            // Animate the slide right here on the offset, keyed to the offset value
-            // itself — the implicit animation on the outer view didn't reliably
-            // reach this nested `.offset` (inside GeometryReader + clip), so the
-            // strip jumped while colours animated. Keying on `offset` also covers
-            // arrow-key changes (which mutate selection → offset without a
-            // withAnimation wrapper).
+            // Animate keyed to `offset` itself: an outer implicit animation doesn't
+            // reliably reach this nested `.offset` (inside GeometryReader + clip),
+            // and this also covers arrow-key changes (no withAnimation wrapper).
             .animation(.snappy, value: offset)
             .frame(maxHeight: .infinity, alignment: .center)
             .frame(width: geo.size.width, alignment: .leading)
@@ -232,8 +212,7 @@ struct DrumScroll<Content: View>: View {
                             }
                         }
             )
-            // Clip to the row's bounds so off-window cards don't bleed across the
-            // modal (and onto the board behind it).
+            // Clip so off-window cards don't bleed across the modal.
             .clipped()
         }
     }

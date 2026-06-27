@@ -7,10 +7,9 @@ import UIKit
 import AppKit
 #endif
 
-/// Compact iCloud-sync control for the stats sheet footer: a toggle with an
-/// inline status to its right. Opt-in (off by default). When on + signed out, the
-/// status is a tappable nudge that deep-links to system Settings — KVS has no
-/// in-app permission prompt, so the most we can do is point the player there.
+/// Compact iCloud-sync control for the stats sheet footer: a toggle plus inline
+/// status. Opt-in (off by default). When on + signed out, the status deep-links to
+/// system Settings — KVS has no in-app permission prompt to surface.
 struct SyncFooterControl: View {
     @ObservedObject var settings: Settings
     @ObservedObject var scoreboard: Scoreboard
@@ -50,8 +49,7 @@ struct SyncFooterControl: View {
         .lineLimit(1)
     }
 
-    /// Deep-link to the system Settings/Preferences so the player can sign into
-    /// iCloud (we can't toggle the system setting from inside the app).
+    /// Deep-link to system Settings so the player can sign into iCloud.
     private func openSystemSettings() {
         #if os(iOS)
         if let url = URL(string: UIApplication.openSettingsURLString) {

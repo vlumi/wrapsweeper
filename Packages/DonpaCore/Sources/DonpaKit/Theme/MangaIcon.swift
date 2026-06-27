@@ -1,12 +1,8 @@
 import SwiftUI
 
-/// Procedural manga-style chrome glyphs, drawn as bold hand-inked strokes to
-/// match the app icon / exploded-mine language (round caps + joins, heavy
-/// weight). One `Canvas`-drawn shape per symbol, tinted by the caller, scalable
-/// and crisp at any size — the toolbar counterpart to `make-icon.swift`.
-///
-/// Utility glyphs (close X, the %-chart, About's info/link) stay SF Symbols —
-/// system affordances where a custom hand would be noise, not flavour.
+/// Procedural manga-style chrome glyphs, one `Canvas`-drawn shape per symbol,
+/// tinted by the caller and crisp at any size. Utility glyphs (close X, etc.) stay
+/// SF Symbols.
 struct MangaIcon: View {
     enum Symbol {
         case newGame  // plus in an ink ring
@@ -28,26 +24,21 @@ struct MangaIcon: View {
 
     var body: some View {
         if symbol == .reveal {
-            // The army boot-print is too detailed to survive hand-drawn paths at
-            // toolbar size, so it ships as a high-res template asset (rendered by
-            // Scripts/make-boot.swift) that tints like the procedural glyphs.
-            // The print is portrait (~1:2), so frame it taller-than-wide and let
-            // it fill the height — boxing it square shrinks it to an unreadable
-            // sliver where only the solid toe-cap survives.
+            // The bootprint is too detailed for a hand-drawn path at toolbar size,
+            // so it ships as a high-res template asset. It's portrait (~1:2), so
+            // frame it taller-than-wide; boxing it square shrinks it to a sliver.
             Image("BootPrint", bundle: .module)
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(tint)
                 .frame(width: size * 0.7, height: size * 1.3)
-                // A slight left lean reads as mid-stride rather than a static stamp.
+                // A slight left lean reads as mid-stride.
                 .rotationEffect(.degrees(-12))
         } else {
             Canvas { ctx, area in
-                // Draw at the intended `size`, centered in whatever area the Canvas
-                // is handed — `Canvas` is greedy, so without this the glyph would
-                // scale with the available space (e.g. shrink relative to a larger
-                // strip in full-screen). The outer `.frame` then pins the layout box.
+                // Draw at the intended `size` centred in the handed area — Canvas is
+                // greedy, so without this the glyph would scale with the space.
                 let s = size
                 ctx.translateBy(x: (area.width - s) / 2, y: (area.height - s) / 2)
                 Self.draw(symbol, in: ctx, side: s, color: tint)
@@ -70,8 +61,8 @@ struct MangaIcon: View {
         func fill(_ p: Path) { ctx.fill(p, with: shading) }
     }
 
-    /// Draw `symbol` centered in a `side`×`side` box. Static so it can be reused
-    /// (e.g. by tests or other renderers) without a view instance.
+    /// Draw `symbol` centered in a `side`×`side` box. Static so it's reusable
+    /// without a view instance.
     static func draw(_ symbol: Symbol, in ctx: GraphicsContext, side s: CGFloat, color: Color) {
         let lw = s * 0.10  // bold ink stroke
         let pen = Pen(
@@ -147,15 +138,11 @@ struct MangaIcon: View {
         let s = pen.s
         let baseY = s * 0.88
         let poleX = s * 0.10
-        // Hut occupies the width to the right of the pole, so the building stays
-        // large while the flagpole runs full height beside it.
         let leftX = s * 0.20, rightX = s * 0.94
         let r = (rightX - leftX) / 2
         let cx = (leftX + rightX) / 2
-        // Nissen-hut profile: short straight walls rising from the baseline, then a
-        // semicircular arch springing from the wall tops — taller than a plain
-        // half-cylinder. Door knocked out (even-odd) so the silhouette reads as a
-        // building, not a dome.
+        // Nissen-hut profile: short walls, then a semicircular arch from the wall
+        // tops. Openings knocked out (even-odd) so it reads as a building, not a dome.
         let wallTopY = baseY - s * 0.16
         var hut = Path()
         hut.move(to: CGPoint(x: leftX, y: baseY))
@@ -165,8 +152,7 @@ struct MangaIcon: View {
             startAngle: .radians(.pi), endAngle: .radians(0), clockwise: false)
         hut.addLine(to: CGPoint(x: rightX, y: baseY))
         hut.closeSubpath()
-        // Central door plus a small square window either side, all knocked out of
-        // the filled silhouette (even-odd) so they read as openings.
+        // Central door + a small window either side.
         var openings = Path()
         openings.addRect(
             CGRect(x: cx - s * 0.10, y: s * 0.56, width: s * 0.20, height: baseY - s * 0.56))
@@ -176,8 +162,7 @@ struct MangaIcon: View {
         var hutWithDoor = hut
         hutWithDoor.addPath(openings)
         pen.ctx.fill(hutWithDoor, with: pen.shading, style: FillStyle(eoFill: true))
-        // Full-height flagpole on the left with a medium pennant up top — the
-        // "military base entrance" tell, clear of the building.
+        // Full-height flagpole on the left with a pennant up top.
         var pole = Path()
         pole.move(to: CGPoint(x: poleX, y: baseY))
         pole.addLine(to: CGPoint(x: poleX, y: s * 0.06))
@@ -192,8 +177,7 @@ struct MangaIcon: View {
 
     private static func drawMedal(_ pen: Pen) {
         let s = pen.s
-        // Bold ribbon tails (filled wedges) from the shoulders down to the disc —
-        // thicker than strokes so they read at small sizes.
+        // Ribbon tails (filled wedges) from the shoulders down to the disc.
         var ribbon = Path()
         ribbon.move(to: CGPoint(x: s * 0.30, y: s * 0.14))
         ribbon.addLine(to: CGPoint(x: s * 0.45, y: s * 0.14))
@@ -206,8 +190,7 @@ struct MangaIcon: View {
         ribbon.addLine(to: CGPoint(x: s * 0.60, y: s * 0.46))
         ribbon.closeSubpath()
         pen.fill(ribbon)
-        // Big filled disc, with the star knocked out (negative space) so the
-        // medal reads as a unit even tiny.
+        // Filled disc with the star knocked out (negative space).
         let disc = CGRect(x: s * 0.24, y: s * 0.40, width: s * 0.52, height: s * 0.52)
         var coin = Path()
         coin.addEllipse(in: disc)
@@ -218,10 +201,8 @@ struct MangaIcon: View {
     private static func drawReveal(_ pen: Pen) {  // army bootprint (reveal — tread)
         let s = pen.s
         let cx = s * 0.50
-        // Army boot sole: a U-shaped (horseshoe) lugged toe band drawn as a thick
-        // stroke open at the bottom, with cleat stars in the hollow, plus a
-        // separate rounded heel block below. The open-U toe + heel reads as a
-        // combat-boot print rather than a plain footprint.
+        // U-shaped toe band (thick stroke open at the bottom) with cleat stars in
+        // the hollow, plus a heel block below — reads as a combat-boot print.
         var toe = Path()
         toe.move(to: CGPoint(x: s * 0.30, y: s * 0.56))
         toe.addArc(
@@ -256,8 +237,7 @@ struct MangaIcon: View {
         pole.move(to: CGPoint(x: poleX, y: topY + s * 0.05))
         pole.addLine(to: CGPoint(x: poleX, y: s * 0.86))
         pen.stroke(pole)
-        // Rectangular flag flying right from the top, with a swallowtail V-notch
-        // cut into the fly (right) edge — the "square with a cut-out" look.
+        // Flag flying right, with a swallowtail V-notch cut into the fly edge.
         let flagTop = s * 0.20, flagBot = s * 0.50, fly = s * 0.80, notch = s * 0.66
         var flag = Path()
         flag.move(to: CGPoint(x: poleX, y: flagTop))

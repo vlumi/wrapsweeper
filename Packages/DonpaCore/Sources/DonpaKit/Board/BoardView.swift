@@ -2,20 +2,15 @@ import DonpaCore
 import SpriteKit
 import SwiftUI
 
-/// Hosts a `BoardScene` and keeps its palette in sync. The palette is passed in
-/// as a value, so SwiftUI's `update{NS,UI}View` runs whenever the resolved
-/// scheme changes and pushes it to the scene — deterministic, unlike relying on
-/// `.onChange` to fire (which proved unreliable for the SpriteKit scene,
-/// notably when toggling the system appearance on iOS/iPadOS).
+/// Hosts a `BoardScene` and keeps its palette in sync. The palette is passed as a
+/// value so `update{NS,UI}View` pushes it to the scene on every resolved-scheme
+/// change — deterministic, unlike `.onChange` (unreliable for the SpriteKit scene).
 struct BoardView: View {
     let scene: BoardScene
     let palette: Palette
     let inputMode: InputMode
-    /// When false (e.g. the result panel is up), the board shows the normal
-    /// arrow cursor instead of the reveal/flag mode cursor.
+    /// When false (e.g. result panel up), show the normal arrow, not the mode cursor.
     var boardCursorActive: Bool = true
-    /// User preference for the big-board minimap (pushed into the scene as a value
-    /// so the update runs when it changes, like `palette`).
     var showMinimap: Bool = true
 
     var body: some View {
@@ -53,9 +48,8 @@ private struct BoardSKView: NSViewRepresentable {
     }
 }
 
-/// An `SKView` that forwards scroll events to its scene — `SKView` otherwise
-/// swallows `scrollWheel` instead of routing it to `BoardScene` — and shows a
-/// mode-aware cursor over the board (crosshair to reveal, a flag to flag).
+/// An `SKView` that forwards `scrollWheel` to its scene (it otherwise swallows it)
+/// and shows a mode-aware cursor over the board.
 final class ScrollForwardingSKView: SKView {
     var inputMode: InputMode = .reveal {
         didSet {
@@ -71,15 +65,11 @@ final class ScrollForwardingSKView: SKView {
         }
     }
 
-    /// Whether the pointer is currently over the board, so a mode/state change
-    /// only re-applies the cursor when it would actually be visible.
     private var pointerInside = false
 
-    // Cursor handling uses a tracking area + an explicit `NSCursor.set()` rather
-    // than `addCursorRect`: `SKView` manages its own drawing/loop and cursor
-    // rects proved unreliable inside the SwiftUI-hosted scene (the custom cursor
-    // never showed), whereas `mouseEntered`/`mouseMoved` + `set()` are immune to
-    // responder-chain and cursor-rect timing.
+    // Tracking area + explicit `NSCursor.set()` rather than `addCursorRect`: cursor
+    // rects proved unreliable in the SwiftUI-hosted scene (the custom cursor never
+    // showed); `mouseEntered`/`mouseMoved` + `set()` are immune to that timing.
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach(removeTrackingArea)
@@ -97,7 +87,7 @@ final class ScrollForwardingSKView: SKView {
 
     override func mouseMoved(with event: NSEvent) {
         // Re-assert each move: AppKit otherwise resets to the arrow as the pointer
-        // travels, and a stale cursor from a sibling view can win without this.
+        // travels, and a sibling view's stale cursor can win.
         cursor(for: effectiveMode).set()
     }
 
@@ -106,15 +96,14 @@ final class ScrollForwardingSKView: SKView {
         NSCursor.arrow.set()
     }
 
-    // Holding Control temporarily flips the action (Ctrl+click flags in reveal
-    // mode, reveals in flag mode); reflect that in the cursor while it's held.
+    // Holding Control temporarily flips the action; reflect it in the cursor.
     override func flagsChanged(with event: NSEvent) {
         super.flagsChanged(with: event)
         refreshCursor()
     }
 
-    /// The mode the next plain click would use: the armed `inputMode`, flipped
-    /// while Control is held (the temporary "other action" modifier).
+    /// The mode the next plain click would use: `inputMode`, flipped while Control
+    /// is held (the temporary "other action" modifier).
     private var effectiveMode: InputMode {
         NSEvent.modifierFlags.contains(.control) ? inputMode.flipped : inputMode
     }
@@ -128,16 +117,13 @@ final class ScrollForwardingSKView: SKView {
     private func cursor(for mode: InputMode) -> NSCursor {
         guard boardCursorActive else { return .arrow }
         switch mode {
-        // Native, system-feeling cursors: a pointing hand for "open this tile",
-        // and the flag.fill SF Symbol for flag mode. SF Symbols rasterise crisply
-        // (unlike the muddy ImageRenderer route) and read as platform-native.
         case .reveal: return .pointingHand
         case .flag: return Self.flagCursor
         }
     }
 
-    /// A flag cursor built from the `flag.fill` SF Symbol, tinted orange to match
-    /// the flag-mode toggle. SF Symbols feel native and stay crisp at cursor size.
+    /// A flag cursor from the `flag.fill` SF Symbol, tinted orange to match the
+    /// flag-mode toggle. SF Symbols stay crisp at cursor size.
     private static let flagCursor: NSCursor = {
         let size = NSSize(width: 24, height: 24)
         let config = NSImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
@@ -151,7 +137,7 @@ final class ScrollForwardingSKView: SKView {
             symbol.draw(in: rect, from: .zero, operation: .destinationIn, fraction: 1)
             return true
         }
-        // Hot spot at the flagpole base (bottom-left-ish).
+        // Hot spot at the flagpole base.
         return NSCursor(image: image, hotSpot: NSPoint(x: 4, y: size.height - 4))
     }()
 
@@ -168,7 +154,7 @@ private struct BoardSKView: UIViewRepresentable {
     let scene: BoardScene
     let palette: Palette
     let inputMode: InputMode  // unused on iOS (no pointer cursor)
-    let boardCursorActive: Bool  // unused on iOS (no pointer cursor)
+    let boardCursorActive: Bool  // unused on iOS
     let showMinimap: Bool
 
     func makeUIView(context: Context) -> SKView {

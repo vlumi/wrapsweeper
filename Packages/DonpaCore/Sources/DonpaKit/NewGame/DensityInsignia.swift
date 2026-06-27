@@ -1,21 +1,18 @@
 import DonpaCore
 import SwiftUI
 
-/// Rank-insignia images for the Modern difficulty tiers — chevron stripes for the
-/// enlisted ranks, a star for Ace, a star-in-laurel for the apex. Rendered once
-/// to flat template `Image`s so they work as single labels in a segmented
-/// `Picker` (which flattens multi-view labels) and can be reused wherever a tier
-/// is shown (the difficulty picker, the in-game config badge, the scoreboard).
+/// Rank-insignia images for the Modern difficulty tiers, rendered once to flat
+/// template `Image`s so they work as single labels in a segmented `Picker` (which
+/// flattens multi-view labels) and can be reused wherever a tier is shown.
 enum DensityInsignia {
-    /// Solid-**patch** insignia (filled box, symbol knocked out) — for the config
-    /// pill and the scoreboard, where it reads as a badge.
+    /// Solid-patch insignia (filled box, symbol knocked out) — for the config pill
+    /// and scoreboard, where it reads as a badge.
     @MainActor static func image(_ density: Density) -> Image {
         patchCache[density] ?? Image(systemName: "questionmark")
     }
 
-    /// **Inked-symbol** insignia (no patch, transparent background) — for the
-    /// segmented difficulty picker, so the control's own selection highlight shows
-    /// clearly behind the picked symbol (a solid patch would hide it).
+    /// Inked-symbol insignia (transparent background) — for the segmented picker,
+    /// so its selection highlight shows behind the symbol.
     @MainActor static func markImage(_ density: Density) -> Image {
         markCache[density] ?? Image(systemName: "questionmark")
     }
@@ -25,7 +22,7 @@ enum DensityInsignia {
         mark($0).foregroundStyle(.black).frame(width: 46, height: 30)
     }
 
-    /// Render each tier's view to a flat template image (cached once).
+    /// Render each tier to a flat template image (cached once).
     @MainActor private static func render<V: View>(_ make: (Density.Insignia) -> V)
         -> [Density: Image]
     {
@@ -40,9 +37,8 @@ enum DensityInsignia {
         return out
     }
 
-    /// The bare insignia mark: sideways chevron stripes for the enlisted ranks
-    /// (up-chevron rotated 90° CCW, nested), a star for Ace, a star-in-laurel for
-    /// the apex.
+    /// The bare insignia mark: nested chevrons (enlisted), a star (Ace), or a
+    /// star-in-laurel (apex).
     @MainActor @ViewBuilder
     private static func mark(_ insignia: Density.Insignia) -> some View {
         switch insignia {
@@ -63,9 +59,8 @@ enum DensityInsignia {
         }
     }
 
-    /// A solid filled patch with the insignia *knocked out* (negative space) — a
-    /// single-colour badge with no separate frame. Rendered as a template so the
-    /// host tints the whole patch.
+    /// A solid filled patch with the insignia knocked out — a single-colour badge,
+    /// template-rendered so the host tints it.
     @MainActor @ViewBuilder
     private static func badge(_ insignia: Density.Insignia) -> some View {
         RoundedRectangle(cornerRadius: 6)

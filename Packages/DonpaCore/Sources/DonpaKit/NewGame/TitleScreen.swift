@@ -1,15 +1,10 @@
 import DonpaCore
 import SwiftUI
 
-/// The home hub, shown on launch and whenever you leave a game. The manga
-/// "ドンパ隊 / DONPA SQUAD" splash *is* the Start button — tapping it opens the
-/// New Game config popup (the single place you choose a game). High Scores and
-/// Settings stay as round buttons on the art's top-right corner; a "Tap to
-/// start" hint makes the primary action obvious.
-///
-/// The art is a single drop-in PNG in the `Panels` asset catalog. It's black ink
-/// on a white page shown on a white plate in both appearances (the screentone
-/// doesn't invert cleanly), framed by the page background.
+/// The home hub, shown on launch and when you leave a game. The manga splash *is*
+/// the Start button (tapping opens the New Game popup); High Scores / Settings /
+/// About sit as round buttons in the top-right corner. The art shows on a white
+/// plate in both appearances — the screentone doesn't invert cleanly.
 struct TitleScreen: View {
     @ObservedObject var settings: Settings
     let onStart: () -> Void
@@ -25,15 +20,12 @@ struct TitleScreen: View {
                 Palette.resolved(for: colorScheme).pageBackground
                     .ignoresSafeArea()
 
-                // The art is the whole hub now — no separate picker column — so it
-                // simply grows to fill, centered, never wasting horizontal space.
                 startArt
                     .frame(maxHeight: geo.size.height - 32)
                     .padding(16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            // Secondary actions in the SCREEN's top-right corner (over the page,
-            // which may or may not overlap the art depending on its size).
+            // Secondary actions in the screen's top-right corner.
             .overlay(alignment: .topTrailing) {
                 HStack(spacing: 8) {
                     roundButton(label: "High Scores", id: "title.highScores", action: onScores) {
@@ -55,8 +47,7 @@ struct TitleScreen: View {
         }
     }
 
-    /// The manga splash, tappable as the primary "press start" action (the whole
-    /// image is the button — no extra hint needed; it opens the New Game popup).
+    /// The manga splash, tappable as the primary "press start" action.
     private var startArt: some View {
         Button(action: onStart) {
             Image("TitleScreen", bundle: .module)
@@ -74,8 +65,7 @@ struct TitleScreen: View {
         .accessibilityIdentifier("title.start")
     }
 
-    /// Small round overlay button for a secondary action on the title corner;
-    /// the `icon` content (an SF Symbol or a `MangaIcon`) sits on the dark circle.
+    /// Small round overlay button for a secondary corner action.
     private func roundButton<Icon: View>(
         label: LocalizedStringKey, id: String, action: @escaping () -> Void,
         @ViewBuilder icon: () -> Icon

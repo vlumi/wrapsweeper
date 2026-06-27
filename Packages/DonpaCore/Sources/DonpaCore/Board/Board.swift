@@ -5,12 +5,9 @@ public enum CellState: Sendable {
     case flagged
 }
 
-/// One cell's full state, bit-packed into a single byte — `state` (2 bits),
-/// `isMine` (1 bit), `adjacentMines` (4 bits, 0…8). On a 1000² board this makes
-/// the cell array 1MB instead of 16MB (the unpacked struct strides 16 bytes), so
-/// the whole board copies ~16× cheaper (matters for the per-move COW copy and
-/// overall memory). The public API is unchanged — `state`/`isMine`/`adjacentMines`
-/// are still settable vars — so nothing outside this file is affected.
+/// One cell, bit-packed into a single byte — `state` (2 bits), `isMine` (1 bit),
+/// `adjacentMines` (4 bits, 0…8). On a 1000² board this is a 1MB cell array vs
+/// 16MB unpacked, so the per-move COW copy is ~16× cheaper.
 public struct Cell: Sendable {
     private var bits: UInt8 = 0  // [ adjacent:4 | mine:1 | state:2 ], bit 7 unused
 
@@ -48,19 +45,13 @@ public struct Cell: Sendable {
 }
 
 /// Dense flat cell storage for a rectangular board — `index = y·width + x`, the
-/// memory/speed path for huge boards (a 1000² dict was ~100MB+ and slow). Get
-/// returns a default `Cell` for an off-board coord; set ignores it.
+/// memory/speed path for huge boards. Get returns a default `Cell` for an
+/// off-board coord; set ignores it.
 ///
-/// Every board topology is a dense `width × height` rectangle (bounded square,
-/// wrapped/torus square, and — when it lands — hex via offset storage), so this
-/// takes a `RectangularTopology`: the constraint is in the type, not a runtime
-/// check, so a non-rectangular board is simply unrepresentable.
-///
-/// It's a **struct holding the array directly** (not an enum with an associated
-/// array): a write mutates the array in place via copy-on-write. An enum case
-/// would force `self = .flat(cells, …)` on every write, un-uniquing the array
-/// reference and copying all N cells per write → O(n²) (measured: 27s for a
-/// 500² placeMines; the struct form is ~0.5s).
+/// Must be a **struct holding the array directly**, so a write mutates in place
+/// via COW. An enum case would force `self = .flat(cells, …)` on every write,
+/// un-uniquing the array and copying all N cells → O(n²) (measured: 27s vs ~0.5s
+/// for a 500² placeMines).
 private struct CellStore: Sendable {
     private var cells: [Cell]
     private let rect: any RectangularTopology
@@ -76,8 +67,7 @@ private struct CellStore: Sendable {
             return cells[i]
         }
         set {
-            // In-place array write: `cells` is uniquely referenced here, so COW
-            // mutates without copying — O(1) per write even on a 1M board.
+            // `cells` is uniquely referenced here, so COW mutates in place — O(1).
             guard let i = rect.index(of: c) else { return }
             cells[i] = newValue
         }
@@ -91,24 +81,18 @@ private struct CellStore: Sendable {
 
 /// The grid of cells plus the mine layout, indexed by `Coord`.
 ///
-/// `Board` knows *what* is in each cell and how to recompute adjacency, but it
-/// holds no game rules (those live in `Game`). All neighbour questions are
-/// delegated to the injected `Topology`, so the board is geometry-agnostic. Cells
-/// are held in a flat row-major array (see `CellStore`) — every supported
-/// topology is a dense `width × height` rectangle.
+/// Holds *what* is in each cell and recomputes adjacency, but no game rules
+/// (those live in `Game`). Neighbour questions go to the injected `Topology`, so
+/// it's geometry-agnostic; cells live in a flat row-major array (see `CellStore`).
 public struct Board: Sendable {
     public let topology: any RectangularTopology
     private var cells: CellStore
 
-    /// The mine coordinates, stored once in `placeMines`. Kept as a set so the
-    /// "reveal/flag every mine" end-game paths and `mineCoords` iterate only the
-    /// mines (e.g. ~130k) rather than scanning every cell (e.g. 1M) on a huge board.
+    /// Mine coordinates, set once in `placeMines`. Kept as a set so end-game paths
+    /// iterate only the mines (~130k) rather than scanning every cell (1M).
     private var minePositions: Set<Coord> = []
-    /// Mines on the board — set once in `placeMines`. Tracked rather than scanned
-    /// so it's O(1) (matters on huge boards).
     public private(set) var mineCount: Int = 0
-    /// Flagged cells — maintained incrementally as cell state changes (every
-    /// mutation goes through the subscript), so it's O(1) per query.
+    /// Maintained incrementally — all cell mutation funnels through the subscript.
     public private(set) var flagCount: Int = 0
 
     public init(topology: any RectangularTopology) {
@@ -119,8 +103,7 @@ public struct Board: Sendable {
     public subscript(_ c: Coord) -> Cell {
         get { cells[c] }
         set {
-            // Keep flagCount in step with any state change — all cell mutation
-            // funnels through here, so the counter can't drift.
+            // Keep flagCount in step with any state change.
             let was = cells[c].state
             if was != newValue.state {
                 if was == .flagged { flagCount -= 1 }
@@ -133,21 +116,18 @@ public struct Board: Sendable {
     public var allCoords: AnySequence<Coord> { topology.allCoords() }
     public var cellCount: Int { topology.cellCount }
 
-    /// Coordinate sets for persistence — compact alternative to encoding the full
-    /// cell dict (a 1000² save would be huge otherwise).
+    /// Coordinate sets for persistence — compact vs encoding the full cell dict.
     public var mineCoords: Set<Coord> { minePositions }
     public var revealedCoords: Set<Coord> { coords { $0.state == .revealed } }
     public var flaggedCoords: Set<Coord> { coords { $0.state == .flagged } }
 
-    /// Mines that are correctly flagged ("disarmed"). Iterates only the mine set
-    /// (not every cell), so it's cheap to read at game end even on a huge board.
+    /// Mines that are correctly flagged ("disarmed"). Iterates only the mine set.
     public var disarmedMineCount: Int {
         minePositions.reduce(0) { $0 + (cells[$1].state == .flagged ? 1 : 0) }
     }
 
-    /// Count of revealed non-mine cells — the source of truth for progress/win,
-    /// derived from the actual board (so a restored game can recompute it rather
-    /// than trust a persisted number).
+    /// Revealed non-mine cells, derived from the board so a restored game can
+    /// recompute it rather than trust a persisted number.
     public var revealedSafeCount: Int { coords { $0.state == .revealed && !$0.isMine }.count }
 
     private func coords(where match: (Cell) -> Bool) -> Set<Coord> {
@@ -156,13 +136,9 @@ public struct Board: Sendable {
         return result
     }
 
-    /// Rebuild a board from a saved layout: place `mines` (recomputing adjacency),
-    /// then set the given cells revealed / flagged. Used to restore a persisted
-    /// in-progress game without re-randomizing the (first-click-safe) mines.
-    ///
-    /// Coordinates are filtered to in-bounds cells, so a corrupt or tampered save
-    /// with off-board coords can't insert phantom cells or skew the mine count —
-    /// it just yields a (possibly odd but valid) board, never a broken one.
+    /// Rebuild a board from a saved layout without re-randomizing the (first-click-
+    /// safe) mines. Coords are filtered to in-bounds, so a tampered save with
+    /// off-board coords yields an odd-but-valid board, never a broken one.
     public mutating func restore(mines: Set<Coord>, revealed: Set<Coord>, flagged: Set<Coord>) {
         let onBoard = Set(topology.allCoords())
         placeMines(at: mines.intersection(onBoard))
@@ -170,17 +146,11 @@ public struct Board: Sendable {
         for c in flagged where onBoard.contains(c) { self[c].state = .flagged }
     }
 
-    /// Places mines on the given coordinates and recomputes adjacency counts.
+    /// Places mines and recomputes adjacency, iterating only the MINES (cost scales
+    /// with mine count, not cell count). Adjacency is *scattered* outward — each
+    /// mine bumps its neighbours — turning an N×8 scan into mines×8.
     ///
-    /// Both passes iterate only the MINES, not every cell — so on a huge board the
-    /// cost scales with the mine count (e.g. ~130k), not the cell count (1M). Mines
-    /// are flagged in one pass; adjacency is then *scattered* outward (each mine
-    /// bumps its neighbours' counts) rather than gathered per cell (each cell
-    /// summing its neighbours), turning an N×8 scan into mines×8.
-    ///
-    /// Assumes a clean board (fresh `Board`, or a fresh one in `restore`): cells
-    /// start with `isMine == false` and `adjacentMines == 0`, so no reset pass is
-    /// needed. `placeMines` is only ever called once per board, on a clean one.
+    /// Assumes a clean board (no reset pass); only ever called once per board.
     public mutating func placeMines(at mineCoords: Set<Coord>) {
         minePositions = mineCoords
         mineCount = mineCoords.count
@@ -192,13 +162,10 @@ public struct Board: Sendable {
         }
     }
 
-    /// Move any mines inside `safeZone` to random cells outside it, fixing adjacency
-    /// locally — so a board whose mines were placed *before* the first click (no
-    /// safe zone known then) can still guarantee a clear opening region. Only the
-    /// moved mines and their neighbours are touched (a handful), so it's O(1)-ish
-    /// regardless of board size — the point of pre-placing the board off-thread and
-    /// doing only this cheap fix-up on the first tap. Assumes mines are already
-    /// placed; `safeZone` is small (the clicked cell + its neighbours).
+    /// Move any mines inside `safeZone` to random cells outside it, fixing
+    /// adjacency locally — so a board pre-armed before the first click can still
+    /// guarantee a clear opening. Touches only the moved mines and their
+    /// neighbours, so it's the cheap O(1)-ish fix-up on the first tap.
     public mutating func relocateMines<R: RandomNumberGenerator>(
         outOf safeZone: Set<Coord>, using rng: inout R
     ) {

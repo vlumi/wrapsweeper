@@ -21,10 +21,8 @@ public struct Palette {
     /// Adjacency-count colors, indexed 1...8.
     let numbers: [SKColor]
 
-    /// Input-mode accent tints — used for the toggle's armed half and the board
-    /// mode-glow, so the live tool reads at a glance. Teal for dig ("step
-    /// safely"), orange for flag (warning). Defined once here (as `SKColor`) so
-    /// the SwiftUI chrome and the SpriteKit scene share the exact values.
+    /// Input-mode accent tints (teal for dig, orange for flag). Defined once as
+    /// `SKColor` so the SwiftUI chrome and SpriteKit scene share exact values.
     let digTint: SKColor
     let flagTint: SKColor
 
@@ -35,9 +33,8 @@ public struct Palette {
     /// The accent tint for an input mode.
     func modeTint(for mode: InputMode) -> SKColor { mode == .flag ? flagTint : digTint }
 
-    /// Faint ink for the board mode-glow screentone (dig dots / flag hatch) drawn
-    /// over the unopened tiles. Neutral and translucent so the *pattern* is the
-    /// cue (colour-blind safe); tuned per appearance to read on the tile colour.
+    /// Faint, neutral ink for the board mode-glow screentone, so the *pattern*
+    /// (not colour) is the cue. Tuned per appearance to read on the tile colour.
     let screentoneInk: SKColor
 
     public static let dark = Palette(
@@ -62,9 +59,7 @@ public struct Palette {
         ],
         digTint: SKColor(red: 0.10, green: 0.55, blue: 0.62, alpha: 1),
         flagTint: SKColor(red: 1.00, green: 0.50, blue: 0.00, alpha: 1),
-        // Dark ink on the dark board (a recessed shadow, like the light board's
-        // dark ink) rather than light-on-dark, which glows and reads far stronger
-        // than the light-mode effect at the same opacity.
+        // Dark ink (recessed shadow) not light-on-dark, which glows far stronger.
         screentoneInk: SKColor(white: 0, alpha: 0.30)
     )
 
@@ -90,8 +85,7 @@ public struct Palette {
         ],
         digTint: SKColor(red: 0.10, green: 0.55, blue: 0.62, alpha: 1),
         flagTint: SKColor(red: 1.00, green: 0.50, blue: 0.00, alpha: 1),
-        // Alpha 0.32 here matches the dark board's per-tile brightness shift
-        // (≈0.10): the light tile is brighter, so the same shift needs less alpha.
+        // Higher alpha than dark: the brighter light tile needs more to show.
         screentoneInk: SKColor(white: 1, alpha: 0.32)  // light ink on the light board
     )
 

@@ -177,7 +177,9 @@ final class ScoreboardSyncTests: XCTestCase {
         let b = Scoreboard(
             defaults: defaults("b"), cloud: FakeCloud(shared: shared), syncEnabled: false)
         XCTAssertEqual(b.wins(for: .beginner), 0)
+        XCTAssertFalse(b.syncEnabled, "starts opted out")
         b.syncEnabled = true  // flip on → pulls A's blob
+        XCTAssertTrue(b.syncEnabled, "the gate reflects the flip")
         XCTAssertEqual(b.wins(for: .beginner), 1, "enabling sync merges in other devices")
         XCTAssertTrue(b.isCloudActive)
     }

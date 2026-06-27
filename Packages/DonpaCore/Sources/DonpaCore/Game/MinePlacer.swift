@@ -1,14 +1,12 @@
 /// Places mines so the opening reveal is safe.
 ///
-/// The safety zone is the first-clicked cell *and all of its neighbours*. With no
-/// mine adjacent to the first cell, that cell is guaranteed to be a 0 and the
-/// flood-fill opens a region — the "first click always hits a 0" rule. The zone is
-/// computed via `topology.neighbors`, so it works identically on wrapped/hex too.
+/// The safe zone is the first-clicked cell and all its neighbours: with no mine
+/// adjacent, that cell is a guaranteed 0 and the flood-fill opens a region (the
+/// "first click always hits a 0" rule).
 public struct MinePlacer {
-    /// Mines for a board where the first click is already known — the clicked cell
-    /// and its neighbours are kept mine-free. Used by the direct place-on-first-
-    /// reveal path; the off-thread pre-arm path uses `randomMines` (no safe zone)
-    /// + `Board.relocateMines` instead.
+    /// Mines for a board where the first click is known — the clicked cell and its
+    /// neighbours stay mine-free. The off-thread pre-arm path instead uses
+    /// `randomMines` (no safe zone) + `Board.relocateMines`.
     public static func placeMines<R: RandomNumberGenerator>(
         topology: any RectangularTopology,
         mineCount: Int,
@@ -17,20 +15,17 @@ public struct MinePlacer {
     ) -> Set<Coord> {
         var safeZone: Set<Coord> = [firstClick]
         safeZone.formUnion(topology.neighbors(of: firstClick))
-        // If the board is so dense the whole safe zone can't be honoured, keep only
-        // the clicked cell mine-free (never the click itself).
+        // If too dense to honour the whole safe zone, keep only the click mine-free.
         let exclude = (topology.cellCount - safeZone.count) >= mineCount ? safeZone : [firstClick]
         return randomMines(topology: topology, mineCount: mineCount, exclude: exclude, using: &rng)
     }
 
-    /// Place `mineCount` mines uniformly at random, avoiding `exclude`. With an
-    /// empty `exclude` this arms a board before the first click is known (the
-    /// off-thread pre-generation path).
+    /// Place `mineCount` mines uniformly at random, avoiding `exclude`. Empty
+    /// `exclude` arms a board before the first click is known.
     ///
-    /// Rejection-samples flat indices — O(mineCount), and crucially never
-    /// materializes/filters all cells (the old `allCoords().filter` was slow through
-    /// `AnySequence` on a 1000² board). Falls back to a shuffled candidate list only
-    /// when the board is dense enough that rejection would thrash.
+    /// Rejection-samples flat indices (O(mineCount), never materializes all cells);
+    /// falls back to a shuffled candidate list when the board is too dense for
+    /// rejection to be efficient.
     public static func randomMines<R: RandomNumberGenerator>(
         topology: any RectangularTopology,
         mineCount: Int,
@@ -41,8 +36,7 @@ public struct MinePlacer {
         let available = cellCount - exclude.count
         let take = min(mineCount, max(0, available))
 
-        // Sparse case (the norm): rejection-sample until we have `take` distinct
-        // non-excluded cells.
+        // Sparse case (the norm): rejection-sample `take` distinct non-excluded cells.
         if take > 0, take * 4 <= available * 3 {
             var mines = Set<Coord>()
             mines.reserveCapacity(take)
@@ -53,8 +47,7 @@ public struct MinePlacer {
             return mines
         }
 
-        // Dense fallback: shuffle the explicit candidate list (partial Fisher–Yates,
-        // only `take` slots) — used when free cells are too scarce for rejection.
+        // Dense fallback: partial Fisher–Yates over the explicit candidate list.
         var candidates = topology.allCoords().filter { !exclude.contains($0) }
         for i in 0..<min(take, candidates.count) {
             let j = Int.random(in: i..<candidates.count, using: &rng)

@@ -7,40 +7,30 @@ import UIKit
 import AppKit
 #endif
 
-/// A corner overview ("minimap") of the whole board with a rectangle marking the
-/// visible viewport — the navigation aid for boards too big to see at once.
-///
-/// Shown only when the board exceeds the viewport (small/classic boards that fit
-/// don't need it). The overview is a single downsampled `SKTexture` (one node, not
-/// per-cell), rebuilt only when the board state changes; the viewport rectangle is
-/// repositioned every frame as you pan/zoom. Pinned to the camera so it stays
-/// fixed on screen — in ONE fixed corner (top-left); a minimap that hops corners
-/// as you pan would feel unstable.
+/// A corner "minimap" of the whole board with a viewport rectangle — the
+/// navigation aid for boards too big to see at once. Shown only when the board
+/// exceeds the viewport. The overview is one downsampled `SKTexture` (rebuilt only
+/// on board change); the viewport rect repositions every frame. Pinned to the
+/// camera in ONE fixed corner (top-left) — hopping corners would feel unstable.
 extension BoardScene {
     /// Fraction of the shorter viewport side the minimap's longer side spans.
     private static let minimapFraction: CGFloat = 0.26
     private static let minimapMaxSide: CGFloat = 200
-    /// Padding from the viewport edges so the minimap doesn't crowd/cover the
-    /// playfield right at the corner.
     private static let minimapPadding: CGFloat = 16
 
     func refreshMinimap() {
         let w = viewModel.boardWidth
         let h = viewModel.boardHeight
         let range = visibleRange()
-        // Only when the board is bigger than what's visible (else it fits — no
-        // overview needed). `visibleRange` is clamped to the board, so "covers the
-        // whole board" means it fits.
+        // `visibleRange` is clamped to the board, so covering it whole means it fits.
         let fits =
             range.minX <= 0 && range.minY <= 0 && range.maxX >= w - 1 && range.maxY >= h - 1
-        // Publish to the chrome so the toolbar toggle can disable itself when the
-        // whole board fits (nothing to map). Only assign on change to avoid
-        // needless @Published churn every frame.
+        // Publish so the toolbar toggle can disable when the board fits. Assign only
+        // on change to avoid @Published churn every frame.
         let exceeds = !fits
         if viewModel.boardExceedsViewport != exceeds {
             viewModel.boardExceedsViewport = exceeds
         }
-        // Show only when the board exceeds the view AND the user wants it.
         guard exceeds, showMinimap else {
             minimapNode?.isHidden = true
             minimapExpandHitRect = nil  // no stale tap target while hidden
@@ -50,8 +40,7 @@ extension BoardScene {
         ensureMinimapNode()
         minimapNode?.isHidden = false
 
-        // Rebuild the overview image only when the board changed (revealed cells)
-        // or the board itself changed (new game / different size).
+        // Rebuild the overview image only on a board-state or board-size change.
         let boardSize = CGSize(width: w, height: h)
         if viewModel.revision != lastMinimapRevision || boardSize != lastMinimapBoard {
             lastMinimapRevision = viewModel.revision
@@ -62,8 +51,8 @@ extension BoardScene {
         layoutMinimap(boardW: w, boardH: h, range: range)
     }
 
-    /// On-screen size of the minimap (the longer side scaled to the fraction, the
-    /// shorter side following the board's aspect ratio). Capped.
+    /// On-screen minimap size: the longer side scaled to the fraction (capped), the
+    /// shorter following the board aspect.
     private func minimapSize(boardW: Int, boardH: Int) -> CGSize {
         let viewportMin = min(size.width, size.height)
         let longer = min(Self.minimapMaxSide, viewportMin * Self.minimapFraction)
@@ -73,11 +62,9 @@ extension BoardScene {
             : CGSize(width: longer * aspect, height: longer)
     }
 
-    /// The minimap's full on-screen footprint in points (image + frame border +
-    /// the gap to the viewport edge), or nil when the minimap isn't currently
-    /// shown. The pan clamp uses this to clear the minimap's corner so it can
-    /// rest over empty margin rather than covering edge cells. The `+ 6` mirrors
-    /// `layoutMinimap`'s `framePad`.
+    /// The minimap's full on-screen footprint (image + frame + edge gap), or nil
+    /// when hidden. The pan clamp uses it to clear the corner so the board can rest
+    /// over empty margin. The `+ 6` mirrors `layoutMinimap`'s `framePad`.
     func minimapCornerFootprint() -> CGSize? {
         guard showMinimap, viewModel.boardExceedsViewport else { return nil }
         let mm = minimapSize(boardW: viewModel.boardWidth, boardH: viewModel.boardHeight)
@@ -88,11 +75,8 @@ extension BoardScene {
     private func ensureMinimapNode() {
         guard minimapNode == nil else { return }
         let container = SKNode()
-        container.zPosition = 100  // above the board, below nothing else on camera
-        // Semi-transparent so it reads as an unobtrusive HUD overlay — the board
-        // shows through it, so it's less distracting and less in-the-way than an
-        // opaque panel covering the corner.
-        container.alpha = 0.68
+        container.zPosition = 100
+        container.alpha = 0.68  // semi-transparent HUD; the board shows through
 
         // Panel + border frame it as a HUD element. Sized in `layoutMinimap`.
         let panel = SKShapeNode()
@@ -117,10 +101,8 @@ extension BoardScene {
         container.addChild(viewport)
         minimapViewport = viewport
 
-        // Expand affordance: a small badge in the minimap's bottom-right corner.
-        // Tapping anywhere in its (slightly padded) rect opens the fullscreen
-        // overview — the entry point to navigation, since the small map is too
-        // small to navigate on directly. Built once; positioned in `layoutMinimap`.
+        // Expand badge (bottom-right): tapping its padded rect opens the fullscreen
+        // overview. Built once; positioned in `layoutMinimap`.
         let expand = expandIconNode()
         expand.zPosition = 3
         container.addChild(expand)
@@ -140,7 +122,7 @@ extension BoardScene {
         disc.strokeColor = palette.sceneBackground
         disc.lineWidth = 1.5
         node.addChild(disc)
-        // Four short outward ticks (the expand glyph), in the panel's bg colour.
+        // Four outward corner ticks (the expand glyph).
         let a = r * 0.42
         for (sx, sy) in [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
             let path = CGMutablePath()
@@ -158,13 +140,12 @@ extension BoardScene {
 
     /// Render the whole board to a small image for the minimap sprite.
     private func updateMinimapImage(boardW: Int, boardH: Int) {
-        // Pixel-per-cell, capped so a 1000² board still renders to a sane bitmap.
+        // Pixels-per-cell, capped so a 1000² board still renders to a sane bitmap.
         let maxDim = 240
         let ppc = max(1, min(maxDim / max(boardW, boardH), 4))
-        // Render OFF the main thread: on a 1M-cell board this per-cell loop is slow
-        // enough to swallow an in-progress end-game animation if run inline. Snapshot
-        // the board + colours (Sendable) now; apply the texture back on the main
-        // actor, but only if no newer board state has superseded this render.
+        // Render OFF the main thread (the per-cell loop is heavy on a 1M-cell
+        // board): snapshot the Sendable board + colours now, apply the texture back
+        // on the main actor only if no newer board state has superseded it.
         let board = viewModel.game.board
         let colors = overviewColors
         let generation = lastMinimapRevision
@@ -180,9 +161,8 @@ extension BoardScene {
         }
     }
 
-    /// The fill colours the overview uses, bundled so the render can run off the
-    /// main actor (it can't touch `palette` there). `Sendable` — CGColors are
-    /// immutable and read-only here.
+    /// Overview fill colours, bundled `Sendable` so the render can run off the main
+    /// actor (it can't touch `palette` there).
     struct OverviewColors: Sendable {
         let hidden, revealed, mine, flag: CGColor
     }
@@ -192,13 +172,11 @@ extension BoardScene {
             mine: palette.mineTile.cgColor, flag: palette.flagGlyph.cgColor)
     }
 
-    /// A downsampled image of the whole board — one `ppc`×`ppc` pixel block per
-    /// cell, hidden / revealed / mine / flag shaded distinctly. Shared by the
-    /// corner minimap and the fullscreen overview. O(cells); board row 0 paints at
-    /// CG y=0 (the orientation the minimap's viewport-rect math expects). The
-    /// fullscreen overview calls this synchronously (one-shot, on open); the live
-    /// minimap renders it OFF the main thread (see `refreshMinimap`) because on a
-    /// 1M-cell board this loop is heavy enough to swallow an in-progress animation.
+    /// A downsampled image of the whole board (one `ppc`×`ppc` block per cell,
+    /// hidden/revealed/mine/flag distinct), shared by the corner minimap and the
+    /// fullscreen overview. Board row 0 paints at CG y=0 (what the viewport-rect
+    /// math expects). The overview calls this synchronously; the live minimap runs
+    /// it off the main thread (see `updateMinimapImage`).
     func boardOverviewImage(pixelsPerCell ppc: Int) -> CGImage? {
         Self.renderOverview(
             board: viewModel.game.board, width: viewModel.boardWidth,
@@ -237,11 +215,9 @@ extension BoardScene {
         return ctx.makeImage()
     }
 
-    /// Position + size the minimap in the fixed top-left corner, and move the
-    /// viewport rectangle to mirror the visible cell range. Camera children render
-    /// WITHOUT the camera's scale applied (per SKCameraNode docs), so everything
-    /// here is in plain screen points — no counter-scaling, and zoom doesn't move
-    /// or resize the minimap.
+    /// Position the minimap in the top-left corner and move the viewport rectangle
+    /// to mirror the visible cell range. Camera children render WITHOUT the camera
+    /// scale (per SKCameraNode docs), so everything here is plain screen points.
     private func layoutMinimap(boardW: Int, boardH: Int, range: CellRange) {
         guard let minimapNode, let minimapImage, let minimapViewport else { return }
         let mm = minimapSize(boardW: boardW, boardH: boardH)
@@ -264,11 +240,8 @@ extension BoardScene {
             x: -halfW + pad + mm.width / 2 + framePad,
             y: halfH - pad - mm.height / 2 - framePad)
 
-        // Viewport rectangle: map the visible cell range onto the minimap image.
-        // `SKTexture(cgImage:)` renders the overview with board row 0 at the
-        // minimap BOTTOM on both platforms (verified on device: the image looks
-        // correct, the rect was the mirrored one). So map board-y bottom-up —
-        // minimap-bottom (−h/2) plus y — to track the image.
+        // Viewport rectangle mapped onto the minimap image. `SKTexture(cgImage:)`
+        // renders board row 0 at the minimap BOTTOM, so map board-y bottom-up.
         let cellW = mm.width / CGFloat(boardW)
         let cellH = mm.height / CGFloat(boardH)
         let rw = CGFloat(range.maxX - range.minX + 1) * cellW
@@ -285,20 +258,18 @@ extension BoardScene {
         let bx = mm.width / 2 - 2
         let by = -mm.height / 2 + 2
         minimapExpand?.position = CGPoint(x: bx, y: by)
-        // Its tappable rect in CAMERA space = container position + local pos ± a
-        // padded radius (generous, so the small badge is easy to hit).
+        // Tappable rect in CAMERA space = container + local pos ± a padded radius.
         let hitR: CGFloat = 18
         minimapExpandHitRect = CGRect(
             x: minimapNode.position.x + bx - hitR, y: minimapNode.position.y + by - hitR,
             width: hitR * 2, height: hitR * 2)
     }
 
-    /// Test a scene-space tap against the minimap's expand badge; if it hits,
-    /// open the overview and return true (so it's not treated as a board move).
-    /// The badge lives in camera (screen-fixed) space, so convert the tap there.
+    /// Test a scene-space tap against the expand badge; if it hits, open the
+    /// overview and return true (so it's not treated as a board move).
     func handleMinimapTap(atScenePoint p: CGPoint) -> Bool {
         guard !(minimapNode?.isHidden ?? true), let hit = minimapExpandHitRect else { return false }
-        // Scene point → camera-local: subtract the camera centre, divide by scale.
+        // Scene → camera-local: subtract the camera centre, divide by scale.
         let camLocal = CGPoint(
             x: (p.x - cameraNode.position.x) / cameraNode.xScale,
             y: (p.y - cameraNode.position.y) / cameraNode.yScale)

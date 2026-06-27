@@ -1,19 +1,12 @@
-/// A logical Minesweeper solver: plays a `Game` using only information visible
-/// to a player (revealed numbers and the flags it places itself), never reading
-/// the hidden mine layout. It applies the two classic single-constraint
-/// deductions to a fixpoint:
+/// A logical Minesweeper solver: plays a `Game` using only player-visible
+/// information (revealed numbers and its own flags), never the hidden mine
+/// layout. Applies the two classic single-constraint deductions to a fixpoint:
 ///
-///   1. **All-mines:** a revealed number whose count equals its hidden-neighbour
-///      count — every hidden neighbour must be a mine → flag them.
-///   2. **All-clear:** a revealed number whose count equals its already-flagged
-///      neighbour count — every remaining hidden neighbour is safe → reveal them.
+///   1. **All-mines:** number == hidden-neighbour count → flag them all.
+///   2. **All-clear:** number == flagged-neighbour count → reveal the rest.
 ///
-/// When neither rule produces progress, the position requires a guess. The
-/// solver reports whether the game was solved with no guessing, plus stats
-/// useful for comparing board configurations.
-///
-/// This is single-constraint logic only (no subset/CSP reasoning), which is the
-/// standard baseline for measuring how guess-dependent a difficulty is.
+/// When neither makes progress, the position requires a guess. Single-constraint
+/// logic only (no CSP) — the standard baseline for measuring guess-dependence.
 public struct Solver {
     public struct Result: Sendable, Equatable {
         /// True if the game reached `.won` using only the two deduction rules.

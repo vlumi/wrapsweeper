@@ -10,88 +10,66 @@ import AppKit
 /// Renders the board with an `SKCameraNode` for pan/zoom. Cell nodes are rebuilt
 /// from the view model whenever its revision changes.
 public final class BoardScene: SKScene {
-    // Accessible to the BoardScene+Effects extension (same module).
     let viewModel: GameViewModel
     let layout: any CellLayout
-    let cameraNode = SKCameraNode()  // internal: pan/zoom lives in BoardScene+Pan
+    let cameraNode = SKCameraNode()
     let boardLayer = SKNode()
-    /// End-of-game effects live here, a sibling of `boardLayer`, so `rebuild()`
-    /// (which clears `boardLayer`, including on every palette push) never wipes
-    /// an in-flight animation.
+    /// End-game effects, a sibling of `boardLayer` so `rebuild()` (which clears
+    /// `boardLayer`) never wipes an in-flight animation.
     let effectsLayer = SKNode()
-    /// Mode-glow hint (teal dig / orange flag) washed over the unopened tiles, a
-    /// sibling above `boardLayer` so it tints over the tiles, below `effectsLayer`
-    /// so end-game effects win. Never wiped by `rebuild()`.
+    /// Mode-glow wash over unopened tiles: above `boardLayer`, below `effectsLayer`.
+    /// Never wiped by `rebuild()`.
     let glowLayer = SKNode()
-    // Render state — read/written by the rendering methods in BoardScene+Render
-    // (a separate file), so these are internal rather than private.
+    // Render state — read/written by BoardScene+Render.
     var lastRevision = -1
     var lastGameID = -1
     var lastAnimatedResultID = -1
-    /// The cell nodes currently built and parented under `boardLayer`, keyed by
-    /// coord. Only **visible** cells (camera rect + margin) are built — on a huge
-    /// board the live node count stays ~one screenful regardless of board size.
-    /// When the whole board fits the viewport (every small/classic board), the
-    /// visible range is the whole board, so this holds every cell exactly as a
-    /// full rebuild would — culling is invisible at those sizes.
+    /// Built cell nodes under `boardLayer`, keyed by coord. Only **visible** cells
+    /// (camera rect + margin) are built, so the live node count stays ~one
+    /// screenful regardless of board size. A board that fits holds every cell.
     var cellNodes: [Coord: SKNode] = [:]
     /// The cell range last built, so a viewport change only touches the delta.
     var builtRange: CellRange?
     // Mode-glow state, compared each frame so the glow only rebuilds on change.
-    // Internal so the +Effects extension (which owns the glow) can read/write.
     var lastGlowMode: InputMode?
     var lastGlowLive: Bool?
     var lastGlowRevision = -1
-    /// The visible range the glow was last stamped for — so it re-stamps when the
-    /// viewport scrolls new hidden tiles in, not only on mode/revision change.
+    /// Visible range the glow was last stamped for, so it re-stamps on scroll too.
     var lastGlowRange: CellRange?
-    /// Cached halftone wash textures, keyed by mode + a cell-size/appearance tag,
-    /// so the screentone is built once and reused across every hidden tile.
+    /// Screentone wash textures, keyed by mode + cell-size/appearance tag.
     var glowTextureCache: [String: SKTexture] = [:]
-    /// Cached tile-background and glyph textures, keyed by role + pixel size +
-    /// colour (so light/dark and size changes miss the cache and rebuild, like
-    /// the glow cache). Every visible cell is an `SKSpriteNode` sharing one of
-    /// these — SpriteKit batches same-texture sprites into one draw call, far
-    /// cheaper than a per-cell `SKShapeNode` (the old hot spot on big boards).
+    /// Tile-background and glyph textures, keyed by role + pixel size + colour.
+    /// Every visible cell is an `SKSpriteNode` sharing one of these, so SpriteKit
+    /// batches same-texture sprites into one draw call (cheaper than per-cell
+    /// `SKShapeNode` on big boards).
     var tileTextureCache: [String: SKTexture] = [:]
 
-    // Minimap (overview) — a corner thumbnail of the whole board with a rectangle
-    // marking the visible viewport, shown only when the board exceeds the view.
-    // Lives in BoardScene+Minimap; pinned to the camera so it's fixed on screen.
-    /// Container pinned to the camera (built lazily in the +Minimap extension).
+    // Minimap — corner thumbnail of the whole board with a viewport rectangle,
+    // shown only when the board exceeds the view. Lives in BoardScene+Minimap;
+    // pinned to the camera so it's screen-fixed.
     var minimapNode: SKNode?
-    /// Opaque background panel behind the overview, so it reads as a HUD element.
     var minimapPanel: SKShapeNode?
-    /// The overview image sprite inside `minimapNode`, rebuilt on board change.
     var minimapImage: SKSpriteNode?
-    /// The "you are here" viewport rectangle, repositioned each frame.
     var minimapViewport: SKShapeNode?
-    /// Small expand-icon node in the minimap corner — tap it to open the overview.
     var minimapExpand: SKNode?
-    /// The expand icon's hit rect in CAMERA space (screen-fixed), set in layout so
-    /// the tap handler can test against it. nil while the minimap is hidden.
+    /// The expand icon's hit rect in CAMERA space (screen-fixed); nil while hidden.
     var minimapExpandHitRect: CGRect?
-    /// Board revision the overview image was last rendered for (rebuild on change).
     var lastMinimapRevision = -1
-    /// Cached board size the minimap was built for, to detect new-game/resize.
     var lastMinimapBoard: CGSize = .zero
-    /// User preference (pushed from the chrome's toolbar toggle, via BoardView):
-    /// show the minimap when the board exceeds the viewport. Default on.
+    /// Show the minimap when the board exceeds the viewport (user preference).
     var showMinimap = true
     /// Called when the minimap's expand icon is tapped — the host opens the
-    /// fullscreen overview. Set by `GameContent` via `BoardView`.
+    /// fullscreen overview.
     var onOpenOverview: (() -> Void)?
 
-    /// A saved camera view (centre + zoom) to hold onto across the launch dance,
-    /// instead of the default fit. It's STICKY rather than one-shot: the window
-    /// settles to its restored frame *after* the scene mounts, firing `didMove`
-    /// and `didChangeSize`, each of which would otherwise re-centre — so the
-    /// target is re-applied (re-clamped to the new size) at every such point until
-    /// the player actually pans/zooms (or starts a new game), then it's cleared.
+    /// A saved camera view to hold across the launch dance instead of the default
+    /// fit. STICKY: the window settles to its restored frame *after* the scene
+    /// mounts, firing `didMove`/`didChangeSize` which would each re-centre — so the
+    /// target is re-applied at every such point until the player pans/zooms (or
+    /// starts a new game), then cleared.
     var restoreCameraTarget: CameraView?
 
-    /// The active color palette. Set by the host when the system appearance
-    /// changes; updating it recolors the background and rebuilds the cells.
+    /// Set by the host on appearance change; recolors the background and rebuilds.
     public var palette: Palette = .dark {
         didSet {
             backgroundColor = palette.sceneBackground
@@ -106,11 +84,10 @@ public final class BoardScene: SKScene {
         super.init(size: CGSize(width: 320, height: 320))
         scaleMode = .resizeFill
         backgroundColor = palette.sceneBackground
-        // Layer order is by zPosition, NOT add-order: the SKView sets
-        // `ignoresSiblingOrder = true` (a batching win), so equal-z siblings draw
-        // in an undefined order. The cell tiles are opaque `SKSpriteNode`s; without
-        // an explicit higher z the glow's `SKShapeNode` tiles batch *under* them and
-        // vanish (the same trap the per-cell overlays hit — see BoardScene+Render).
+        // Layer order is by zPosition, not add-order: the SKView sets
+        // `ignoresSiblingOrder = true`, so equal-z siblings draw in undefined order.
+        // Without an explicit higher z the glow's `SKShapeNode` tiles batch under
+        // the opaque sprite tiles and vanish.
         boardLayer.zPosition = 0
         glowLayer.zPosition = 1  // above tiles…
         effectsLayer.zPosition = 2  // …but below end-game effects
@@ -138,14 +115,12 @@ public final class BoardScene: SKScene {
 
     public override func update(_ currentTime: TimeInterval) {
         rebuildIfNeeded()
-        // Cull to the current viewport every frame: cheap no-op unless the camera
-        // moved (guarded by `builtRange`), and it catches pan, zoom, and the
-        // animated spring-back without each having to call in.
+        // Cull to the viewport every frame (no-op unless the camera moved); catches
+        // pan, zoom, and the animated spring-back without each calling in.
         buildVisibleCells()
         refreshModeGlow()
         refreshMinimap()
-        // Keep the view model's live camera view current (after any restore in
-        // rebuildIfNeeded), so an autosave persists where the player is looking.
+        // Keep the live camera view current so an autosave persists the view.
         viewModel.cameraView = currentCameraView()
     }
 
@@ -162,71 +137,49 @@ public final class BoardScene: SKScene {
 
     // MARK: Camera
 
-    /// The on-screen cell-size cap is *relative to the window*: a small board may
-    /// grow to fill a big/full-screen window with large cells, but no single cell
-    /// exceeds this fraction of the viewport's smaller side — so a tiny board
-    /// (e.g. 2×2) can't blow up to where a couple of cells fill the screen.
+    /// Max on-screen cell size as a fraction of the viewport's smaller side, so a
+    /// tiny board can't blow up to where a few cells fill the screen.
     private static let maxCellFractionOfViewport: CGFloat = 0.22
-    /// Absolute ceiling so even on a huge display cells stay reasonable.
     private static let absoluteMaxCellSize: CGFloat = 140
-    /// Cap on how many cells the *initial* zoom shows at once. The render cost is
-    /// per-visible-cell (one SKNode each, culled to the viewport), so bounding the
-    /// visible count — not the cell size — is what keeps a fresh huge board fast
-    /// regardless of window size. A bigger window shows the same ~count of bigger
-    /// cells, not more cells.
+    /// Cap on cells the *initial* zoom shows. Render cost is per-visible-cell, so
+    /// bounding the visible count (not cell size) keeps a fresh huge board fast on
+    /// any window size.
     private static let maxStartVisibleCells: CGFloat = 600
-    /// Absolute floor so a cell never *starts* smaller than comfortably tappable
-    /// (~28pt — a bit under the 44pt HIG target, fine for a grid you can zoom).
-    /// A huge board opens showing fewer, tappable cells rather than a sea of
-    /// untappable ones; the player can still zoom further out manually.
+    /// Floor so a cell never *starts* smaller than comfortably tappable; the player
+    /// can still zoom further out manually.
     private static let minStartCellSize: CGFloat = 28
-    /// When the board exceeds the viewport, the start zoom is nudged in by this
-    /// factor so edge cells are clipped mid-cell — signalling the board continues
-    /// past the edges instead of looking complete. <1 because scale is
-    /// world-units-per-point (smaller scale = more zoomed in).
+    /// When the board exceeds the viewport, nudge the start zoom in so edge cells
+    /// clip mid-cell, signalling the board continues. <1 because scale is
+    /// world-units-per-point (smaller = more zoomed in).
     private static let edgePeekZoom: CGFloat = 0.92
-    /// Smallest on-screen cell size (points) reachable by manual zoom-OUT — only a
-    /// little below the ~28pt start floor, so there's a small buffer past the
-    /// opening view but it never reaches the tiny/choppy range (sub-20pt cells on
-    /// a huge board, where the whole grid becomes visible and laggy). The
-    /// whole-board overview is the future minimap's job, not deep zoom-out.
+    /// Smallest on-screen cell reachable by manual zoom-out — a small buffer past
+    /// the start floor, never into the tiny/choppy range on a huge board.
     private static let minInteractiveCellSize: CGFloat = 22
 
-    /// The most zoomed-OUT camera scale allowed: the larger of "whole board fits"
-    /// and "cells at the min interactive size" is the *smaller* scale (more zoomed
-    /// in), so we clamp to whichever keeps cells tappable. For a board that fits at
-    /// a comfortable size this is `fitScale` (unchanged); for a huge board it stops
-    /// zoom-out before cells get too small to tap (and before the node count
-    /// explodes). Internal so BoardScene+Pan's `zoom`/clamps use it.
+    /// Most zoomed-out scale allowed: whichever of "whole board fits" / "cells at
+    /// the min interactive size" keeps cells tappable (the smaller scale).
     var maxZoomOutScale: CGFloat {
         let interactiveLimit = layout.cellSize / Self.minInteractiveCellSize
         return min(fitScale, interactiveLimit)
     }
 
-    // Internal so BoardScene+Pan (which owns pan/zoom/clamp) can reach them.
     func centerCamera() {
         let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
         cameraNode.position = CGPoint(x: board.width / 2, y: board.height / 2)
-        // Camera scale = world-units-per-point; a larger scale is more zoomed out,
-        // and on-screen cell size = layout.cellSize / scale.
+        // Scale = world-units-per-point; larger = more zoomed out, cell size =
+        // layout.cellSize / scale.
         let viewportMin = min(size.width, size.height)
-        // Biggest cells allowed (don't let a tiny board blow up) → smallest scale.
         let maxCell = min(
             Self.absoluteMaxCellSize, max(40, viewportMin * Self.maxCellFractionOfViewport))
         let cellFloor = layout.cellSize / maxCell
-        // Smallest on-screen cell the start zoom uses: large enough that no more
-        // than `maxStartVisibleCells` fit the viewport (so the node count is
-        // bounded on any window size), but never below the legibility floor.
+        // Start cell large enough that no more than `maxStartVisibleCells` fit, but
+        // never below the legibility floor.
         let area = max(1, size.width * size.height)
         let startCell = max(Self.minStartCellSize, (area / Self.maxStartVisibleCells).squareRoot())
         let cellCeiling = layout.cellSize / startCell
-        // Prefer to fit the whole board, but clamp into [cellFloor, cellCeiling]:
-        // never bigger than maxCell, never so small the viewport shows > the cap.
+        // Prefer to fit the whole board, clamped into [cellFloor, cellCeiling].
         var scale = min(max(fitScale, cellFloor), cellCeiling)
-        // When the board is bigger than the viewport (we're not fitting the whole
-        // thing), nudge the zoom in (smaller scale) so the edge cells are clipped
-        // mid-cell — a visual cue that the board continues past the edges. Skip it
-        // when the whole board fits (nothing beyond the edge to hint at).
+        // Board bigger than the viewport: nudge zoom in so edge cells clip mid-cell.
         if scale < fitScale {
             scale *= Self.edgePeekZoom
         }
@@ -248,16 +201,14 @@ public final class BoardScene: SKScene {
         applyDesiredCameraOrCenter()
     }
 
-    // Input mapping, gestures, and mouse/keyboard handling live in
-    // BoardScene+Input.swift. The mutable state those handlers use is declared
-    // here (extensions can't hold stored properties):
+    // Input/gesture/mouse/keyboard handling lives in BoardScene+Input.swift; the
+    // mutable state it uses is declared here (extensions can't hold stored props).
     #if os(iOS)
     var lastPan: CGPoint = .zero
     #elseif os(macOS)
-    // Left mouse: a press that stays put is a click; a press that moves past a
-    // small threshold is a drag-pan (and suppresses the click). The threshold
-    // matters — a normal click carries a pixel or two of jitter, which must NOT
-    // count as a drag or clicks get eaten.
+    // Left mouse: a press that stays put is a click; one that moves past the
+    // threshold is a drag-pan (suppressing the click). The threshold absorbs the
+    // pixel or two of click jitter that must not count as a drag.
     var lastDragViewPoint: CGPoint = .zero
     var mouseDownViewPoint: CGPoint = .zero
     var didDragInScene = false

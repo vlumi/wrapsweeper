@@ -2,10 +2,9 @@
 import AppKit
 import SwiftUI
 
-/// An invisible AppKit view that takes the window's first responder and forwards
-/// arrow / Return / Escape key presses. Used by overlays (the New Game popup)
-/// because SwiftUI `@FocusState` can't reliably pry first responder away from the
-/// SpriteKit board, especially after a game ends.
+/// Invisible AppKit view that takes first responder and forwards arrow / Return /
+/// Escape presses. Used by overlays because `@FocusState` can't reliably take it
+/// from the SpriteKit board, especially after a game ends.
 struct KeyCatcher: NSViewRepresentable {
     enum Key { case up, down, left, right, enter, escape }
     let onKey: (Key) -> Void

@@ -1,26 +1,19 @@
 import DonpaCore
 import SwiftUI
 
-/// The end-of-game result screen: a dramatic comic frame that slams in over the
-/// board on win/loss and *stays* until dismissed. It dims the **board only** —
-/// the control strip stays live — so the panel carries no buttons of its own
-/// (New Game / Retry / Home live on the strip). A tap anywhere, the corner X, or
-/// Esc dismisses it to inspect the finished board.
-///
-/// The art is a single drop-in PNG (border included, transparent outside the
-/// panel shape) in the `Panels` asset catalog. The framing/FX here are
-/// procedural: a coloured glow accent (win=green / loss=red), the slam-in, and
-/// the record badge. Swapping the art is a catalog change, no code edit.
+/// The end-of-game result screen: a comic frame that slams in over the board and
+/// stays until dismissed (X / tap / Esc). Dims the BOARD only — the control strip
+/// stays live, so the panel carries no buttons. The art is a drop-in PNG; the FX
+/// (accent glow, slam-in, record badge) are procedural.
 struct MangaPanelView: View {
     enum Kind: Equatable {
         case win
-        /// A win that set a new best time, in centiseconds — gets a record badge.
+        /// A win that set a new best time (centiseconds) — gets a record badge.
         case record(centiseconds: Int)
-        /// A loss, carrying the fraction (0...1) of safe cells cleared, the count
-        /// of safe cells still unopened, and whether it beat the previous best — a
-        /// "new best %" pill shows only when `isBest`. `safeRemaining` lets the
-        /// display show "N tiles left" instead of a misleading "100%" when the
-        /// player lost on the very last cells (0.99x rounds up to 100).
+        /// A loss: fraction of safe cells cleared, safe cells still unopened, and
+        /// whether it beat the prior best (the "new best %" pill). `safeRemaining`
+        /// lets the display show "N left" instead of a misleading "100%" on a
+        /// last-cell loss.
         case loss(progress: Double, safeRemaining: Int, isBest: Bool)
 
         var isWin: Bool {
@@ -60,20 +53,15 @@ struct MangaPanelView: View {
             return nil
         }
 
-        /// Whole-percent string, e.g. `87%`. FLOORED, not rounded — matching the
-        /// scoreboard's "Best %" and the live readout: you haven't reached 88%
-        /// until you've actually cleared 88%, so 87.6% reads "87%". (Rounding here
-        /// made the loss screen claim a higher % than reached / than the scoreboard
-        /// later shows.)
+        /// Whole-percent string, FLOORED to match the scoreboard's "Best %" and the
+        /// live readout (so 87.6% reads "87%", not a higher figure than reached).
         static func percent(_ fraction: Double) -> String {
             "\(Int((fraction * 100).rounded(.down)))%"
         }
 
-        /// Short loss headline: the cleared percent, EXCEPT when it would round to
-        /// 100% on a non-clear — then the count of safe tiles still unopened, so a
-        /// last-cell loss reads "2 left" rather than a misleading "100%". This guard
-        /// rounds (not floors) so a 99.6% near-clear still reads "N left" — the
-        /// "so close" cue — rather than a flat "99%".
+        /// Short loss headline: the cleared percent, except when it would round to
+        /// 100% on a non-clear — then "N left" (rounded, so a 99.6% near-clear still
+        /// reads "N left" as the "so close" cue, not a flat "99%").
         static func lossHeadline(_ fraction: Double, safeRemaining: Int) -> String {
             if Int((fraction * 100).rounded()) >= 100 && safeRemaining > 0 {
                 return String(localized: "\(safeRemaining) left", bundle: .module)
@@ -92,9 +80,7 @@ struct MangaPanelView: View {
 
     let kind: Kind
     let reduceMotion: Bool
-    /// Dismiss the result screen to inspect the finished board (the X, a tap
-    /// anywhere, or Esc). The game actions (New Game / Retry / Home) live on the
-    /// still-visible control strip, so the panel carries no buttons of its own.
+    /// Dismiss to inspect the finished board (X / tap / Esc).
     let onContinue: () -> Void
 
     @State private var appeared = false
@@ -105,16 +91,14 @@ struct MangaPanelView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Dimmed backdrop over the BOARD AREA only (this view is overlaid
-                // on the board, not the whole window), so the toolbar/control
-                // strip stay live. Tapped, it dismisses to inspect the board.
+                // Dimmed backdrop over the BOARD only (this view overlays the board,
+                // not the window), so the control strip stays live. Tap dismisses.
                 Color.black.opacity(appeared ? 0.45 : 0)
                     .contentShape(Rectangle())
                     .onTapGesture { onContinue() }
                     .accessibilityHidden(true)
 
-                // The art, sized to fit the board area (minus a margin) so it's
-                // never clipped on a small board region or window.
+                // Sized to the board area minus a margin, so it's never clipped.
                 panelImage
                     .frame(
                         maxWidth: min(panelWidth(in: geo.size), geo.size.width - 24),
@@ -125,10 +109,9 @@ struct MangaPanelView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             #if os(macOS)
-            // Hold keyboard focus (ring suppressed) so Esc closes the panel
-            // even though the SpriteKit board would otherwise keep first
-            // responder. `.onExitCommand` is the proper Escape hook — an
-            // Escape menu key-equivalent isn't delivered by AppKit.
+            // Hold keyboard focus (ring suppressed) so Esc closes the panel, which
+            // the SpriteKit board would otherwise swallow. `.onExitCommand` is the
+            // proper Escape hook (a menu key-equivalent isn't delivered by AppKit).
             .focusable()
             .focused($focused)
             .focusEffectDisabled()
@@ -139,9 +122,8 @@ struct MangaPanelView: View {
         .onAppear { animateIn() }
     }
 
-    /// Responsive panel width. The art is roughly square, so size it off the
-    /// *shorter* window dimension — that keeps it square-ish and centered whether
-    /// the window is wide or tall — then clamp so it's never tiny or absurd.
+    /// Responsive panel width: size off the shorter window dimension (the art is
+    /// roughly square) and clamp.
     private func panelWidth(in size: CGSize) -> CGFloat {
         let shorter = min(size.width, size.height)
         return min(max(shorter * 0.82, 220), 900)
@@ -153,17 +135,15 @@ struct MangaPanelView: View {
             .interpolation(.high)
             .antialiased(true)
             .scaledToFit()
-            // No white backing: the art's panel interior is baked opaque-white and
-            // only the area *outside* its drawn border is transparent — so the
-            // rounded corners show the dimmed board through, as intended.
+            // No white backing: the art's interior is baked opaque-white, only the
+            // area outside its border is transparent, so the corners show through.
             .overlay(alignment: .topLeading) { recordBadge }
             .overlay(alignment: .topLeading) { bestLossPill }
             .overlay(alignment: .topTrailing) { closeButton }
-            // Coloured accent glow — the roadmap's "accent applied in code over
-            // the mono art", kept subtle so it frames rather than tints.
+            // Subtle accent glow over the mono art (frames rather than tints).
             .shadow(color: kind.accent.opacity(0.7), radius: 28)
             .shadow(color: .black.opacity(0.4), radius: 12, y: 6)
-            // A tap on the art itself also dismisses (tap-anywhere-but-button).
+            // A tap on the art also dismisses.
             .contentShape(Rectangle())
             .onTapGesture { onContinue() }
             .accessibilityElement(children: .ignore)
@@ -184,12 +164,11 @@ struct MangaPanelView: View {
         .accessibilityLabel(Text("Close", bundle: .module))
     }
 
-    /// Code-drawn "new record" flourish — a compact tilted ribbon tucked into the
-    /// top-left corner so it reads as a stamp without covering the character.
+    /// "New record" flourish — a tilted corner ribbon stamp.
     @ViewBuilder private var recordBadge: some View {
         if let cs = kind.recordCentiseconds {
             VStack(spacing: 0) {
-                // Kana headline kept verbatim in all languages — a manga flourish.
+                // Kana headline verbatim in all languages — a manga flourish.
                 Text(verbatim: "新記録")
                     .font(.system(size: 16, weight: .black, design: .rounded))
                 Text(verbatim: TimeFormat.mmsst(centiseconds: cs))
@@ -208,9 +187,8 @@ struct MangaPanelView: View {
         }
     }
 
-    /// On a loss that beat the previous best %, a small red corner pill — mirrors
-    /// the record badge so a "new best %" reads as an achievement, not just text.
-    /// (A plain loss shows nothing; the live readout covers the unimproved case.)
+    /// On a loss that beat the prior best %, a red corner pill mirroring the record
+    /// badge. A plain loss shows nothing.
     @ViewBuilder private var bestLossPill: some View {
         if let headline = kind.bestLossHeadline {
             VStack(spacing: 0) {
@@ -233,8 +211,7 @@ struct MangaPanelView: View {
         }
     }
 
-    /// Slam-in overshoot: starts large, settles to 1.0. Reduce Motion gets a
-    /// straight fade (handled by `appeared` alone, scale pinned to 1).
+    /// Slam-in overshoot: starts large, settles to 1.0. Reduce Motion pins scale to 1.
     private var scale: CGFloat {
         if reduceMotion { return 1 }
         return appeared ? 1 : 1.4

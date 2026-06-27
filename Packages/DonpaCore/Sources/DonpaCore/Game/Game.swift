@@ -7,34 +7,26 @@ public enum GameStatus: String, Sendable, Equatable, Codable {
 }
 
 /// Drives the rules: first-click mine placement, flood-fill reveal, flagging,
-/// chording, and win/lose detection.
-///
-/// `Game` is deliberately free of any rendering or timing concern and free of
-/// any hard-coded geometry — it asks the `Topology` (via `Board`) for neighbours
-/// and works unchanged on bounded, wrapped, square, or hex boards.
+/// chording, and win/lose detection. Geometry-agnostic — all neighbour
+/// questions go through `Topology` (via `Board`).
 public struct Game: Sendable {
     public private(set) var board: Board
     public private(set) var status: GameStatus = .notStarted
     public let mineCount: Int
 
-    /// Count of non-mine cells revealed so far, tracked incrementally so win
-    /// detection and progress are O(1) rather than an O(n) board scan (matters
-    /// for huge boards). A win is exactly `revealedSafeCount == safeCellCount`.
+    /// Non-mine cells revealed, tracked incrementally so win detection is O(1).
+    /// A win is exactly `revealedSafeCount == safeCellCount`.
     public private(set) var revealedSafeCount: Int = 0
 
-    /// Total non-mine cells on the board — the denominator for progress.
     public var safeCellCount: Int { board.cellCount - mineCount }
 
-    /// Fraction of safe cells revealed, 0...1. 1.0 means the board is cleared
-    /// (a win). Useful as a score on hard boards that are rarely fully cleared.
+    /// Fraction of safe cells revealed, 0...1; 1.0 is a win.
     public var progress: Double {
         let safe = safeCellCount
         return safe > 0 ? Double(revealedSafeCount) / Double(safe) : 0
     }
 
-    /// The mine that ended the game on a loss — the specific cell whose reveal
-    /// detonated (even when reached via a chord). `nil` unless the game is lost.
-    /// Lets the renderer focus the loss animation on the cell the player hit.
+    /// The cell whose reveal detonated on a loss (even via a chord); nil unless lost.
     public private(set) var lossCoord: Coord?
 
     private let topology: any RectangularTopology
@@ -47,24 +39,22 @@ public struct Game: Sendable {
         self.mineCount = difficulty.mineCount
     }
 
-    /// Start a game from a `GameConfig` (the modern path): the config supplies
-    /// both the topology and the mine count.
+    /// Start a game from a `GameConfig` (supplies topology and mine count).
     public init(config: GameConfig) {
         self.topology = config.topology
         self.board = Board(topology: config.topology)
         self.mineCount = config.mineCount
     }
 
-    /// For epic variants / tests: inject any topology directly.
+    /// Inject any topology directly (variants / tests).
     public init(topology: any RectangularTopology, mineCount: Int) {
         self.topology = topology
         self.board = Board(topology: topology)
         self.mineCount = mineCount
     }
 
-    /// Test seam: start a game with a known mine layout already placed, as if
-    /// the first click had happened. Lets tests (and the solver suite) reason
-    /// about specific boards deterministically. Not part of the public API.
+    /// Test seam: start with a known mine layout already placed, as if the first
+    /// click had happened — for deterministic boards.
     init(topology: any RectangularTopology, mines: Set<Coord>) {
         self.topology = topology
         var board = Board(topology: topology)
@@ -76,15 +66,14 @@ public struct Game: Sendable {
     }
 
     /// Rebuild a game from a persisted snapshot. Mines are restored exactly (not
-    /// re-randomized — they're first-click-safe), cells set revealed/flagged, and
-    /// the derived game fields restored. The topology comes from the saved config.
+    /// re-randomized — they're first-click-safe).
     public static func restored(from s: GameSnapshot) -> Game {
         var game = Game(topology: s.config.topology, mineCount: s.config.mineCount)
         game.board.restore(mines: s.mines, revealed: s.revealed, flagged: s.flagged)
         game.minesPlaced = !game.board.mineCoords.isEmpty
         game.status = s.status
-        // Derive from the actual restored board rather than trusting the saved
-        // number, so a corrupt/tampered save can't skew progress or win detection.
+        // Derive from the restored board, not the saved number, so a tampered
+        // save can't skew progress or win detection.
         game.revealedSafeCount = game.board.revealedSafeCount
         game.lossCoord = s.lossCoord
         return game
@@ -101,11 +90,9 @@ public struct Game: Sendable {
         reveal(c, using: &rng)
     }
 
-    /// Testable variant with an injectable RNG.
-    /// Place all mines now, with NO safe zone — for arming the board *before* the
-    /// first click (off the main thread), since the first click isn't known yet.
-    /// The first reveal then relocates any mines under it (see `reveal`). Idempotent
-    /// guard: only places on a fresh board.
+    /// Arm the board off-thread before the first click is known: place all mines
+    /// with NO safe zone; the first reveal relocates any under it. Only acts on a
+    /// fresh board.
     public mutating func placeMinesEagerly<R: RandomNumberGenerator>(using rng: inout R) {
         guard !minesPlaced else { return }
         let mines = MinePlacer.randomMines(topology: topology, mineCount: mineCount, using: &rng)
@@ -119,16 +106,15 @@ public struct Game: Sendable {
         guard board[c].state == .hidden else { return }
 
         if !minesPlaced {
-            // Not pre-armed (direct construction / tests): place now, excluding the
-            // first-click safe zone in one shot.
+            // Not pre-armed: place now, excluding the first-click safe zone.
             let mines = MinePlacer.placeMines(
                 topology: topology, mineCount: mineCount, firstClick: c, using: &rng)
             board.placeMines(at: mines)
             minesPlaced = true
             status = .playing
         } else if status == .notStarted {
-            // Pre-armed off-thread (no safe zone then); now that we know the first
-            // click, move any mines out of its neighbourhood so it opens a region.
+            // Pre-armed without a safe zone; move any mines out of the click's
+            // neighbourhood so it opens a region.
             var safeZone: Set<Coord> = [c]
             safeZone.formUnion(topology.neighbors(of: c))
             board.relocateMines(outOf: safeZone, using: &rng)
@@ -147,10 +133,8 @@ public struct Game: Sendable {
         checkWin()
     }
 
-    /// Reveals a 0-region: BFS that reveals each cell it visits and keeps
-    /// expanding only out of 0-cells, so numbered cells form the border and are
-    /// shown but not expanded past. Uses `topology.neighbors`, so it is
-    /// geometry-agnostic. Flagged and mine cells are never enqueued.
+    /// Reveals a 0-region: BFS that expands only out of 0-cells, so numbered
+    /// cells form the border. Flagged and mine cells are never enqueued.
     private mutating func floodFill(from start: Coord) {
         var queue = [start]
         var enqueued: Set<Coord> = [start]
@@ -181,9 +165,8 @@ public struct Game: Sendable {
 
     // MARK: - Chord
 
-    /// Double-click/both-button reveal: if `c` is a revealed number whose
-    /// adjacent flag count equals its number, reveal all its non-flagged
-    /// neighbours. Mis-flagging here can lose the game — classic behaviour.
+    /// If `c` is a revealed number whose adjacent flag count equals its number,
+    /// reveal all its non-flagged neighbours. Mis-flagging can lose the game.
     public mutating func chord(_ c: Coord) {
         var rng = SystemRandomNumberGenerator()
         chord(c, using: &rng)
@@ -204,8 +187,6 @@ public struct Game: Sendable {
     // MARK: - Win/lose helpers
 
     private mutating func checkWin() {
-        // Win when every non-mine cell is revealed — an O(1) counter check
-        // rather than scanning the whole board (which is costly on huge boards).
         guard revealedSafeCount == safeCellCount else { return }
         status = .won
         flagAllMines()
@@ -213,10 +194,8 @@ public struct Game: Sendable {
 
     private mutating func revealAllMines() {
         for c in board.mineCoords where board[c].state != .flagged {
-            // Leave correctly-flagged mines flagged: the player marked them, so the
-            // flag should stay shown — and revealing them would clear the flag,
-            // making `flagsRemaining` jump back up (the "mines left" counter surged
-            // after a loss). Untouched flags keep `flagCount` intact.
+            // Leave correctly-flagged mines flagged: revealing them would clear the
+            // flag and make `flagsRemaining` jump back up after a loss.
             board[c].state = .revealed
         }
     }

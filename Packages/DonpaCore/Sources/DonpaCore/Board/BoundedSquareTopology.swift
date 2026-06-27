@@ -1,8 +1,6 @@
-/// Classic Minesweeper geometry: a `width × height` square grid with hard edges.
-///
-/// 8-connected (Moore neighbourhood). Coordinates outside the rectangle are
-/// off-board, so `normalize` returns `nil` for them and `neighbors` simply
-/// omits them — this is what gives the board its edges and corners.
+/// Classic Minesweeper geometry: a `width × height`, 8-connected (Moore) square
+/// grid with hard edges. `normalize` returns `nil` off-board, so `neighbors`
+/// omits off-board cells — giving the board its edges and corners.
 public struct BoundedSquareTopology: RectangularTopology {
     public let width: Int
     public let height: Int

@@ -1,14 +1,12 @@
 import Foundation
 
-/// A stable per-install identifier, used as this device's slot key in the iCloud
-/// scoreboard sync (each device writes only its own slot — see `DeviceCounter`).
+/// A stable per-install identifier, used as this device's slot key in iCloud
+/// scoreboard sync.
 ///
-/// It's a UUID generated once and persisted in `UserDefaults`, NOT
-/// `identifierForVendor` — that's iOS-only (absent on macOS) and we need one
-/// identifier scheme across both. The trade-off: deleting/reinstalling mints a
-/// new id (the old slot is abandoned in the cloud), which is the known churn risk
-/// the sync design accepts; pruning stale slots is deferred (a reinstall can't be
-/// told apart from a device that's merely offline).
+/// A UUID persisted in `UserDefaults`, not `identifierForVendor` (iOS-only; we
+/// need one scheme across iOS + macOS). Trade-off: reinstalling mints a new id and
+/// abandons the old cloud slot — the accepted churn risk, since a reinstall can't
+/// be told apart from a merely-offline device.
 public enum DeviceID {
     static let defaultsKey = "donpa.deviceID"
 

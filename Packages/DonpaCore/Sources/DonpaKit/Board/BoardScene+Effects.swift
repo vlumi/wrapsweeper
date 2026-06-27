@@ -8,12 +8,10 @@ import AppKit
 #endif
 
 /// End-of-game board animations, on `effectsLayer` (never wiped by `rebuild()`).
-/// Tasteful and quick (<~1s), non-blocking — the board stays interactive for a
-/// restart — and respects Reduce Motion.
+/// Quick, non-blocking, and Reduce-Motion aware.
 extension BoardScene {
 
-    /// Flat burst-mine for the detonated cell (the app-icon motif, no halftone or
-    /// gradient — those would be noise at cell size).
+    /// Flat burst-mine for the detonated cell (the app-icon motif).
     func burstMineNode(size: CGFloat) -> SKNode {
         let node = SKNode()
         let ink = palette.mineGlyph
@@ -54,25 +52,22 @@ extension BoardScene {
         return node
     }
 
-    /// The flag placed on a flagged cell — the swallowtail flag from the toolbar
-    /// toggle (`MangaIcon.flag`), drawn with SpriteKit paths so it matches the
-    /// chrome and stays crisp at any zoom. Centred on the cell origin (y-up).
+    /// The swallowtail flag for a flagged cell, drawn with SpriteKit paths to match
+    /// the toolbar toggle and stay crisp at any zoom. Centred on the cell (y-up).
     func flagNode(size: CGFloat, color: SKColor) -> SKNode {
         let node = SKNode()
-        // Work in a centred box of side `g`, mapping MangaIcon's 0…1 design space
-        // (top-down) to SpriteKit (y-up): x → x-0.5, y → 0.5-y, scaled by g.
+        // Centred box of side `g`, mapping MangaIcon's top-down 0…1 space to
+        // SpriteKit y-up: x → x-0.5, y → 0.5-y, scaled by g.
         let g = size * 0.66
         func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
             CGPoint(x: (x - 0.5) * g, y: (0.5 - y) * g)
         }
         let poleX: CGFloat = 0.30
-        // Ball finial.
-        let ball = SKShapeNode(circleOfRadius: 0.07 * g)
+        let ball = SKShapeNode(circleOfRadius: 0.07 * g)  // finial
         ball.position = p(poleX, 0.12)
         ball.fillColor = color
         ball.strokeColor = .clear
         node.addChild(ball)
-        // Pole.
         let pole = CGMutablePath()
         pole.move(to: p(poleX, 0.17))
         pole.addLine(to: p(poleX, 0.86))
@@ -98,21 +93,16 @@ extension BoardScene {
 
     // MARK: Mode glow
 
-    /// A faint manga *screentone* over the *unopened* tiles, signalling which tool
-    /// a tap will use — without touching the revealed numbers. The cue is the
-    /// PATTERN, not colour: dig = Ben-Day dots, flag = diagonal hatch, both in a
-    /// single neutral ink. Distinguishable by texture alone (fully colour-blind
-    /// safe) and a nod to the manga theme. Rebuilt only when the mode, the board
-    /// revision, or live/visibility changes (not every frame).
+    /// A faint screentone over the unopened tiles signalling which tool a tap will
+    /// use. The cue is the PATTERN, not colour (colour-blind safe): dig = Ben-Day
+    /// dots, flag = diagonal hatch, both in one neutral ink. Rebuilt only on mode /
+    /// revision / visibility / viewport change, not every frame.
     func refreshModeGlow() {
-        // Shown whenever the board is visible (not paused — the pause overlay
-        // blurs the board anyway). It persists after win/loss, frozen at the last
-        // mode, so a finished board keeps its texture instead of going flat.
+        // Persists after win/loss, frozen at the last mode. Hidden while paused
+        // (the pause overlay blurs the board anyway).
         let visible = !viewModel.isPaused
         let mode = viewModel.inputMode
         let range = visibleRange()
-        // Rebuilt when mode / live-visibility / board revision changes (which tiles
-        // are still hidden), OR when the viewport scrolls (new tiles in view).
         guard
             mode != lastGlowMode || visible != lastGlowLive
                 || viewModel.revision != lastGlowRevision || range != lastGlowRange
@@ -128,12 +118,9 @@ extension BoardScene {
         let size = layout.cellSize
         let inset: CGFloat = 1
         let side = size - inset * 2
-        // A flagged tile is still an *unopened* tile, so it gets the screentone
-        // too. The glow layer sits above the board (where the cell's flag glyph
-        // lives), so for flagged tiles we re-stamp the flag on top of the wash
-        // here — keeping the flag visible above its own halftone.
-        // Only the visible window (same cull as the tiles), so a huge board stamps
-        // ~one screenful of glow tiles, not one per hidden cell board-wide.
+        // Flagged tiles are unopened, so they get the screentone too; since the
+        // glow layer sits above the board's flag glyph, re-stamp the flag on top.
+        // Only the visible window (same cull as the tiles).
         range.forEach { c in
             let state = viewModel.game.board[c].state
             guard state == .hidden || state == .flagged else { return }
@@ -155,14 +142,12 @@ extension BoardScene {
         }
     }
 
-    /// A cached, cell-sized screentone texture for a mode: Ben-Day dots for dig,
-    /// diagonal hatch for flag, in a single faint neutral ink (the cue is the
-    /// pattern, not colour). Cached per mode + cell size so it's built once.
+    /// Cached cell-sized screentone texture for a mode: dots for dig, hatch for
+    /// flag, in a faint neutral ink. Cached per mode + cell size + ink.
     func screentoneTexture(for mode: InputMode) -> SKTexture {
         let px = max(8, Int(layout.cellSize.rounded()))
         let ink = palette.screentoneInk
-        // Key by ink too: the colour differs by appearance, so light/dark must not
-        // share a cached texture (otherwise switching theme reuses the stale one).
+        // Key by ink so light/dark don't share a stale cached texture.
         let key = "\(mode)-\(px)-\(ink)"
         if let cached = glowTextureCache[key] { return cached }
 
@@ -175,15 +160,13 @@ extension BoardScene {
         ctx.setFillColor(ink.cgColor)
         ctx.setStrokeColor(ink.cgColor)
         drawScreentonePattern(ctx, mode: mode, dim: dim)
-        // Balance the average brightness: the ink only pushes one way (lighter on
-        // the dark board, darker on the light board), which would shift the mean
-        // tile brightness away from the bare tile. Measure the mean ink coverage
-        // and lay a faint OPPOSITE-sign wash underneath at the same average, so a
-        // screentoned tile averages back to the original tile colour.
+        // The ink pushes brightness one way (lighter on dark, darker on light); lay
+        // an opposite-sign wash of equal average underneath so a screentoned tile
+        // averages back to the bare tile colour.
         guard let inked = ctx.makeImage() else { return SKTexture() }
-        let coverage = meanAlpha(of: inked, dim: dim)  // 0…1 average opacity of the ink
+        let coverage = meanAlpha(of: inked, dim: dim)
         let comp = compensatingTexture(inkWhite: inkWhite(ink), coverage: coverage, dim: dim)
-        // Draw compensation first, then the ink on top.
+        // Compensation first, then the ink on top.
         ctx.clear(CGRect(x: 0, y: 0, width: dim, height: dim))
         if let comp { ctx.draw(comp, in: CGRect(x: 0, y: 0, width: dim, height: dim)) }
         ctx.draw(inked, in: CGRect(x: 0, y: 0, width: dim, height: dim))
@@ -194,10 +177,9 @@ extension BoardScene {
         return texture
     }
 
-    /// Stroke/fill the mode's screentone pattern into `ctx` (already set up with
-    /// the ink colour): fine staggered Ben-Day dots that shrink toward the tile
-    /// centre for dig, narrow diagonal hatch that thickens toward the centre for
-    /// flag — opposite vignettes so the two modes read as plainly different.
+    /// Draw the mode's screentone into `ctx` (already set to the ink colour): dig =
+    /// staggered dots that shrink toward the centre, flag = diagonal hatch that
+    /// thickens toward the centre — opposite vignettes so the modes read distinct.
     private func drawScreentonePattern(_ ctx: CGContext, mode: InputMode, dim: Int) {
         let f = CGFloat(dim)
         let mid = f / 2, maxDist = f / 2 * 1.414  // centre→corner
@@ -210,7 +192,7 @@ extension BoardScene {
                 let offset = row.isMultiple(of: 2) ? 0 : gap / 2
                 var x = gap / 2 - gap + offset
                 while x < f + gap {
-                    let dist = hypot(x - mid, y - mid) / maxDist  // 0 centre → 1 corner
+                    let dist = hypot(x - mid, y - mid) / maxDist
                     let r = baseR * (0.55 + 0.45 * dist)  // smaller centre, fuller edges
                     ctx.fillEllipse(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
                     x += gap
@@ -223,7 +205,7 @@ extension BoardScene {
             var d = -f
             while d < f {
                 let lineMid = d + f / 2
-                let dist = abs(lineMid - mid) / mid  // 0 centre → 1 edge
+                let dist = abs(lineMid - mid) / mid
                 ctx.setLineWidth(f * (0.075 - 0.045 * min(1, dist)))  // thicker centre
                 ctx.move(to: CGPoint(x: d, y: 0))
                 ctx.addLine(to: CGPoint(x: d + f, y: f))
@@ -233,8 +215,7 @@ extension BoardScene {
         }
     }
 
-    /// The ink's white value (0 = black ink on the light board, 1 = white ink on
-    /// the dark board).
+    /// The ink's white value (0 = black ink, 1 = white ink).
     private func inkWhite(_ color: SKColor) -> CGFloat {
         var w: CGFloat = 0, a: CGFloat = 0
         #if os(macOS)
@@ -260,13 +241,10 @@ extension BoardScene {
         return CGFloat(total) / CGFloat(dim * dim) / 255
     }
 
-    /// A flat wash of the OPPOSITE luminance to the ink, at the alpha needed so its
-    /// brightness contribution cancels the ink's average — keeping the mean tile
-    /// brightness neutral. Returns nil if no compensation is needed.
+    /// A flat wash of the opposite luminance to the ink, at the alpha that cancels
+    /// the ink's average brightness. nil when no compensation is needed.
     private func compensatingTexture(inkWhite: CGFloat, coverage: CGFloat, dim: Int) -> CGImage? {
         guard coverage > 0.001 else { return nil }
-        // Ink shifts brightness by (inkWhite - 0.5) over `coverage` of the area;
-        // a full-area opposite wash at this alpha restores the mean.
         let opposite: CGFloat = inkWhite > 0.5 ? 0 : 1
         let alpha = min(1, coverage)  // equal-area, opposite colour → mean ≈ neutral
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -288,9 +266,7 @@ extension BoardScene {
         #endif
     }
 
-    // The board stores its mine set, so this is O(1) — not a full-board scan. (It
-    // was previously `allCoords.filter { isMine }`, which scanned all 1M cells on
-    // the main thread on every loss — the source of the XXXL detonation lag.)
+    // O(1) — the board stores its mine set, not a full-board scan.
     private var mineCoords: Set<Coord> {
         viewModel.game.board.mineCoords
     }
@@ -307,11 +283,9 @@ extension BoardScene {
             if let origin { effectsLayer.addChild(flash(at: origin, size: cell)) }
             return
         }
-        // Other mines pulse, staggered outward — but ONLY visible ones. Off-screen
-        // pulses are invisible, so building one per mine on a huge board (~130k)
-        // froze the main thread; culling to the viewport keeps it to a screenful.
-        // A correctly-flagged ("disarmed") mine does NOT detonate — the player
-        // neutralized it, so it stays intact under its flag while the rest go off.
+        // Other mines pulse, staggered outward — only VISIBLE ones (culling keeps a
+        // huge board off the main thread). A flagged ("disarmed") mine doesn't
+        // detonate; it stays intact under its flag.
         let range = visibleRange()
         let board = viewModel.game.board
         let speed = cell * 18  // points/sec the shock wave travels
@@ -346,9 +320,7 @@ extension BoardScene {
             return
         }
         // Ripple wave: each revealed cell flashes, delayed by distance from centre.
-        // Only VISIBLE revealed cells — iterating all of a won 1M board (and making
-        // a ripple node per revealed cell, ~900k) would freeze the main thread; the
-        // off-screen ripples are invisible anyway. Same cull as the loss shockwave.
+        // Only VISIBLE revealed cells (same cull as the loss shockwave).
         let speed = cell * 22
         let gameBoard = viewModel.game.board
         let range = visibleRange()
@@ -368,9 +340,8 @@ extension BoardScene {
         burst.position = p
         burst.fillColor = SKColor(red: 1, green: 0.5, blue: 0.2, alpha: 1)
         burst.lineWidth = 0
-        // Above the tiles and starting bigger than one (1.4×), so a pre-fired
-        // burst reads as a real explosion on the first frame — not a faint ring
-        // hidden behind/within the unrevealed tile until its scale-up animates in.
+        // Above the tiles and starting at 1.4×, so a pre-fired burst reads as an
+        // explosion on the first frame rather than a faint ring behind the tile.
         burst.zPosition = 10
         burst.setScale(1.4)
         burst.run(
