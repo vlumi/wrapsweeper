@@ -310,9 +310,12 @@ extension BoardScene {
         // Other mines pulse, staggered outward — but ONLY visible ones. Off-screen
         // pulses are invisible, so building one per mine on a huge board (~130k)
         // froze the main thread; culling to the viewport keeps it to a screenful.
+        // A correctly-flagged ("disarmed") mine does NOT detonate — the player
+        // neutralized it, so it stays intact under its flag while the rest go off.
         let range = visibleRange()
+        let board = viewModel.game.board
         let speed = cell * 18  // points/sec the shock wave travels
-        for c in mineCoords where c != trigger && range.contains(c) {
+        for c in mineCoords where c != trigger && range.contains(c) && board[c].state != .flagged {
             let p = layout.center(of: c)
             let delay = origin.map { hypot(p.x - $0.x, p.y - $0.y) / speed } ?? 0
             let pulse = minePulse(at: p, size: cell)

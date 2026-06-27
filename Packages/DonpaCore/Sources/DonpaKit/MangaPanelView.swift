@@ -60,14 +60,20 @@ struct MangaPanelView: View {
             return nil
         }
 
-        /// Whole-percent string, e.g. `87%`.
+        /// Whole-percent string, e.g. `87%`. FLOORED, not rounded — matching the
+        /// scoreboard's "Best %" and the live readout: you haven't reached 88%
+        /// until you've actually cleared 88%, so 87.6% reads "87%". (Rounding here
+        /// made the loss screen claim a higher % than reached / than the scoreboard
+        /// later shows.)
         static func percent(_ fraction: Double) -> String {
-            "\(Int((fraction * 100).rounded()))%"
+            "\(Int((fraction * 100).rounded(.down)))%"
         }
 
         /// Short loss headline: the cleared percent, EXCEPT when it would round to
         /// 100% on a non-clear — then the count of safe tiles still unopened, so a
-        /// last-cell loss reads "2 left" rather than a misleading "100%".
+        /// last-cell loss reads "2 left" rather than a misleading "100%". This guard
+        /// rounds (not floors) so a 99.6% near-clear still reads "N left" — the
+        /// "so close" cue — rather than a flat "99%".
         static func lossHeadline(_ fraction: Double, safeRemaining: Int) -> String {
             if Int((fraction * 100).rounded()) >= 100 && safeRemaining > 0 {
                 return String(localized: "\(safeRemaining) left", bundle: .module)
