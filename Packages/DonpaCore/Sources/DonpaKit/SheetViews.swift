@@ -135,9 +135,60 @@ struct ScoreboardView: View {
                 if !playedModern.isEmpty {
                     section("Modern", configs: playedModern)
                 }
+                statsSection
             }
             .padding(.trailing, Self.scrollbarGutter)
         }
+    }
+
+    /// Lifetime totals across every config. Deliberately NO win rate / loss ratio —
+    /// raw, neutral counts (a win% only discourages); the figures are honest but
+    /// never framed as "you lose most games".
+    @ViewBuilder private var statsSection: some View {
+        if scoreboard.totalGamesPlayed > 0 {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Career", bundle: .module).font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+                .padding(.horizontal, Self.rowInset)
+
+                statRow("Games played", "\(scoreboard.totalGamesPlayed)")
+                Divider()
+                statRow("Tiles cleared", "\(scoreboard.totalTilesOpened)")
+                Divider()
+                statRow("Flags placed", "\(scoreboard.totalFlagsPlaced)")
+                Divider()
+                statRow("Mines disarmed", "\(scoreboard.totalMinesDisarmed)")
+                Divider()
+                statRow("Mines hit", "\(scoreboard.totalMinesHit)")
+                Divider()
+                statRow("Time played", Self.durationLabel(scoreboard.totalPlaytimeCentiseconds))
+            }
+        }
+    }
+
+    private func statRow(_ label: LocalizedStringKey, _ value: String) -> some View {
+        HStack {
+            Text(label, bundle: .module)
+            Spacer()
+            Text(verbatim: value).font(.body.monospaced())
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, Self.rowInset)
+    }
+
+    /// Coarse human duration for lifetime playtime (hours/minutes, not the precise
+    /// per-game m:ss.t). E.g. `14h 23m`, `45m`, `< 1m`.
+    static func durationLabel(_ centiseconds: Int) -> String {
+        let totalMinutes = centiseconds / 6000
+        let h = totalMinutes / 60
+        let m = totalMinutes % 60
+        if h > 0 { return "\(h)h \(m)m" }
+        if m > 0 { return "\(m)m" }
+        return "< 1m"
     }
 
     private func section(_ title: LocalizedStringKey, configs: [GameConfig]) -> some View {

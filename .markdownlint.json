@@ -1,4 +1,6 @@
 {
   "//": "Keep a Changelog repeats ### Added/Changed/Fixed across version sections; allow duplicate headings as long as they're not siblings under the same parent.",
-  "MD024": { "siblings_only": true }
+  "MD024": { "siblings_only": true },
+  "//2": "Prose wraps by hand at a comfortable width, not a hard column — don't flag line length.",
+  "MD013": false
 }

@@ -87,7 +87,7 @@ final class ScoreboardTests: XCTestCase {
         board.submit(30, for: .beginner)
         board.submit(20, for: .beginner)
         let r = board.record(for: .beginner)
-        XCTAssertEqual(r?.wins, 2)
+        XCTAssertEqual(r?.wins.total, 2)
         XCTAssertEqual(r?.bestCentiseconds, 20)
     }
 
@@ -218,16 +218,16 @@ final class ScoreboardTests: XCTestCase {
         defaults.set(Data(json.utf8), forKey: storeKey)
     }
 
-    /// One corrupt/incompatible record must NOT wipe the whole table — the good
-    /// rows survive, only the bad row is dropped.
+    /// One corrupt record must not wipe the whole table — good rows survive.
+    /// (A row with no salvageable best at all is dropped; see the per-entry loader.)
     func testOneBadRecordDoesNotWipeTheTable() {
         let good = GameConfig.beginner.storageKey
         let bad = GameConfig.expert.storageKey
         writeRaw(
             """
             {"version":1,"records":{
-              "\(good)":{"wins":3,"bestCentiseconds":1234},
-              "\(bad)":{"wins":"not-a-number"}
+              "\(good)":{"wins":{"mine":3},"bestCentiseconds":1234},
+              "\(bad)":"totally-not-a-record"
             }}
             """)
         let board = Scoreboard(defaults: defaults)
@@ -236,13 +236,16 @@ final class ScoreboardTests: XCTestCase {
         XCTAssertNil(board.record(for: .expert), "only the bad record was dropped")
     }
 
-    /// A legacy bare `[String: ScoreRecord]` (the pre-envelope format) still loads.
-    func testReadsLegacyBareDictFormat() {
+    /// A pre-0.2 record (scalar `wins`, before per-device counters): the BEST TIME
+    /// survives (it's an idempotent field, decoded unchanged), but the cumulative
+    /// counts reset to zero rather than dropping the record. High scores are the
+    /// precious data; a reset count is acceptable for a pre-release format change.
+    func testPre02RecordKeepsBestButResetsCounts() {
         let key = GameConfig.intermediate.storageKey
         writeRaw(#"{"\#(key)":{"wins":2,"bestCentiseconds":900}}"#)
         let board = Scoreboard(defaults: defaults)
-        XCTAssertEqual(board.wins(for: .intermediate), 2)
-        XCTAssertEqual(board.best(for: .intermediate), 900)
+        XCTAssertEqual(board.best(for: .intermediate), 900, "best time survives the format change")
+        XCTAssertEqual(board.wins(for: .intermediate), 0, "the scalar win count resets")
     }
 
     /// A save from a *newer* app (version > current) is not mis-read; rather than

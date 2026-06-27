@@ -139,6 +139,12 @@ public struct Board: Sendable {
     public var revealedCoords: Set<Coord> { coords { $0.state == .revealed } }
     public var flaggedCoords: Set<Coord> { coords { $0.state == .flagged } }
 
+    /// Mines that are correctly flagged ("disarmed"). Iterates only the mine set
+    /// (not every cell), so it's cheap to read at game end even on a huge board.
+    public var disarmedMineCount: Int {
+        minePositions.reduce(0) { $0 + (cells[$1].state == .flagged ? 1 : 0) }
+    }
+
     /// Count of revealed non-mine cells — the source of truth for progress/win,
     /// derived from the actual board (so a restored game can recompute it rather
     /// than trust a persisted number).

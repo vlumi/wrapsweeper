@@ -83,6 +83,11 @@ public final class GameViewModel: ObservableObject {
     /// computed result is applied.
     @Published public private(set) var isComputing = false
 
+    /// Flag *placements* this game (each hidden→flagged action, not net flags) —
+    /// the lifetime "flags placed" stat counts actions, so re-flagging a cell
+    /// counts again. Reset on new game / restore; read once at game end.
+    public private(set) var flagsPlacedThisGame = 0
+
     /// Whether the board currently extends beyond the viewport (so there's
     /// off-screen board a minimap could map). Published by `BoardScene` each frame
     /// as the camera pans/zooms; the chrome uses it to enable/disable the minimap
@@ -184,7 +189,11 @@ public final class GameViewModel: ObservableObject {
         // Flagging is O(1), so it stays synchronous — but still blocked mid-compute
         // (the board is changing under it) and when paused/finished.
         guard canTakeInput, game.status == .notStarted || game.status == .playing else { return }
+        let wasFlagged = game.board[c].state == .flagged
         game.toggleFlag(c)
+        // Count a placement (hidden→flagged), not a removal — the "flags placed"
+        // stat counts actions, so a re-flag counts again.
+        if !wasFlagged, game.board[c].state == .flagged { flagsPlacedThisGame += 1 }
         bump()
     }
 
@@ -211,6 +220,7 @@ public final class GameViewModel: ObservableObject {
         // gameID bumps below, so any in-flight reveal compute discards its result;
         // clear the gate so the fresh board takes input immediately.
         isComputing = false
+        flagsPlacedThisGame = 0
         resetTimer()
         gameID &+= 1
         bump()
@@ -258,6 +268,10 @@ public final class GameViewModel: ObservableObject {
         elapsedCentiseconds = snapshot.elapsedCentiseconds
         isPaused = false
         isComputing = false  // discard any in-flight compute (gameID bumps below)
+        // Not persisted in the snapshot, so a resumed game only counts flag
+        // placements made after the resume (a minor under-count for the lifetime
+        // "flags placed" stat — not worth a snapshot field for a flavour count).
+        flagsPlacedThisGame = 0
         if game.status == .playing { startTimer() } else { runningSince = nil }
         gameID &+= 1
         bump()

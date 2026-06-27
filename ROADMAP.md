@@ -54,6 +54,55 @@ big-board work and can land first.
 Make a player's progress follow them across their Mac, iPhone, and iPad, keyed
 by Apple ID — no accounts, no server, no UI.
 
+#### Data model: two merge kinds (the design to build against)
+
+Stats split into two categories that merge differently. **This supersedes the
+earlier "`wins` merges with `max`" note below** — `wins` is a cumulative count and
+now uses the conflict-free counter instead, so it's *correct*, not under-counted.
+
+1. **"Best" fields** (`bestCentiseconds`, `bestLossProgress`) — idempotent
+   `min`/`max` merges, as before. Order-independent, no per-device data needed.
+
+2. **Cumulative counts** (`wins`, `gamesPlayed`, `tilesOpened`, `flagsPlaced`,
+   `minesHit`, `playtimeCentiseconds`) — a **grow-only counter (G-Counter)**: each
+   device tracks only its OWN running count and never merges another device's; the
+   value shown is the **sum** across devices. No device ever writes another's slot,
+   so there's no conflict to resolve — concurrent play on two devices Just Works,
+   with no double-counting and no per-event IDs (which is why we don't need the old
+   `max`-vs-`sum` compromise).
+   - **Local shape:** `DeviceCounter { mine, othersTotal }` — this device's precise
+     count plus a cached sum of all *other* devices (0 until sync exists, so today
+     `total == mine`). Bounded to two ints regardless of device count. *(Built.)*
+   - **Cloud layout (KVS):** one key per device per stat,
+     `stat.<deviceID> = count`. `othersTotal` = sum of those keys minus this
+     device's own. `dictionaryRepresentation` reads them all in one shot (no N
+     round-trips); pick out + sum the foreign keys.
+
+#### Device registry + churn (the "keep it sane" part)
+
+- A **device registry** in KVS — `{deviceID: lastUpdated}` — written when a device
+  pushes its counts. It identifies which per-device keys are *live* so `othersTotal`
+  sums only real contributors, and lets us **prune** stale slots.
+- **Reinstall churn is the real growth risk:** deleting/reinstalling (esp. on macOS,
+  where the persisted `DeviceID` is lost) mints a NEW device id, abandoning the old
+  key forever. Pruning is *deferred* — it's hard to tell a dead reinstall from a
+  device that's just offline, so dropping its history risks losing real data.
+  Revisit pruning only if churn proves a real problem; meanwhile use `lastUpdated`
+  conservatively (next bullet).
+- **Use `lastUpdated` to skip redundant re-sums, not to prune:** cache `othersTotal`
+  and recompute only when some device's registry `lastUpdated` has advanced since the
+  last read. No data loss (a stale device still counts) — just avoids re-summing
+  every key on every sync notification.
+- **KVS has no transactions:** the registry entry and a stat key are separate keys
+  that sync independently, so "atomic registry + counts" isn't achievable — accept
+  eventual consistency (a briefly-stale registry just mis-sums for a moment). Don't
+  design around atomicity KVS can't provide.
+- **DeviceID:** a stable per-install UUID persisted in `UserDefaults` (not
+  `identifierForVendor`, absent on macOS). Needed only for the cloud key; removed
+  from the local build until sync lands.
+
+#### Original plan (still valid for the "best" fields + plumbing)
+
 - [ ] **iCloud scoreboard sync** via `NSUbiquitousKeyValueStore` (iCloud KVS) —
       right-sized for the small `Codable` scoreboard blob; CloudKit / Core Data
       sync would be overkill. **Silent auto-sync** (no toggle); degrades to
