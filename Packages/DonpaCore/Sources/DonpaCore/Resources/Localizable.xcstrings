@@ -1,609 +1,609 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "%lld%% mines": {
-      "comment": "Modern difficulty detail: N%% mines. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "%lld %% miinoja"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld%% mines" : {
+      "comment" : "Modern difficulty detail: N%% mines. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld %% miinoja"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "地雷%lld%%"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "地雷%lld%%"
           }
         }
       }
     },
-    "%lld×%lld": {
-      "comment": "Board size detail: SIDE×SIDE. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "%lld×%lld"
+    "%lld×%lld" : {
+      "comment" : "Board size detail: SIDE×SIDE. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld×%lld"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "%lld×%lld"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld×%lld"
           }
         }
       }
     },
-    "%lld×%lld · %lld mines": {
-      "comment": "Classic preset detail: WIDTH×HEIGHT · N mines. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "%lld×%lld · %lld miinaa"
+    "%lld×%lld · %lld mines" : {
+      "comment" : "Classic preset detail: WIDTH×HEIGHT · N mines. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld×%lld · %lld miinaa"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "%lld×%lld · 地雷%lld個"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%lld×%lld · 地雷%lld個"
           }
         }
       }
     },
-    "A proper mission": {
-      "comment": "Size M tagline (playful). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Kunnon keikka"
+    "A proper mission" : {
+      "comment" : "Size M tagline (playful). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Kunnon keikka"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "本格的な任務"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "本格的な任務"
           }
         }
       }
     },
-    "A quick recon": {
-      "comment": "Size S tagline (playful, short). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pikainen tiedustelu"
+    "A quick recon" : {
+      "comment" : "Size S tagline (playful, short). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pikainen tiedustelu"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "軽い偵察"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "軽い偵察"
           }
         }
       }
     },
-    "Abandon all hope, ye who enter": {
-      "comment": "Size XXXL tagline — the 1M-cell board is effectively unwinnable, so the Dante 'abandon all hope' line lands here (more hellish than any difficulty). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Ken tästä käy, saa kaiken toivon heittää"
+    "Abandon all hope, ye who enter" : {
+      "comment" : "Size XXXL tagline — the 1M-cell board is effectively unwinnable, so the Dante 'abandon all hope' line lands here (more hellish than any difficulty). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ken tästä käy, saa kaiken toivon heittää"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ここを入る者、希望を捨てよ"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ここを入る者、希望を捨てよ"
           }
         }
       }
     },
-    "Ace": {
-      "comment": "Difficulty tier 4/5, sapper skill ladder. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Ässä"
+    "Ace" : {
+      "comment" : "Difficulty tier 4\/5, sapper skill ladder. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ässä"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "達人"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "達人"
           }
         }
       }
     },
-    "Beginner": {
-      "comment": "Classic difficulty preset (9x9, 10 mines). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Aloittelija"
+    "Beginner" : {
+      "comment" : "Classic difficulty preset (9x9, 10 mines). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Aloittelija"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "初級"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "初級"
           }
         }
       }
     },
-    "Boots on, recruit": {
-      "comment": "Classic Beginner tagline (playful). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Saappaat jalkaan, alokas"
+    "Boots on, recruit" : {
+      "comment" : "Classic Beginner tagline (playful). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Saappaat jalkaan, alokas"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "新兵、構えろ"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "新兵、構えろ"
           }
         }
       }
     },
-    "Clear your evening": {
-      "comment": "Size L tagline (playful, takes a while). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Varaa koko ilta"
+    "Clear your evening" : {
+      "comment" : "Size L tagline (playful, takes a while). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Varaa koko ilta"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "残業覚悟！"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "残業覚悟！"
           }
         }
       }
     },
-    "Easy does it": {
-      "comment": "Density Trainee tagline (playful, gentle). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Rauhassa vain"
+    "Easy does it" : {
+      "comment" : "Density Trainee tagline (playful, gentle). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Rauhassa vain"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "気楽にいこう"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "気楽にいこう"
           }
         }
       }
     },
-    "Expert": {
-      "comment": "Classic difficulty preset (30x16, 99 mines). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vaativa"
+    "Expert" : {
+      "comment" : "Classic difficulty preset (30x16, 99 mines). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vaativa"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "上級"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "上級"
           }
         }
       }
     },
-    "Intermediate": {
-      "comment": "Classic difficulty preset (16x16, 40 mines). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Keskitaso"
+    "Intermediate" : {
+      "comment" : "Classic difficulty preset (16x16, 40 mines). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Keskitaso"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "中級"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "中級"
           }
         }
       }
     },
-    "L": {
-      "comment": "Modern board size L (50x50). ja=大.",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "L"
+    "L" : {
+      "comment" : "Modern board size L (50x50). ja=大.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L"
           }
         },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "L"
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "大"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "大"
           }
         }
       }
     },
-    "Legend": {
-      "comment": "Difficulty tier 5/5 (hardest), sapper skill ladder. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Legenda"
+    "Legend" : {
+      "comment" : "Difficulty tier 5\/5 (hardest), sapper skill ladder. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Legenda"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "伝説"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "伝説"
           }
         }
       }
     },
-    "M": {
-      "comment": "Modern board size M (25x25). ja=中.",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "M"
+    "M" : {
+      "comment" : "Modern board size M (25x25). ja=中.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "M"
           }
         },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "M"
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "M"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "中"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "中"
           }
         }
       }
     },
-    "Mind your step": {
-      "comment": "Density Sapper tagline (playful). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Katso mihin astut"
+    "Mind your step" : {
+      "comment" : "Density Sapper tagline (playful). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Katso mihin astut"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "足元に気をつけろ"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "足元に気をつけろ"
           }
         }
       }
     },
-    "No pain, no gain": {
-      "comment": "Density Legend tagline — cheesy 'no pain, no gain' bravado (hardest difficulty). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Tuskan kautta voittoon"
+    "No pain, no gain" : {
+      "comment" : "Density Legend tagline — cheesy 'no pain, no gain' bravado (hardest difficulty). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tuskan kautta voittoon"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "苦は楽の種"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "苦は楽の種"
           }
         }
       }
     },
-    "One wrong step…": {
-      "comment": "Classic Expert tagline (playful). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Yksi väärä askel…"
+    "One wrong step…" : {
+      "comment" : "Classic Expert tagline (playful). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Yksi väärä askel…"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "一歩間違えば…"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "一歩間違えば…"
           }
         }
       }
     },
-    "Over before your coffee": {
-      "comment": "Size XS tagline (playful, very quick). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Hetkessä ohi"
+    "Over before your coffee" : {
+      "comment" : "Size XS tagline (playful, very quick). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hetkessä ohi"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "あっという間に終了"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "あっという間に終了"
           }
         }
       }
     },
-    "Pack a lunch": {
-      "comment": "Size XL tagline (playful, long). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pakkaa eväät"
+    "Pack a lunch" : {
+      "comment" : "Size XL tagline (playful, long). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pakkaa eväät"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "弁当を用意しろ"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "弁当を用意しろ"
           }
         }
       }
     },
-    "Pack a lunch. And dinner.": {
-      "comment": "Size XXL tagline (playful, very long). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pakkaa eväät. Ja makuupussi."
+    "Pack a lunch. And dinner." : {
+      "comment" : "Size XXL tagline (playful, very long). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pakkaa eväät. Ja makuupussi."
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "泊まり込み覚悟しろ"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "泊まり込み覚悟しろ"
           }
         }
       }
     },
-    "S": {
-      "comment": "Modern board size S (16x16). ja=小.",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "S"
+    "S" : {
+      "comment" : "Modern board size S (16x16). ja=小.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
           }
         },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "S"
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "小"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "小"
           }
         }
       }
     },
-    "Sapper": {
-      "comment": "Difficulty tier 2/5, sapper skill ladder (the character's own role). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pioneeri"
+    "Sapper" : {
+      "comment" : "Difficulty tier 2\/5, sapper skill ladder (the character's own role). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pioneeri"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "工兵"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "工兵"
           }
         }
       }
     },
-    "Sweating now": {
-      "comment": "Density Veteran tagline (playful, tense). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Kämmenet hikoaa"
+    "Sweating now" : {
+      "comment" : "Density Veteran tagline (playful, tense). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Kämmenet hikoaa"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "汗ばんできたな"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "汗ばんできたな"
           }
         }
       }
     },
-    "Things get spicy": {
-      "comment": "Classic Intermediate tagline (playful). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Tästä se alkaa"
+    "Things get spicy" : {
+      "comment" : "Classic Intermediate tagline (playful). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tästä se alkaa"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ここからが本番"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ここからが本番"
           }
         }
       }
     },
-    "This is mean": {
-      "comment": "Density Ace tagline (playful, brutal). NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pahalta näyttää"
+    "This is mean" : {
+      "comment" : "Density Ace tagline (playful, brutal). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pahalta näyttää"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "意地が悪いぞ"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "意地が悪いぞ"
           }
         }
       }
     },
-    "Trainee": {
-      "comment": "Difficulty tier 1/5 (easiest), sapper skill ladder. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Alokas"
+    "Trainee" : {
+      "comment" : "Difficulty tier 1\/5 (easiest), sapper skill ladder. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Alokas"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "新兵"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "新兵"
           }
         }
       }
     },
-    "Veteran": {
-      "comment": "Difficulty tier 3/5, sapper skill ladder. NEEDS REVIEW: ja/fi.",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Veteraani"
+    "Veteran" : {
+      "comment" : "Difficulty tier 3\/5, sapper skill ladder. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Veteraani"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "古参兵"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "古参兵"
           }
         }
       }
     },
-    "XL": {
-      "comment": "Modern board size XL (100x100). ja=特大.",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XL"
+    "XL" : {
+      "comment" : "Modern board size XL (100x100). ja=特大.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XL"
           }
         },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XL"
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XL"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "特大"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "特大"
           }
         }
       }
     },
-    "XS": {
-      "comment": "Modern board size XS (9x9). ja=極小.",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XS"
+    "XS" : {
+      "comment" : "Modern board size XS (9x9). ja=極小.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XS"
           }
         },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XS"
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XS"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "極小"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "極小"
           }
         }
       }
     },
-    "XXL": {
-      "comment": "Modern board size XXL (300x300, epic-finishable). ja=超特大.",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XXL"
+    "XXL" : {
+      "comment" : "Modern board size XXL (300x300, epic-finishable). ja=超特大.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XXL"
           }
         },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XXL"
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XXL"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "超特大"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "超特大"
           }
         }
       }
     },
-    "XXXL": {
-      "comment": "Modern board size XXXL (1000x1000, sandbox). ja=超巨大.",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XXXL"
+    "XXXL" : {
+      "comment" : "Modern board size XXXL (1000x1000, sandbox). ja=超巨大.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XXXL"
           }
         },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XXXL"
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XXXL"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "超巨大"
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "超巨大"
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }
