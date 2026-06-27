@@ -108,6 +108,41 @@ final class ScoreboardSyncTests: XCTestCase {
         XCTAssertFalse(a.isCloudActive)
     }
 
+    func testOthersTotalsSurviveGoingOffline() {
+        // A merges in B's win, then A's cloud goes unavailable (airplane mode):
+        // the combined total must stay (from the cache), not collapse to A's own.
+        let shared = FakeCloud.Shared()
+        let aCloud = FakeCloud(shared: shared)
+        let a = Scoreboard(defaults: defaults("a"), cloud: aCloud)
+        let b = Scoreboard(defaults: defaults("b"), cloud: FakeCloud(shared: shared))
+        a.submit(300, for: .beginner)  // A: 1
+        b.submit(280, for: .beginner)  // B: 1 → A sees 2
+        XCTAssertEqual(a.wins(for: .beginner), 2)
+
+        aCloud.available = false  // A goes offline
+        a.refreshFromCloud()  // a foreground refresh while offline (no-op on cloud)
+        XCTAssertEqual(
+            a.wins(for: .beginner), 2, "combined total persists offline (cached), not just own")
+    }
+
+    func testCachedMergeShownOnOfflineLaunch() {
+        // A device that has synced before, relaunched while offline, shows the
+        // last-known combined totals from the persisted cache.
+        let shared = FakeCloud.Shared()
+        let aDefaults = defaults("a")
+        let a = Scoreboard(defaults: aDefaults, cloud: FakeCloud(shared: shared))
+        let b = Scoreboard(defaults: defaults("b"), cloud: FakeCloud(shared: shared))
+        a.submit(300, for: .beginner)
+        b.submit(280, for: .beginner)
+        XCTAssertEqual(a.wins(for: .beginner), 2)
+
+        // Relaunch A on the SAME defaults but with an unavailable cloud (offline).
+        let aOffline = Scoreboard(
+            defaults: aDefaults, cloud: FakeCloud(shared: shared, available: false))
+        XCTAssertEqual(
+            aOffline.wins(for: .beginner), 2, "offline launch shows the cached merge")
+    }
+
     func testTogglingSyncOnMergesInOtherDevices() {
         let shared = FakeCloud.Shared()
         let a = Scoreboard(defaults: defaults("a"), cloud: FakeCloud(shared: shared))

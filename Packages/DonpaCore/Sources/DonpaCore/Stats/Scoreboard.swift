@@ -102,6 +102,13 @@ public final class Scoreboard: ObservableObject {
 
     private let defaults: UserDefaults
     private let key = "donpa.stats.v1"
+    /// Cache of the last computed cross-device merge (own + others), persisted so
+    /// the combined totals survive going offline — otherwise others' contributions
+    /// would vanish on an airplane / signed-out and the displayed totals would
+    /// collapse to this device's own, then jump back on reconnect. Only written
+    /// while sync is on and the cloud is reachable; read as the display when sync
+    /// is on but the cloud is momentarily unavailable.
+    private let mergedKey = "donpa.stats.merged.v1"
 
     // MARK: Cross-device sync (iCloud KVS)
 
@@ -156,10 +163,17 @@ public final class Scoreboard: ObservableObject {
         self.syncEnabled = syncEnabled
         let own = Self.load(from: defaults, key: key)
         records = own
-        displayRecords = own
+        // Start from the cached merge if sync is on (so an offline launch shows the
+        // last-known combined totals, not just this device's); own-only otherwise.
+        if syncEnabled, let cached = Self.loadIfPresent(from: defaults, key: mergedKey) {
+            displayRecords = cached
+        } else {
+            displayRecords = own
+        }
         // Re-merge when another device syncs or the iCloud account changes.
         cloud?.onExternalChange = { [weak self] in self?.refreshDisplay() }
-        // Initial reconcile: publish our blob and pull everyone's.
+        // Initial reconcile: publish our blob and pull everyone's (refreshes the
+        // cache when reachable; leaves the cached merge in place when offline).
         pushAndMerge()
     }
 
@@ -189,10 +203,22 @@ public final class Scoreboard: ObservableObject {
     }
 
     /// Recompute `displayRecords` = own records merged with the other devices'
-    /// cloud blobs. Falls back to own-only when sync is off/unavailable.
+    /// cloud blobs, and cache it for offline. Behaviour by state:
+    /// - sync OFF (user opted out): show own-only and drop the cache.
+    /// - sync ON but cloud unreachable (offline / signed out): KEEP the last-known
+    ///   cached merge, so combined totals don't collapse on an airplane.
+    /// - sync ON and reachable: re-merge from the cloud and refresh the cache.
     private func refreshDisplay() {
-        guard syncEnabled, let cloud, cloud.isAvailable else {
+        guard syncEnabled else {
             displayRecords = records
+            defaults.removeObject(forKey: mergedKey)  // user opted out → forget others
+            return
+        }
+        guard let cloud, cloud.isAvailable else {
+            // Offline: leave displayRecords showing the cached merge (loaded at
+            // init or last computed online). Only fall back to own-only if there's
+            // no cache yet (never synced).
+            if defaults.data(forKey: mergedKey) == nil { displayRecords = records }
             return
         }
         let blobs = cloud.readAllBlobs()
@@ -202,7 +228,13 @@ public final class Scoreboard: ObservableObject {
             // one corrupt foreign blob can't break the merge.
             others[id] = Self.decodeBlob(data)
         }
-        displayRecords = StatsMerge.merge(mine: records, others: others)
+        let merged = StatsMerge.merge(mine: records, others: others)
+        displayRecords = merged
+        // Cache the merged totals so they persist across launches / offline.
+        let file = StatsFile(version: Self.currentVersion, records: merged)
+        if let data = try? JSONEncoder().encode(file) {
+            defaults.set(data, forKey: mergedKey)
+        }
     }
 
     /// Load the stats, resilient to partial corruption and old formats:
@@ -215,6 +247,15 @@ public final class Scoreboard: ObservableObject {
     private static func load(from defaults: UserDefaults, key: String) -> [String: ScoreRecord] {
         guard let data = defaults.data(forKey: key) else { return [:] }
         return decodeBlob(data)
+    }
+
+    /// Like `load`, but nil when the key is absent (vs an empty table) — so the
+    /// caller can tell "no cached merge yet" from "a cached empty table".
+    private static func loadIfPresent(from defaults: UserDefaults, key: String) -> [String:
+        ScoreRecord]?
+    {
+        guard defaults.data(forKey: key) != nil else { return nil }
+        return load(from: defaults, key: key)
     }
 
     /// Decode a stats blob (local or a cloud per-device blob) into records,
