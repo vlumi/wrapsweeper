@@ -35,48 +35,49 @@ struct CarouselPicker: View {
     }
 
     var body: some View {
-        rowContent
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            // Fade the edges instead of hard-clipping: peeking neighbours dissolve
-            // (reading as "more this way") and the content stays bounded to the row.
-            .mask(edgeFade)
-            // Edge chevrons hint more cards and step the selection when tapped.
-            .overlay(alignment: .leading) { edgeChevron(.left) }
-            .overlay(alignment: .trailing) { edgeChevron(.right) }
-            .padding(.horizontal, 4)
-            // Focus panel + ring is always present (transparent when unfocused), so
-            // toggling focus only recolours — rows don't wobble as focus moves.
-            .padding(6)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.accentColor.opacity(focused ? 0.12 : 0))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.accentColor.opacity(focused ? 1 : 0), lineWidth: 2))
-            )
-            .animation(.snappy, value: focused)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(labels.indices.contains(selection) ? labels[selection] : "")
-            .accessibilityAdjustableAction { direction in
-                switch direction {
-                case .increment: selection = min(selection + 1, labels.count - 1)
-                case .decrement: selection = max(selection - 1, 0)
-                @unknown default: break
-                }
+        GeometryReader { geo in
+            // When every card fits there's no overflow to hint, so drop the
+            // edge-fade and chevrons — they only make sense in the drum.
+            let fits = cardsFit(in: geo.size.width)
+            row(fits: fits)
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+                .modifier(EdgeFade(active: !fits))
+                .overlay(alignment: .leading) { if !fits { edgeChevron(.left) } }
+                .overlay(alignment: .trailing) { if !fits { edgeChevron(.right) } }
+        }
+        .frame(height: height)
+        .padding(.horizontal, 4)
+        // Focus panel + ring is always present (transparent when unfocused), so
+        // toggling focus only recolours — rows don't wobble as focus moves.
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.accentColor.opacity(focused ? 0.12 : 0))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.accentColor.opacity(focused ? 1 : 0), lineWidth: 2))
+        )
+        .animation(.snappy, value: focused)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(labels.indices.contains(selection) ? labels[selection] : "")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: selection = min(selection + 1, labels.count - 1)
+            case .decrement: selection = max(selection - 1, 0)
+            @unknown default: break
             }
+        }
     }
 
-    private var edgeFade: some View {
-        let fade = 0.10  // fraction of width that fades on each side
-        return LinearGradient(
-            stops: [
-                .init(color: .clear, location: 0),
-                .init(color: .black, location: fade),
-                .init(color: .black, location: 1 - fade),
-                .init(color: .clear, location: 1),
-            ],
-            startPoint: .leading, endPoint: .trailing)
+    /// Whether all cards fit the given width (so they lay out statically). iOS
+    /// always uses the swipe drum, so cards never "fit" there.
+    private func cardsFit(in width: CGFloat) -> Bool {
+        #if os(iOS)
+        return false
+        #else
+        return contentWidth <= width
+        #endif
     }
 
     private enum Edge { case left, right }
@@ -103,7 +104,7 @@ struct CarouselPicker: View {
     /// Platform layout. iOS always uses the swipe drum. macOS lays cards out
     /// statically when they fit (click any directly), falling back to the carousel
     /// only on overflow.
-    @ViewBuilder private var rowContent: some View {
+    @ViewBuilder private func row(fits: Bool) -> some View {
         #if os(iOS)
         DrumScroll(
             count: labels.count, selection: $selection,
@@ -112,27 +113,25 @@ struct CarouselPicker: View {
             card(i)
         }
         #else
-        GeometryReader { geo in
-            if contentWidth <= geo.size.width {
-                HStack(spacing: spacing) {
-                    ForEach(0..<labels.count, id: \.self) { i in
-                        card(i)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onInteract?()
-                                selection = i
-                            }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .animation(.snappy, value: selection)
-            } else {
-                DrumScroll(
-                    count: labels.count, selection: $selection,
-                    cardWidth: cardWidth, spacing: spacing, onInteract: onInteract
-                ) { i in
+        if fits {
+            HStack(spacing: spacing) {
+                ForEach(0..<labels.count, id: \.self) { i in
                     card(i)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onInteract?()
+                            selection = i
+                        }
                 }
+            }
+            .frame(maxWidth: .infinity)
+            .animation(.snappy, value: selection)
+        } else {
+            DrumScroll(
+                count: labels.count, selection: $selection,
+                cardWidth: cardWidth, spacing: spacing, onInteract: onInteract
+            ) { i in
+                card(i)
             }
         }
         #endif
@@ -174,5 +173,27 @@ struct CarouselPicker: View {
                             sel ? Color.accentColor : Color.primary.opacity(0.12),
                             lineWidth: sel ? 2.5 : 1))
         )
+    }
+}
+
+/// Fades the row's left/right edges so peeking neighbours dissolve (reading as
+/// "more this way") rather than hard-clipping. Identity when inactive (all cards
+/// fit), so a full row isn't dimmed at its ends.
+private struct EdgeFade: ViewModifier {
+    let active: Bool
+    func body(content: Content) -> some View {
+        if active {
+            content.mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.10),
+                        .init(color: .black, location: 0.90),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .leading, endPoint: .trailing))
+        } else {
+            content
+        }
     }
 }

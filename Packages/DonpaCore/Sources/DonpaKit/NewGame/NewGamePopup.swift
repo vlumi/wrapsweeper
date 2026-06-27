@@ -22,6 +22,36 @@ struct NewGamePopup: View {
     /// until it would exceed the available height (then the ScrollView scrolls).
     @State private var contentHeight: CGFloat = 0
 
+    /// Floor on a narrow window (the prior fixed card width); below it, rows that
+    /// don't fit fall back to the swipe-drum.
+    private static let minWidth: CGFloat = 460
+
+    /// Carousel card metrics, mirrored from `CarouselPicker`, to size the card so a
+    /// row's cards all fit statically (no drum). Chrome = the card's own padding
+    /// plus the carousel's internal insets.
+    private static let carouselCardWidth: CGFloat = 116
+    private static let carouselSpacing: CGFloat = 8
+    private static let chrome: CGFloat = 68
+
+    /// Most cards in any row of the given mode (Classic: difficulty; Modern: the
+    /// wider of density/size). Drives how wide the card wants to be.
+    private static func maxCards(in mode: GameMode) -> Int {
+        switch mode {
+        case .classic: return ClassicPreset.allCases.count
+        case .modern: return max(Density.allCases.count, BoardSize.allCases.count)
+        }
+    }
+
+    /// Width that shows every card of the visible mode's widest row at once, so on
+    /// a roomy screen there's no drum/scroll. Clamped to the available width, and to
+    /// at least `minWidth` when there's room (keeps the compact look on small windows).
+    private static func cardWidth(for mode: GameMode, available: CGFloat) -> CGFloat {
+        let n = CGFloat(maxCards(in: mode))
+        let ideal = n * carouselCardWidth + max(0, n - 1) * carouselSpacing + chrome
+        guard available >= minWidth else { return max(0, available) }  // tiny window
+        return min(max(minWidth, ideal), available)
+    }
+
     var body: some View {
         ZStack {
             // Dimmed backdrop: blocks what's behind and dismisses when tapped.
@@ -30,14 +60,19 @@ struct NewGamePopup: View {
                 .contentShape(Rectangle())
                 .onTapGesture { onClose() }
 
-            // Cap the card to the available height (minus the 24pt inset on each
-            // side) so on a short window it scrolls instead of clipping, and on a
-            // tall screen it grows to fit everything — no forced scroll either way.
+            // Grow the card toward the width that shows every difficulty/size card
+            // at once (so no row falls back to the swipe-drum), but never past the
+            // available width; and cap height so a short window scrolls rather than
+            // clipping. On a roomy screen everything is visible without scrolling.
             GeometryReader { geo in
-                card(maxHeight: geo.size.height - 48)
-                    .overlay(alignment: .topTrailing) { closeButton }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(24)
+                card(
+                    width: Self.cardWidth(for: settings.mode, available: geo.size.width - 48),
+                    maxHeight: geo.size.height - 48
+                )
+                .animation(.snappy, value: settings.mode)
+                .overlay(alignment: .topTrailing) { closeButton }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(24)
             }
         }
         #if os(macOS)
@@ -62,11 +97,10 @@ struct NewGamePopup: View {
     }
     #endif
 
-    /// The card hugs its content but never exceeds `maxHeight`; past that the
-    /// content scrolls (the title stays pinned, so the selectors are always
-    /// reachable). On a roomy screen everything fits and the ScrollView never
-    /// engages.
-    private func card(maxHeight: CGFloat) -> some View {
+    /// The card grows to `width` (so every option is visible side-by-side when
+    /// there's room) and hugs its content height up to `maxHeight`; past that the
+    /// content scrolls with the title pinned, so the selectors stay reachable.
+    private func card(width: CGFloat, maxHeight: CGFloat) -> some View {
         VStack(spacing: 20) {
             Text("New game", bundle: .module).font(.title2.bold())
 
@@ -76,7 +110,7 @@ struct NewGamePopup: View {
                 .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
         }
         .padding(24)
-        .frame(maxWidth: 460)
+        .frame(width: width)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.3), radius: 20, y: 6)
     }
