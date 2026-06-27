@@ -121,4 +121,46 @@ final class GameConfigTests: XCTestCase {
     }
 
     private func tuple(_ c: GameConfig) -> [Int] { [c.width, c.height, c.mineCount] }
+
+    // MARK: Picker detail + tagline strings (every case is non-empty, detail
+    // carries the expected numbers). Asserts contracts, not exact copy, so a
+    // tagline reword doesn't break the test — but every code path is exercised.
+
+    func testClassicDetailAndTagline() {
+        for preset in ClassicPreset.allCases {
+            let d = preset.dimensions
+            let detail = preset.detail
+            XCTAssertTrue(detail.contains("\(d.width)"), "detail names width: \(detail)")
+            XCTAssertTrue(detail.contains("\(d.height)"), "detail names height: \(detail)")
+            XCTAssertTrue(detail.contains("\(d.mines)"), "detail names mines: \(detail)")
+            XCTAssertFalse(preset.tagline.isEmpty, "tagline non-empty for \(preset)")
+        }
+    }
+
+    func testSizeDetailAndTagline() {
+        for size in BoardSize.allCases {
+            // The detail interpolates numbers with locale digit-grouping (e.g.
+            // "1,000×1,000"), so compare on digits only.
+            let digits = size.detail.filter(\.isNumber)
+            XCTAssertTrue(digits.contains("\(size.side)"), "detail names side: \(size.detail)")
+            XCTAssertFalse(size.tagline.isEmpty, "tagline non-empty for \(size)")
+        }
+    }
+
+    func testDensityDetailAndTagline() {
+        for density in Density.allCases {
+            let pct = Int((density.fraction * 100).rounded())
+            XCTAssertTrue(
+                density.detail.contains("\(pct)"), "detail names percent: \(density.detail)")
+            XCTAssertFalse(density.tagline.isEmpty, "tagline non-empty for \(density)")
+        }
+    }
+
+    /// Taglines are distinct within each axis (no copy-paste duplicates).
+    func testTaglinesAreDistinctWithinEachAxis() {
+        XCTAssertEqual(
+            Set(ClassicPreset.allCases.map(\.tagline)).count, ClassicPreset.allCases.count)
+        XCTAssertEqual(Set(BoardSize.allCases.map(\.tagline)).count, BoardSize.allCases.count)
+        XCTAssertEqual(Set(Density.allCases.map(\.tagline)).count, Density.allCases.count)
+    }
 }

@@ -40,6 +40,25 @@ public enum ClassicPreset: String, CaseIterable, Sendable, Codable {
         case .expert: return String(localized: "Expert", bundle: .module)
         }
     }
+
+    /// Concrete facts for the selected preset, shown under the picker carousel:
+    /// board dimensions and mine count.
+    public var detail: String {
+        let d = dimensions
+        return String(
+            localized: "\(d.width)×\(d.height) · \(d.mines) mines", bundle: .module,
+            comment: "Classic preset detail: WIDTH×HEIGHT · N mines")
+    }
+
+    /// A short, playful tagline conveying how the preset *feels* to play — shown
+    /// under the picker carousel alongside `detail`.
+    public var tagline: String {
+        switch self {
+        case .beginner: return String(localized: "Boots on, recruit", bundle: .module)
+        case .intermediate: return String(localized: "Things get spicy", bundle: .module)
+        case .expert: return String(localized: "One wrong step…", bundle: .module)
+        }
+    }
 }
 
 /// Modern board sizes (square), named as shirt sizes (XS…XXXL). Side lengths
@@ -77,6 +96,28 @@ public enum BoardSize: String, CaseIterable, Sendable, Codable {
         case .xxxl: return String(localized: "XXXL", bundle: .module)
         }
     }
+
+    /// Board dimensions for the selected size, shown under the picker carousel.
+    public var detail: String {
+        String(
+            localized: "\(side)×\(side)", bundle: .module,
+            comment: "Board size detail: SIDE×SIDE")
+    }
+
+    /// A short, playful tagline conveying the *commitment* a size demands — from a
+    /// coffee-break sweep up to the effectively-endless XXXL. Shown under the
+    /// picker carousel alongside `detail`.
+    public var tagline: String {
+        switch self {
+        case .xs: return String(localized: "Over before your coffee", bundle: .module)
+        case .s: return String(localized: "A quick recon", bundle: .module)
+        case .m: return String(localized: "A proper mission", bundle: .module)
+        case .l: return String(localized: "Clear your evening", bundle: .module)
+        case .xl: return String(localized: "Pack a lunch", bundle: .module)
+        case .xxl: return String(localized: "Pack a lunch. And dinner.", bundle: .module)
+        case .xxxl: return String(localized: "Abandon all hope, ye who enter", bundle: .module)
+        }
+    }
 }
 
 /// Modern difficulty = mine density (fraction of cells). Tiers chosen via solver
@@ -105,6 +146,26 @@ public enum Density: String, CaseIterable, Sendable, Codable {
         case .hard: return String(localized: "Veteran", bundle: .module)
         case .brutal: return String(localized: "Ace", bundle: .module)
         case .insane: return String(localized: "Legend", bundle: .module)
+        }
+    }
+
+    /// Mine density as a whole percent, shown under the picker carousel. (Density
+    /// has no fixed board size — that's the orthogonal Size axis.)
+    public var detail: String {
+        String(
+            localized: "\(Int((fraction * 100).rounded()))% mines", bundle: .module,
+            comment: "Modern difficulty detail: N% mines")
+    }
+
+    /// A short, playful tagline conveying how punishing a density plays — from
+    /// room-to-breathe up to abandon-hope. Shown under the picker carousel.
+    public var tagline: String {
+        switch self {
+        case .easy: return String(localized: "Easy does it", bundle: .module)
+        case .normal: return String(localized: "Mind your step", bundle: .module)
+        case .hard: return String(localized: "Sweating now", bundle: .module)
+        case .brutal: return String(localized: "This is mean", bundle: .module)
+        case .insane: return String(localized: "No pain, no gain", bundle: .module)
         }
     }
 
