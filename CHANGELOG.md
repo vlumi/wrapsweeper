@@ -48,11 +48,6 @@ big-board pillar largely landed; iCloud score sync is still open.
 
 ### Fixed
 
-- A crash when the visible cell range inverted transiently (launch palette push /
-  camera settle), and a zoom-out gesture that could jump to the most-zoomed-in
-  limit.
-- The screentone texture on unopened tiles, lost when cells became opaque
-  texture-batched sprites (the layers needed explicit z-order).
 - The in-game clear-% and the loss screen's "best %" now floor (matching the
   scoreboard) instead of rounding up; flags survive a loss; correctly-flagged
   ("disarmed") mines no longer detonate in the loss shockwave.
