@@ -8,8 +8,9 @@
 "epic" variants from day one — huge zoomable maps, wrapped/torus edges, and hex
 grids — added later without touching the game logic.
 
-The first release will be **v0.1.0** (classic mode); see [ROADMAP.md](ROADMAP.md)
-for the path to v1.0, [CHANGELOG.md](CHANGELOG.md) for changes, and
+**v0.1.0** (classic mode) shipped to TestFlight; **v0.2.0** (big boards +
+cross-device sync) is in progress. See [CHANGELOG.md](CHANGELOG.md) for the
+version history, [ROADMAP.md](ROADMAP.md) for the path to v1.0, and
 [ARCHITECTURE.md](ARCHITECTURE.md) for the key design decisions.
 
 ## Contents
@@ -30,13 +31,16 @@ it from the title art, the in-game **config badge**, the result screen, or
 `⌘N`):
 
 - **Classic** — the original Beginner / Intermediate / Expert presets.
-- **Modern** — pick a **Difficulty** then a **Size** (Small 9×9 · Medium 16×16 ·
-  Large 25×25). Difficulty is mine density (the deliberately brutal top tier is
-  near-unguessable), so it composes with any size. The five tiers are shown as
-  ascending **military rank insignia** — chevron stripes for the lower ranks, a
-  star, then a star-in-laurel for the apex — rather than text, so they stay
-  compact and language-independent (the rank name is the accessibility label).
-  The chosen mode and selections are remembered.
+- **Modern** — pick a **Difficulty** then a **Size**. The size ladder runs
+  XS / S / M / L / XL / XXL / XXXL (9² up to 1000² = a million cells); the larger
+  boards are panned and zoomed, with a minimap for navigation. Difficulty is mine
+  density (the deliberately brutal top tier is near-unguessable), so it composes
+  with any size. Each tier carries its **military rank insignia** — chevron
+  stripes for the lower ranks, a star, then a star-in-laurel for the apex. The
+  chosen mode and selections are remembered.
+
+Both rows are a horizontal **carousel**: scroll/swipe (or click) to pick, with a
+line below the selection showing the board facts and a short flavour tagline.
 
 On macOS the popup is keyboard-drivable: **↑/↓** move between the rows (Mode /
 Difficulty / Size), **←/→** cycle the selection within the highlighted row,
@@ -79,15 +83,17 @@ whole board already fits on screen, panning is disabled.
 
 ### Keyboard shortcuts
 
-| Key    | Action                                               |
-| ------ | ---------------------------------------------------- |
-| Space  | Toggle mode while playing                            |
-| ⌘N     | New Game (opens the config popup, macOS menu)        |
-| ⌘R     | Restart the current board (macOS menu)               |
-| ⌘T     | Return to the title screen (macOS menu)              |
-| ⌘F     | Toggle mode (macOS menu)                             |
-| ⌘1/2/3 | Beginner / Intermediate / Expert (macOS menu)        |
-| Esc    | Close the New Game popup or the result panel         |
+| Key      | Action                                             |
+| -------- | -------------------------------------------------- |
+| Space    | Toggle mode while playing                          |
+| ⌘N       | New Game (opens the config popup, macOS menu)      |
+| ⌘R       | Restart the current board (macOS menu)             |
+| ⌘T       | Return to the title screen (macOS menu)            |
+| ⌘F       | Toggle mode (macOS menu)                           |
+| ⌘+ / ⌘−  | Zoom the board in / out (also ⌘-scroll)            |
+| ⌘0       | Open the board overview (macOS menu)               |
+| ⌘1/2/3   | Beginner / Intermediate / Expert (macOS menu)      |
+| Esc      | Close the New Game popup, overview, or result panel|
 
 ## Start and end of a game
 

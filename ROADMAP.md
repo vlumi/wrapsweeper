@@ -15,33 +15,17 @@ a public store release).
 
 ---
 
-## v0.1.0 — Classic release (next)
+## v0.1.0 — Classic release (shipped to TestFlight)
 
-**Shipped** (see [CHANGELOG.md](CHANGELOG.md) for the detail, git for the how):
-classic + Modern (Size × density) modes, the logical solver + tier-analysis
-tool, geometry-keyed versioned scoreboard, SpriteKit board with pan/zoom,
-reveal/flag toggle + macOS mode cursor, light/dark/system theming, the manga
-title + result screens and procedural app icon + launch screen, the
-title-as-home-hub navigation (New Game popup, board-aware control strip,
-handedness), pause + crash-safe save/restore, progress-% scoring, About,
-EN/JA/FI localization, accessibility labels, and CI. Also done as pre-release
-groundwork: local UI tests, an `onChangeCompat` shim, save-restore hardening,
-and a clean leak/retain audit.
+The classic Minesweeper release on iOS + macOS — see [CHANGELOG.md](CHANGELOG.md)
+for what's in it. Pre-release on TestFlight; not yet a public store release.
 
-Carry-over notes for later milestones:
+Carry-over notes that still inform later milestones:
 
 - **Per-cell board VoiceOver deferred** — needs a scalable cursor model (swiping
-  10k cells doesn't work on huge boards); co-design with v0.2 big-board navigation.
-- **Window grow-to-fit** assumes a board that fits a window — revisit for v0.2
-  huge maps / v0.3 edgeless wrapped boards (panned, not framed).
-- **JA/FI strings are my drafts** (`needs_review`) — revisit on native/test
-  feedback; not blocking 0.1.
-
-**Remaining for release:**
-
-- [ ] Tag v0.1.0, signed builds (gated on the paid Apple account). Any version
-      string is fine for the App Store; the build number must increment per
-      upload. `MARKETING_VERSION = 0.1.0`; TestFlight is the pre-release channel.
+  10k cells doesn't work on huge boards); co-design with big-board navigation.
+- **JA/FI strings are drafts** (`needs_review`) — refined continuously as
+  external-test feedback arrives; not a release gate.
 
 ## v0.2.0 — Cross-device & big boards
 
@@ -56,9 +40,9 @@ by Apple ID — no accounts, no server, no UI.
 
 #### Data model: two merge kinds (the design to build against)
 
-Stats split into two categories that merge differently. **This supersedes the
-earlier "`wins` merges with `max`" note below** — `wins` is a cumulative count and
-now uses the conflict-free counter instead, so it's *correct*, not under-counted.
+Stats split into two categories that merge differently. (`wins` is a cumulative
+count and uses the conflict-free counter below, not a `max` merge — so it's
+*correct*, never under-counted.)
 
 1. **"Best" fields** (`bestCentiseconds`, `bestLossProgress`) — idempotent
    `min`/`max` merges, as before. Order-independent, no per-device data needed.
@@ -101,20 +85,12 @@ now uses the conflict-free counter instead, so it's *correct*, not under-counted
   `identifierForVendor`, absent on macOS). Needed only for the cloud key; removed
   from the local build until sync lands.
 
-#### Original plan (still valid for the "best" fields + plumbing)
+#### Plumbing (the transport, independent of the merge kinds above)
 
 - [ ] **iCloud scoreboard sync** via `NSUbiquitousKeyValueStore` (iCloud KVS) —
       right-sized for the small `Codable` scoreboard blob; CloudKit / Core Data
       sync would be overkill. **Silent auto-sync** (no toggle); degrades to
       local-only when not signed into iCloud (== today's behaviour).
-  - **Merge is lossless and needs no conflict UI:** records are keyed
-    independently by `GameConfig.storageKey`, and each `ScoreRecord` merges
-    field-wise — `max(wins)`, `min(bestCentiseconds)`, `max(bestLossProgress)`
-    (all nil-safe). Order-independent + idempotent, so any sync order converges.
-  - **`wins` merges with `max`, not `sum`** — a deliberate choice: summing would
-    double-count the same offline session across devices. `max` can under-count
-    a genuine divergence, but inflating a "games cleared" stat is worse, and true
-    dedup would need per-win IDs (not worth it). Document in code, not silently.
   - **Implementation seam is already clean:** `Scoreboard` funnels through one
     `load()`/`persist()` and is injectable. Plan: abstract the backing store
     behind a tiny protocol, dual-write to `UserDefaults` (fast local cache) AND
@@ -124,12 +100,12 @@ now uses the conflict-free counter instead, so it's *correct*, not under-counted
     as the wire format unchanged.
   - **Entitlement / signing** is the one careful part: add the iCloud +
     Key-Value Storage capability to BOTH app targets (regenerates the
-    provisioning profile; automatic signing handles it). **iOS and macOS must
-    share an explicit KVS identifier** — by default `fi.misaki.donpa` and
-    `fi.misaki.donpa.mac` wouldn't see each other's scores, which would defeat
-    the Mac-sharing goal. No App Store Connect metadata change; PRIVACY.md gets a
-    one-line note that scores sync via the user's own iCloud (we still collect
-    nothing).
+    provisioning profile; automatic signing handles it). Both targets now share
+    bundle id `fi.misaki.donpa` (Universal Purchase), so the KVS identifier
+    defaults to a shared value — but pin an explicit
+    `com.apple.developer.ubiquity-kvstore-identifier` on both to be safe. iOS has
+    no entitlements file yet; create one. PRIVACY.md gets a one-line note that
+    scores sync via the user's own iCloud (we still collect nothing).
   - **In-progress games stay strictly local** — deliberately not synced. A
     half-played board on two devices has no lossless merge (one would overwrite
     the other), and it's transient by nature; only the high-stakes scoreboard is
@@ -140,75 +116,28 @@ now uses the conflict-free counter instead, so it's *correct*, not under-counted
 
 ### Big boards
 
-The "huge zoomable maps" pillar — targeting **500×500 (250k) up to 1000×1000
-(1M) cells**. The current shipped max is **XL = 100×100 (10k)**; 1000² is the
-data-model ceiling (proven in tests) but not yet a selectable preset.
+The "huge zoomable maps" pillar. **Largely shipped** — the full XS–XXXL size
+ladder (up to 1000² = 1M cells), flat bit-packed storage, viewport culling +
+texture batching, bounded zoom-out, the minimap overview, and the off-main-thread
+work that keeps a million-cell board responsive. See [CHANGELOG.md](CHANGELOG.md)
+for the detail.
 
-**Shipped (June 2026):**
+**Still open:**
 
-- [x] **Flat cell storage** (#86): `Board` uses a flat `[Cell]` (row-major
-      `y·w+x`) for `RectangularTopology` boards instead of `[Coord: Cell]`. No
-      dict fallback — every topology (incl. hex, later) is a dense rectangle, so
-      the constraint is in the type. `Cell` is **bit-packed into one byte** (state
-      + isMine + adjacentMines), so a 1000² board's array is ~1MB, not ~16MB.
-- [x] **Viewport culling** (#87): `BoardScene` builds only the cells in the
-      camera rect (+margin), refreshed each frame; the mode-glow is culled too.
-- [x] **Texture batching** (#87): cells are `SKSpriteNode`s over cached shared
-      `SKTexture`s (tile bg + number/✸ glyph) — replaced per-cell `SKShapeNode`
-      (the hot spot). Flag / loss-burst stay as drawn nodes (rare).
-- [x] **XL preset** (100×100), label XL / 特大 (#87).
-- [x] **Bounded zoom-out** (#88): can't zoom out past ~22pt cells, so a huge
-      board never becomes a tiny/laggy untappable sea; pan to explore.
-- [x] **Start zoom**: bounds the visible cell count (~600, window-relative) so
-      the node count is bounded on any window; ~28pt tap floor; centred; edge-peek
-      (clip edge cells when the board exceeds the viewport).
-- [x] **Minimap overview** (#89/#90): corner thumbnail (downsampled single
-      texture) + viewport rect, big boards only, with a toolbar toggle (disabled
-      when the board fits). The navigation aid + the unlock for any 1M preset.
-- [x] **Window sizing** (earlier): grow-to-fit is Classic-only; Modern (square,
-      can be huge) keeps the window and pans/zooms.
-- [x] **Save/restore camera view**: `GameSnapshot` persists the camera centre (as
-      a normalized board point) + zoom, so resuming a saved game returns to where
-      you were looking. Window-independent — re-clamped to the current viewport, so
-      it restores sensibly even if the window/device changed since the save.
-- [x] **Full size ladder, shirt-sized**: `BoardSize` is XS/S/M/L/XL/XXL/XXXL
-      (9/16/25/50/100/300/1000²; ja 極小/小/中/大/特大/超特大/超巨大). XS-floor leaves
-      headroom below; the new **L (50²)** fills the old 25→100 gap. **XXL (300², 90k)**
-      is the epic-but-finishable summit (~2–4h for a strong player, resumable via
-      save). **XXXL (1000², 1M)** is the sandbox flex — effectively unwinnable
-      (~15–40h, no undo), a "we go to a million" spectacle. Keys are geometry-based,
-      so the rename didn't touch existing scores.
-- [x] **Made playable at 1M cells** (the XXL/XXXL fallout pass): reveal/chord
-      compute **off the main thread** (no UI freeze; a debounced processing overlay
-      gates input); mines **pre-armed off-thread on New Game** so the first tap is
-      instant (it only relocates mines under the click, keeping first-click safety);
-      placement + end-game reveal **scale with the mine count, not the cell count**
-      (rejection-sampled placement, `Board` stores its mine set, viewport-culled
-      loss/win effects); minimap overview **renders off the main thread**; autosave
-      debounced + written on a background actor. Plus an inverted-range crash fix
-      and a zoom-out overshoot fix. Mine-hit shows the burst tile instantly; Esc
-      closes the overview. **Still TODO on real hardware:** confirm the XXXL (1M)
-      first-arm/reveal feel and profile baseline memory (Instruments).
-
-**Deferred / still open (pick from these):**
-
-- [ ] **iCloud score sync** — the other 0.2.0 pillar (above); not started.
-- [ ] **Minimap drag-to-reposition** — move the HUD out of the way (the toggle
-      hides it; dragging relocates it). Immediate next minimap follow-up.
-- [ ] **Zoomed-all-the-way-out perf** (slice 2c): `SKTileMapNode` / single drawn
-      texture for when the whole huge board is visible. **Likely superseded:**
-      bounded zoom-out clamps cells to ≥22pt, so you can never get every cell of a
-      huge board on screen at once (the visible node count is capped by viewport
-      area ÷ 22² ≈ 3k–18k regardless of board size), and the whole-board glance is
-      served by the minimap/overview texture. Only needed if we ever *lift* the
-      zoom-out cap on giant boards. Confirm the node-count ceiling is smooth in the
-      real-device pass before closing this out.
-- [ ] **Minimap polish** — higher-contrast revealed shading; handedness-aware
-      corner.
-- [ ] **Real-device test pass before 1.0** — everything so far is iPhone-15-sim +
+- [ ] **Real-device test pass before 1.0** — everything so far is iPhone-sim +
       Mac only; need older/slower devices, iPad, and small screens (the SE
       status-bar truncation escaped exactly this gap). Profile huge boards on real
-      hardware (the simulator software-renders SpriteKit and overstates cost).
+      hardware (the simulator software-renders SpriteKit and overstates cost), and
+      confirm the XXXL (1M) first-arm/reveal feel + baseline memory in Instruments.
+- [ ] **Minimap drag-to-reposition** — move the HUD out of the way (the toggle
+      hides it; dragging relocates it). Also wire an opener for when it's hidden.
+- [ ] **Minimap polish** — higher-contrast revealed shading; handedness-aware
+      corner.
+- [ ] **Zoomed-all-the-way-out perf** (`SKTileMapNode` / single drawn texture) —
+      **likely unnecessary:** bounded zoom-out clamps cells to ≥22pt, so the whole
+      huge board never fits on screen at once and the visible node count is capped
+      regardless of board size; the minimap serves the whole-board glance. Only
+      needed if the zoom-out cap is ever lifted. Confirm in the real-device pass.
 
 ## Backlog (unversioned)
 

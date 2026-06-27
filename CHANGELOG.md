@@ -19,6 +19,19 @@ big-board pillar largely landed; iCloud score sync is still open.
 - **Save/restore camera view.** Resuming a saved game returns to where you were
   looking — `GameSnapshot` persists the camera centre (normalized) + zoom,
   re-clamped to the current viewport so it restores sensibly across window/device.
+- **Carousel board-config picker.** The New Game difficulty and size rows are now
+  a horizontal "drum" of cards (the segmented control truncated once a row had
+  many or long options — Size's 7 tiers, "Intermediate"). A `detail · tagline`
+  line under the pick shows the board facts plus a short flavour line, and the
+  difficulty cards carry the rank insignia. On iOS the selected card centres with
+  edge-clamped scrolling; on macOS cards lay out statically when they fit, and a
+  click moves keyboard focus to that row.
+- **Cumulative career stats.** Per-device, conflict-free running totals (games
+  played, tiles opened, flags placed, mines hit, mines disarmed, playtime) shown
+  in the scoreboard — no win/loss ratio. Built on a grow-only `DeviceCounter`,
+  ready for the planned cross-device sync.
+- **Mouse + keyboard zoom (macOS).** ⌘-scroll and ⌘+/⌘− zoom the board; ⌘0 opens
+  the board overview.
 
 ### Changed
 
@@ -30,12 +43,19 @@ big-board pillar largely landed; iCloud score sync is still open.
   background actor; `Cell` is bit-packed to one byte. Mine-hit shows the burst
   tile instantly; Esc closes the fullscreen overview.
 - Build number is shared across iOS + macOS (one value, bumped together).
+- The game logic and view model moved into the pure `DonpaCore` target, and the
+  `DonpaCore`/`DonpaKit` sources are grouped into domain folders.
 
 ### Fixed
 
 - A crash when the visible cell range inverted transiently (launch palette push /
   camera settle), and a zoom-out gesture that could jump to the most-zoomed-in
   limit.
+- The screentone texture on unopened tiles, lost when cells became opaque
+  texture-batched sprites (the layers needed explicit z-order).
+- The in-game clear-% and the loss screen's "best %" now floor (matching the
+  scoreboard) instead of rounding up; flags survive a loss; correctly-flagged
+  ("disarmed") mines no longer detonate in the loss shockwave.
 
 ### Tooling
 
