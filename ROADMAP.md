@@ -122,22 +122,8 @@ texture batching, bounded zoom-out, the minimap overview, and the off-main-threa
 work that keeps a million-cell board responsive. See [CHANGELOG.md](CHANGELOG.md)
 for the detail.
 
-**Still open:**
-
-- [ ] **Real-device test pass before 1.0** — everything so far is iPhone-sim +
-      Mac only; need older/slower devices, iPad, and small screens (the SE
-      status-bar truncation escaped exactly this gap). Profile huge boards on real
-      hardware (the simulator software-renders SpriteKit and overstates cost), and
-      confirm the XXXL (1M) first-arm/reveal feel + baseline memory in Instruments.
-- [ ] **Minimap drag-to-reposition** — move the HUD out of the way (the toggle
-      hides it; dragging relocates it). Also wire an opener for when it's hidden.
-- [ ] **Minimap polish** — higher-contrast revealed shading; handedness-aware
-      corner.
-- [ ] **Zoomed-all-the-way-out perf** (`SKTileMapNode` / single drawn texture) —
-      **likely unnecessary:** bounded zoom-out clamps cells to ≥22pt, so the whole
-      huge board never fits on screen at once and the visible node count is capped
-      regardless of board size; the minimap serves the whole-board glance. Only
-      needed if the zoom-out cap is ever lifted. Confirm in the real-device pass.
+Done for this milestone. A few non-blocking follow-ups live in the Backlog
+(real-device pass, minimap polish) — none gate v0.2.0.
 
 ## Backlog (unversioned)
 
@@ -158,6 +144,18 @@ slot into whichever release they're ready for.
 - [ ] **macOS `⌘1/2/3`** (classic presets) jump straight into a Classic game,
       jarringly switching mode mid-play. Rethink: pre-select in the New Game
       popup instead of starting immediately? Or be Modern-aware?
+- [ ] **Minimap drag-to-reposition** — move the HUD out of the way (the toggle
+      hides it; dragging relocates it). Also wire an opener for when it's hidden.
+- [ ] **Minimap polish** — higher-contrast revealed shading; handedness-aware
+      corner.
+
+**Verify before 1.0:**
+
+- [ ] **Real-device test pass** — everything so far is iPhone-sim + Mac only;
+      need older/slower devices, iPad, and small screens (the SE status-bar
+      truncation escaped exactly this gap). Profile huge boards on real hardware
+      (the simulator software-renders SpriteKit and overstates cost), and confirm
+      the XXXL (1M) first-arm/reveal feel + baseline memory in Instruments.
 
 **Code cleanup (next refactor round):**
 
