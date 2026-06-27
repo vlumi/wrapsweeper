@@ -35,6 +35,10 @@ struct GameContent: View {
     @State private var processingTask: Task<Void, Never>?
     @State private var processingShownAt: Date?
     @State private var windowSize: CGSize = .zero
+    /// True when WE paused the game to show the scoreboard (so its career stats are
+    /// current and the clock doesn't run behind the sheet) — used to auto-resume on
+    /// dismiss, but only if the player hadn't already paused it themselves.
+    @State private var pausedForScores = false
     /// Atomic, crash-safe store for the in-progress game (save/restore on quit).
     /// Under the UI-test launch arg it's a clean ephemeral store, so tests never
     /// read or write the real saved game; otherwise the production Application
@@ -153,6 +157,21 @@ struct GameContent: View {
         .sheet(isPresented: $navigator.showingScores) {
             ScoreboardView(scoreboard: scoreboard, available: windowSize)
         }
+        // Opening the scoreboard pauses a live game: it flushes the career activity
+        // (so the Career tab is current) and stops the clock running behind the
+        // sheet. Auto-resume on dismiss — but only if we were the ones who paused,
+        // so a game the player had already paused stays paused.
+        .onChangeCompat(of: navigator.showingScores) { showing in
+            if showing {
+                if viewModel.game.status == .playing && !viewModel.isPaused {
+                    pausedForScores = true
+                    viewModel.pause()
+                }
+            } else if pausedForScores {
+                pausedForScores = false
+                viewModel.resume()
+            }
+        }
         .sheet(isPresented: $navigator.showingSettings) {
             SettingsView(settings: settings)
         }
@@ -178,6 +197,16 @@ struct GameContent: View {
     private func onLaunch() {
         // Tapping the minimap's expand badge opens the fullscreen overview.
         scene.onOpenOverview = { navigator.showingOverview = true }
+        // Live career activity: the view model flushes the tiles/flags/time delta
+        // on pause (incl. opening the scoreboard), background, and game end. We
+        // fold each delta into the lifetime totals WITHOUT counting a game played —
+        // the games-played + win/loss + mine outcome is recorded separately at end.
+        // Wired before any newGame below so the first flush is caught.
+        viewModel.onActivityFlush = { tiles, flags, centiseconds in
+            scoreboard.recordActivity(
+                for: viewModel.config, tilesOpened: tiles, flagsPlaced: flags,
+                playtimeCentiseconds: centiseconds)
+        }
         if let snapshot = saveStore.load() {
             viewModel.restore(from: snapshot)
             navigator.showingTitle = false
@@ -326,17 +355,15 @@ struct GameContent: View {
             let safeRemaining = viewModel.game.safeCellCount - viewModel.game.revealedSafeCount
             kind = .loss(progress: progress, safeRemaining: safeRemaining, isBest: isBest)
         }
-        // Lifetime cumulative tallies (in addition to the win / loss-progress above).
-        // minesHit is the single detonation on a loss; on a win all mines are
-        // accounted for, so disarmedMineCount reads the full set (you solved it).
-        scoreboard.recordGameEnd(
+        // The finished game's OUTCOME: games-played + the mine tally. The activity
+        // (tiles / flags / time) already accrued live via flushes — the view model
+        // flushed the final slice in finishIfEnded before this runs. minesHit is the
+        // single detonation on a loss; on a win all mines are accounted for, so
+        // disarmedMineCount reads the full set (you solved it).
+        scoreboard.recordGameOutcome(
             for: viewModel.config,
-            tally: GameTally(
-                tilesOpened: viewModel.game.revealedSafeCount,
-                flagsPlaced: viewModel.flagsPlacedThisGame,
-                minesHit: isWin ? 0 : 1,
-                minesDisarmed: viewModel.game.board.disarmedMineCount,
-                playtimeCentiseconds: viewModel.elapsedCentiseconds))
+            minesHit: isWin ? 0 : 1,
+            minesDisarmed: viewModel.game.board.disarmedMineCount)
         showPanel(kind)
 
         if !reduceMotion {

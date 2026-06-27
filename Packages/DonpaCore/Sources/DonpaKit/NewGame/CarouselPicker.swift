@@ -48,6 +48,11 @@ struct CarouselPicker: View {
     var body: some View {
         rowContent
             .frame(height: height)
+            // Edge chevrons hint "there's more this way" and step the selection
+            // when tapped. They fade at the ends (no left arrow on the first card,
+            // no right on the last) and overlay without affecting layout.
+            .overlay(alignment: .leading) { edgeChevron(.left) }
+            .overlay(alignment: .trailing) { edgeChevron(.right) }
             .padding(.horizontal, 4)
             // Keyboard focus: a tinted panel + ring around the whole row. The padding
             // and a 2pt-wide border are ALWAYS present (just transparent when not
@@ -71,6 +76,28 @@ struct CarouselPicker: View {
                 @unknown default: break
                 }
             }
+    }
+
+    private enum Edge { case left, right }
+
+    /// A small chevron at one edge: visible only when there are more cards that
+    /// way (faded out otherwise), tappable to step the selection one card.
+    @ViewBuilder private func edgeChevron(_ edge: Edge) -> some View {
+        let canGo = edge == .left ? selection > 0 : selection < labels.count - 1
+        Image(systemName: edge == .left ? "chevron.left" : "chevron.right")
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .opacity(canGo ? 0.7 : 0)
+            .allowsHitTesting(canGo)
+            .onTapGesture {
+                onInteract?()
+                selection = edge == .left ? selection - 1 : selection + 1
+            }
+            .animation(.snappy, value: selection)
+            .accessibilityHidden(true)  // the row itself is the a11y element
     }
 
     /// Platform-specific layout. iOS ALWAYS uses the swipe drum (selected card

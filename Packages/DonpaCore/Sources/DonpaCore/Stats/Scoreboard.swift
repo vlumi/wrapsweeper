@@ -47,26 +47,6 @@ public struct ScoreRecord: Equatable, Sendable {
     }
 }
 
-/// The cumulative tallies from one finished game, recorded via `recordGameEnd`.
-public struct GameTally: Sendable {
-    public var tilesOpened: Int
-    public var flagsPlaced: Int
-    public var minesHit: Int
-    public var minesDisarmed: Int
-    public var playtimeCentiseconds: Int
-
-    public init(
-        tilesOpened: Int, flagsPlaced: Int, minesHit: Int, minesDisarmed: Int,
-        playtimeCentiseconds: Int
-    ) {
-        self.tilesOpened = tilesOpened
-        self.flagsPlaced = flagsPlaced
-        self.minesHit = minesHit
-        self.minesDisarmed = minesDisarmed
-        self.playtimeCentiseconds = playtimeCentiseconds
-    }
-}
-
 extension ScoreRecord: Codable {
     enum CodingKeys: String, CodingKey {
         case wins, gamesPlayed, tilesOpened, flagsPlaced, minesHit, minesDisarmed
@@ -246,14 +226,35 @@ public final class Scoreboard: ObservableObject {
     /// the win / loss-progress recorded via `submit`/`submitLossProgress`. Bumps the
     /// per-config G-Counters; displayed as global totals (see the `total*` accessors).
     /// Call once per finished game.
-    public func recordGameEnd(for config: GameConfig, tally: GameTally) {
+    /// Add a slice of in-game **activity** to the lifetime totals: tiles opened,
+    /// flag placements, and centiseconds played. Called repeatedly during a game
+    /// (flushed on pause / scoreboard-open / background / end), so the Career page
+    /// reflects activity as it happens — and abandoning a dug-into game still keeps
+    /// its effort. Deltas only (the view model tracks what's already flushed), so
+    /// this never double-counts, and it does NOT touch games-played or outcomes.
+    /// A no-op delta still persists nothing of consequence; callers skip empty
+    /// flushes. Zero-skip keeps the common idle case cheap.
+    public func recordActivity(
+        for config: GameConfig, tilesOpened: Int, flagsPlaced: Int, playtimeCentiseconds: Int
+    ) {
+        guard tilesOpened != 0 || flagsPlaced != 0 || playtimeCentiseconds != 0 else { return }
+        var record = records[config.storageKey] ?? ScoreRecord()
+        record.tilesOpened.add(tilesOpened)
+        record.flagsPlaced.add(flagsPlaced)
+        record.playtimeCentiseconds.add(playtimeCentiseconds)
+        records[config.storageKey] = record
+        persist()
+    }
+
+    /// Record a finished game's **outcome**: bump games-played and add the mine
+    /// tally (one hit on a loss; the disarmed count on a win). Activity (tiles /
+    /// flags / time) is NOT here — it accrues live via `recordActivity`. Wins and
+    /// loss-progress go through `submit` / `submitLossProgress`.
+    public func recordGameOutcome(for config: GameConfig, minesHit: Int, minesDisarmed: Int) {
         var record = records[config.storageKey] ?? ScoreRecord()
         record.gamesPlayed.add(1)
-        record.tilesOpened.add(tally.tilesOpened)
-        record.flagsPlaced.add(tally.flagsPlaced)
-        record.minesHit.add(tally.minesHit)
-        record.minesDisarmed.add(tally.minesDisarmed)
-        record.playtimeCentiseconds.add(tally.playtimeCentiseconds)
+        record.minesHit.add(minesHit)
+        record.minesDisarmed.add(minesDisarmed)
         records[config.storageKey] = record
         persist()
     }

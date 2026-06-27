@@ -40,20 +40,16 @@ final class CumulativeStatsTests: XCTestCase {
         XCTAssertEqual(partial.othersTotal, 0)
     }
 
-    // MARK: recordGameEnd → per-config + global totals
+    // MARK: recordActivity + recordGameOutcome → per-config + global totals
 
-    func testRecordGameEndAccumulatesAndGlobalTotalsSumAcrossConfigs() {
+    func testActivityAndOutcomeAccumulateAndGlobalTotalsSumAcrossConfigs() {
         let board = Scoreboard(defaults: defaults)
-        board.recordGameEnd(
-            for: .beginner,
-            tally: .init(
-                tilesOpened: 50, flagsPlaced: 6, minesHit: 1, minesDisarmed: 4,
-                playtimeCentiseconds: 1200))
-        board.recordGameEnd(
-            for: .expert,
-            tally: .init(
-                tilesOpened: 200, flagsPlaced: 30, minesHit: 0, minesDisarmed: 99,
-                playtimeCentiseconds: 8000))
+        board.recordActivity(
+            for: .beginner, tilesOpened: 50, flagsPlaced: 6, playtimeCentiseconds: 1200)
+        board.recordGameOutcome(for: .beginner, minesHit: 1, minesDisarmed: 4)
+        board.recordActivity(
+            for: .expert, tilesOpened: 200, flagsPlaced: 30, playtimeCentiseconds: 8000)
+        board.recordGameOutcome(for: .expert, minesHit: 0, minesDisarmed: 99)
         // Per-config kept.
         XCTAssertEqual(board.record(for: .beginner)?.tilesOpened.total, 50)
         XCTAssertEqual(board.record(for: .expert)?.minesDisarmed.total, 99)
@@ -66,12 +62,41 @@ final class CumulativeStatsTests: XCTestCase {
         XCTAssertEqual(board.totalPlaytimeCentiseconds, 9200)
     }
 
-    func testGamesPlayedCountsEachFinishedGame() {
+    func testGamesPlayedCountsEachOutcome() {
         let board = Scoreboard(defaults: defaults)
-        let tally = GameTally(
-            tilesOpened: 1, flagsPlaced: 0, minesHit: 1, minesDisarmed: 0, playtimeCentiseconds: 1)
-        for _ in 0..<5 { board.recordGameEnd(for: .beginner, tally: tally) }
+        for _ in 0..<5 { board.recordGameOutcome(for: .beginner, minesHit: 1, minesDisarmed: 0) }
         XCTAssertEqual(board.totalGamesPlayed, 5)
+    }
+
+    /// Activity accrues live during play (and an abandoned game keeps its effort)
+    /// WITHOUT counting a game played — only an outcome bumps games-played.
+    func testActivityAloneIsNotAGamePlayed() {
+        let board = Scoreboard(defaults: defaults)
+        // Two flushes during play, then the game is abandoned (no outcome).
+        board.recordActivity(
+            for: .beginner, tilesOpened: 8, flagsPlaced: 2, playtimeCentiseconds: 250)
+        board.recordActivity(
+            for: .beginner, tilesOpened: 4, flagsPlaced: 1, playtimeCentiseconds: 150)
+        XCTAssertEqual(board.totalGamesPlayed, 0, "activity alone is not a game played")
+        XCTAssertEqual(board.totalTilesOpened, 12, "but the dug tiles still count")
+        XCTAssertEqual(board.totalFlagsPlaced, 3)
+        XCTAssertEqual(board.totalPlaytimeCentiseconds, 400)
+        XCTAssertEqual(board.totalMinesHit, 0)
+
+        // A later finished game records the outcome → games-played increments.
+        board.recordActivity(
+            for: .beginner, tilesOpened: 5, flagsPlaced: 1, playtimeCentiseconds: 100)
+        board.recordGameOutcome(for: .beginner, minesHit: 1, minesDisarmed: 0)
+        XCTAssertEqual(board.totalGamesPlayed, 1)
+        XCTAssertEqual(board.totalTilesOpened, 17, "activity accumulates across all flushes")
+    }
+
+    /// An empty flush (no deltas) records nothing — keeps idle pauses cheap.
+    func testEmptyActivityFlushIsANoOp() {
+        let board = Scoreboard(defaults: defaults)
+        board.recordActivity(
+            for: .beginner, tilesOpened: 0, flagsPlaced: 0, playtimeCentiseconds: 0)
+        XCTAssertNil(board.record(for: .beginner))
     }
 
     // MARK: wins still works through the counter; persists

@@ -826,6 +826,23 @@
         }
       }
     },
+    "Play a game to start your career stats.": {
+      "comment": "Career tab empty state. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pelaa peli aloittaaksesi urasi tilastot."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "プレイすると通算記録が始まります。"
+          }
+        }
+      }
+    },
     "Ready": {
       "comment": "Game state: not yet started. NEEDS REVIEW: ja/fi.",
       "localizations": {
@@ -924,6 +941,23 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "右"
+          }
+        }
+      }
+    },
+    "Scores": {
+      "comment": "Scoreboard tab: per-board high scores. NEEDS REVIEW: ja/fi.",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tulokset"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "スコア"
           }
         }
       }

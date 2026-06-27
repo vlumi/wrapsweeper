@@ -88,6 +88,40 @@ public final class GameViewModel: ObservableObject {
     /// counts again. Reset on new game / restore; read once at game end.
     public private(set) var flagsPlacedThisGame = 0
 
+    /// Career activity already flushed to the lifetime totals for THIS game, so a
+    /// flush only ever sends the new delta (never double-counts). Reset per game.
+    private var flushedTiles = 0
+    private var flushedFlags = 0
+    private var flushedCentiseconds = 0
+
+    /// Push the unflushed slice of this game's activity (tiles opened, flag
+    /// placements, centiseconds played) to the lifetime career totals. Called on
+    /// pause (which is also when the scoreboard opens — so the Career page is
+    /// current the moment you look at it), on background/quit, and at game
+    /// end/discard — so live activity accumulates without a per-tile write storm,
+    /// and abandoning a dug-into game still credits its effort. Set by the host
+    /// (`GameView`), which owns the scoreboard; Core never references it. Carries
+    /// DELTAS since the last flush.
+    public var onActivityFlush:
+        ((_ tilesDelta: Int, _ flagsDelta: Int, _ centisecondsDelta: Int) -> Void)?
+
+    /// Flush this game's activity delta (tiles/flags/time since the last flush) to
+    /// the career totals via `onActivityFlush`, then mark it flushed. Idempotent —
+    /// a flush with nothing new sends nothing.
+    public func flushActivity() {
+        let tiles = game.revealedSafeCount
+        let flags = flagsPlacedThisGame
+        let centi = currentCentiseconds()
+        let dt = tiles - flushedTiles
+        let df = flags - flushedFlags
+        let dc = centi - flushedCentiseconds
+        guard dt != 0 || df != 0 || dc != 0 else { return }
+        flushedTiles = tiles
+        flushedFlags = flags
+        flushedCentiseconds = centi
+        onActivityFlush?(dt, df, dc)
+    }
+
     /// Whether the board currently extends beyond the viewport (so there's
     /// off-screen board a minimap could map). Published by `BoardScene` each frame
     /// as the camera pans/zooms; the chrome uses it to enable/disable the minimap
@@ -208,6 +242,11 @@ public final class GameViewModel: ObservableObject {
     }
 
     public func newGame(config: GameConfig? = nil) {
+        // Flush any unrecorded activity from the outgoing game before discarding it,
+        // so abandoning a dug-into game (restart / new game mid-play) still credits
+        // its tiles/flags/time to the lifetime totals. A finished game already
+        // flushed at end; an untouched board has nothing new.
+        if game.status == .playing { flushActivity() }
         if let config { self.config = config }
         game = Game(config: self.config)
         elapsedCentiseconds = 0
@@ -221,6 +260,9 @@ public final class GameViewModel: ObservableObject {
         // clear the gate so the fresh board takes input immediately.
         isComputing = false
         flagsPlacedThisGame = 0
+        flushedTiles = 0
+        flushedFlags = 0
+        flushedCentiseconds = 0
         resetTimer()
         gameID &+= 1
         bump()
@@ -272,6 +314,13 @@ public final class GameViewModel: ObservableObject {
         // placements made after the resume (a minor under-count for the lifetime
         // "flags placed" stat — not worth a snapshot field for a flavour count).
         flagsPlacedThisGame = 0
+        // Seed the flush trackers to the restored state: the tiles and time from
+        // before the save were already flushed to the career totals (the
+        // background pause flushes), so only post-resume activity should count
+        // again — otherwise resuming would re-add the whole board's tiles/time.
+        flushedTiles = game.revealedSafeCount
+        flushedFlags = 0
+        flushedCentiseconds = snapshot.elapsedCentiseconds
         if game.status == .playing { startTimer() } else { runningSince = nil }
         gameID &+= 1
         bump()
@@ -288,6 +337,11 @@ public final class GameViewModel: ObservableObject {
         runningSince = nil
         accumulatedCentiseconds = finalCentiseconds
         elapsedCentiseconds = finalCentiseconds
+        // Flush the final activity slice (tiles/flags/time since the last flush) to
+        // the career totals BEFORE the host records the outcome — so the end-of-game
+        // record adds only the games-played + win/loss + mine outcome, never the
+        // tiles/flags/time again (those flow through flushes during play).
+        flushActivity()
         let result: GameResult
         if game.status == .won {
             lastWin = (config: config, centiseconds: finalCentiseconds)
@@ -305,6 +359,9 @@ public final class GameViewModel: ObservableObject {
     /// game playable-but-frozen. No-op unless a game is actually in progress.
     public func pause() {
         guard game.status == .playing, !isPaused else { return }
+        // Flush activity to the career totals while the clock is still live, so the
+        // scoreboard (which opens via a pause) shows current tiles/flags/time.
+        flushActivity()
         foldRunningSpan()
         timer?.cancel()
         timer = nil

@@ -17,6 +17,9 @@ struct ScoreboardView: View {
     var available: CGSize = .zero
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingReset = false
+    @State private var tab: Tab = .scores
+
+    private enum Tab: Hashable { case scores, career }
 
     /// Modern configs the player has played at all — has a win *or* a recorded
     /// best progress from a loss (so partially-cleared hard boards still show).
@@ -47,7 +50,7 @@ struct ScoreboardView: View {
     @ViewBuilder private var sheetChrome: some View {
         #if os(iOS)
         NavigationStack {
-            scoreList
+            tabbedContent
                 .padding(.vertical, 8)
                 .padding(.horizontal, 14)
                 .navigationTitle(Text("High Scores", bundle: .module))
@@ -74,7 +77,7 @@ struct ScoreboardView: View {
         VStack(spacing: 16) {
             Text("High Scores", bundle: .module).font(.title2.bold())
 
-            scoreList
+            tabbedContent
                 .frame(maxHeight: .infinity)
 
             HStack {
@@ -128,6 +131,25 @@ struct ScoreboardView: View {
     /// sheet's outer padding so the overall margin stays about the same.
     private static let rowInset: CGFloat = 10
 
+    /// A segmented Scores / Career switch over the matching list. Career holds the
+    /// lifetime totals; Scores the per-board best-time/clear tables.
+    private var tabbedContent: some View {
+        VStack(spacing: 12) {
+            Picker("", selection: $tab) {
+                Text("Scores", bundle: .module).tag(Tab.scores)
+                Text("Career", bundle: .module).tag(Tab.career)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .padding(.horizontal, Self.rowInset)
+
+            switch tab {
+            case .scores: scoreList
+            case .career: careerList
+            }
+        }
+    }
+
     private var scoreList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -135,7 +157,6 @@ struct ScoreboardView: View {
                 if !playedModern.isEmpty {
                     section("Modern", configs: playedModern)
                 }
-                statsSection
             }
             .padding(.trailing, Self.scrollbarGutter)
         }
@@ -144,28 +165,29 @@ struct ScoreboardView: View {
     /// Lifetime totals across every config. Deliberately NO win rate / loss ratio —
     /// raw, neutral counts (a win% only discourages); the figures are honest but
     /// never framed as "you lose most games".
-    @ViewBuilder private var statsSection: some View {
-        if scoreboard.totalGamesPlayed > 0 {
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Career", bundle: .module).font(.caption.bold())
-                        .foregroundStyle(.secondary)
-                    Spacer()
+    private var careerList: some View {
+        ScrollView {
+            if scoreboard.totalGamesPlayed > 0 {
+                VStack(spacing: 0) {
+                    statRow("Games played", Self.grouped(scoreboard.totalGamesPlayed))
+                    Divider()
+                    statRow("Tiles cleared", Self.grouped(scoreboard.totalTilesOpened))
+                    Divider()
+                    statRow("Flags placed", Self.grouped(scoreboard.totalFlagsPlaced))
+                    Divider()
+                    statRow("Mines disarmed", Self.grouped(scoreboard.totalMinesDisarmed))
+                    Divider()
+                    statRow("Mines hit", Self.grouped(scoreboard.totalMinesHit))
+                    Divider()
+                    statRow("Time played", Self.durationLabel(scoreboard.totalPlaytimeCentiseconds))
                 }
-                .padding(.vertical, 4)
-                .padding(.horizontal, Self.rowInset)
-
-                statRow("Games played", "\(scoreboard.totalGamesPlayed)")
-                Divider()
-                statRow("Tiles cleared", "\(scoreboard.totalTilesOpened)")
-                Divider()
-                statRow("Flags placed", "\(scoreboard.totalFlagsPlaced)")
-                Divider()
-                statRow("Mines disarmed", "\(scoreboard.totalMinesDisarmed)")
-                Divider()
-                statRow("Mines hit", "\(scoreboard.totalMinesHit)")
-                Divider()
-                statRow("Time played", Self.durationLabel(scoreboard.totalPlaytimeCentiseconds))
+                .padding(.trailing, Self.scrollbarGutter)
+            } else {
+                Text("Play a game to start your career stats.", bundle: .module)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
             }
         }
     }
@@ -181,6 +203,10 @@ struct ScoreboardView: View {
     }
 
     /// Coarse human duration for lifetime playtime (hours/minutes, not the precise
+    /// A count formatted with the locale's grouping separator (e.g. `1,234,567` /
+    /// `1 234 567`), for the lifetime totals which can run large.
+    static func grouped(_ value: Int) -> String { value.formatted(.number) }
+
     /// per-game m:ss.t). E.g. `14h 23m`, `45m`, `< 1m`.
     static func durationLabel(_ centiseconds: Int) -> String {
         let totalMinutes = centiseconds / 6000
@@ -226,7 +252,7 @@ struct ScoreboardView: View {
                 Text(verbatim: config.label)  // already localized by GameConfig
             }
             Spacer()
-            Text("\(scoreboard.wins(for: config))")
+            Text(verbatim: Self.grouped(scoreboard.wins(for: config)))
                 .font(.body.monospaced())
                 .frame(width: 56, alignment: .trailing)
             Group {
