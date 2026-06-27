@@ -270,7 +270,11 @@ public final class Scoreboard: ObservableObject {
     public func submit(_ centiseconds: Int, for config: GameConfig) -> Bool {
         var record = records[config.storageKey] ?? ScoreRecord()
         record.wins.add(1)
-        let isBest = record.bestCentiseconds.map { centiseconds < $0 } ?? true
+        // "New record" is judged against the CROSS-DEVICE best (the merged display),
+        // not just this device's — so a time another device already beat doesn't
+        // falsely read as a record. The value still stores in this device's own
+        // record; the merge re-derives the displayed best.
+        let isBest = best(for: config).map { centiseconds < $0 } ?? true
         if isBest {
             record.bestCentiseconds = centiseconds
             recentRecord = config.storageKey
@@ -287,10 +291,11 @@ public final class Scoreboard: ObservableObject {
     @discardableResult
     public func submitLossProgress(_ progress: Double, for config: GameConfig) -> Bool {
         var record = records[config.storageKey] ?? ScoreRecord()
-        // A win is implicitly 100%, so once the board has ever been cleared a
-        // loss can't be a "new best" — compare against the displayed best, which
-        // is 1.0 when there's a win.
-        let currentBest = record.wins.total > 0 ? 1.0 : (record.bestLossProgress ?? 0)
+        // Compare against the CROSS-DEVICE best progress (the merged display), so a
+        // loss doesn't read as a "new best %" if another device already did better
+        // (or cleared the board — which makes the displayed best 100%).
+        // `bestProgress(for:)` returns 1.0 when any device has a win.
+        let currentBest = bestProgress(for: config) ?? 0
         let isBest = progress > currentBest
         if isBest {
             record.bestLossProgress = progress

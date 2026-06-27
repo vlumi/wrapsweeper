@@ -65,6 +65,33 @@ final class ScoreboardSyncTests: XCTestCase {
         XCTAssertEqual(b.best(for: .beginner), 250)
     }
 
+    // MARK: "New record" is judged cross-device
+
+    func testNewRecordComparesAgainstOtherDevicesBest() {
+        let shared = FakeCloud.Shared()
+        let a = Scoreboard(defaults: defaults("a"), cloud: FakeCloud(shared: shared))
+        let b = Scoreboard(defaults: defaults("b"), cloud: FakeCloud(shared: shared))
+        a.submit(250, for: .beginner)  // A sets 2.50s; B now sees it
+
+        // B clears in 300 — slower than A's synced 250, so NOT a new record.
+        XCTAssertFalse(
+            b.submit(300, for: .beginner), "slower than another device's best is not a record")
+        // B clears in 200 — beats the cross-device best, so it IS a record.
+        XCTAssertTrue(b.submit(200, for: .beginner), "beating the cross-device best is a record")
+        XCTAssertEqual(b.best(for: .beginner), 200)
+    }
+
+    func testNewLossProgressComparesCrossDevice() {
+        let shared = FakeCloud.Shared()
+        let a = Scoreboard(defaults: defaults("a"), cloud: FakeCloud(shared: shared))
+        let b = Scoreboard(defaults: defaults("b"), cloud: FakeCloud(shared: shared))
+        a.submitLossProgress(0.6, for: .expert)  // A's best loss %; B sees it
+        XCTAssertFalse(
+            b.submitLossProgress(0.5, for: .expert), "worse than another device's % is not best")
+        XCTAssertTrue(
+            b.submitLossProgress(0.8, for: .expert), "beating the cross-device % is a record")
+    }
+
     func testOwnCountStaysSeparateFromOthers() {
         let shared = FakeCloud.Shared()
         let a = Scoreboard(defaults: defaults("a"), cloud: FakeCloud(shared: shared))
