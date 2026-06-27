@@ -153,6 +153,34 @@ final class ScoreboardSyncTests: XCTestCase {
         XCTAssertEqual(a.wins(for: .beginner), 1, "A now shows only B's contribution")
     }
 
+    func testRefreshFromCloudPullsLatest() {
+        // Simulates the app coming to the foreground: B pulls the cloud and picks
+        // up A's win even without a live notification. (Use a non-notifying shared
+        // store so only the explicit refresh delivers it.)
+        let shared = FakeCloud.Shared()
+        let aCloud = FakeCloud(shared: shared)
+        let bCloud = FakeCloud(shared: shared)
+        let a = Scoreboard(defaults: defaults("a"), cloud: aCloud)
+        let b = Scoreboard(defaults: defaults("b"), cloud: bCloud)
+        // Suppress B's live notification so we can prove refreshFromCloud is what
+        // delivers the update.
+        bCloud.onExternalChange = nil
+        a.submit(300, for: .beginner)
+        XCTAssertEqual(b.wins(for: .beginner), 0, "no live notification reached B yet")
+        b.refreshFromCloud()
+        XCTAssertEqual(b.wins(for: .beginner), 1, "foreground refresh pulls A's win")
+    }
+
+    func testRefreshFromCloudIsNoOpWhenSyncOff() {
+        let shared = FakeCloud.Shared()
+        let a = Scoreboard(defaults: defaults("a"), cloud: FakeCloud(shared: shared))
+        a.submit(300, for: .beginner)
+        let b = Scoreboard(
+            defaults: defaults("b"), cloud: FakeCloud(shared: shared), syncEnabled: false)
+        b.refreshFromCloud()  // sync off → must stay local-only
+        XCTAssertEqual(b.wins(for: .beginner), 0)
+    }
+
     func testRemovingADeviceLiveReducesOtherDeviceTotals() {
         // The key cross-device behaviour: when one device removes its scores, the
         // other device's totals drop LIVE via the external-change notification.

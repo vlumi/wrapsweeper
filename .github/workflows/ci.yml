@@ -60,8 +60,12 @@ jobs:
           # Exclude build artifacts, tests, and the SpriteKit/SwiftUI view layer
           # (which needs UI automation to exercise) so the figure reflects the
           # unit-tested logic. CellLayout and Scoreboard stay measured.
+          # CloudStatsStore is the iCloud KVS wrapper — it only works on a real
+          # device (simulator KVS is unreliable), so its concrete impl is exercised
+          # via a fake in tests, not directly; ignore it like the view layer. The
+          # pure merge (StatsMerge) and the Scoreboard wiring ARE measured.
           xcrun llvm-cov export "$BIN" -instr-profile "$PROF" -format=lcov \
-            -ignore-filename-regex='(\.build|Tests)/|DonpaKit/(BoardScene|BoardView|GameView|GameViewModel|SheetViews|Settings|Palette)' \
+            -ignore-filename-regex='(\.build|Tests)/|DonpaKit/(BoardScene|BoardView|GameView|GameViewModel|SheetViews|Settings|Palette)|Stats/CloudStatsStore' \
             > coverage.lcov
           # Rewrite absolute SF: paths to repo-relative so Codecov maps files
           # correctly (its ignore globs and file tree are repo-relative). The
