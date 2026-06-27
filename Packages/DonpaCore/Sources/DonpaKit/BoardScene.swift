@@ -106,9 +106,17 @@ public final class BoardScene: SKScene {
         super.init(size: CGSize(width: 320, height: 320))
         scaleMode = .resizeFill
         backgroundColor = palette.sceneBackground
+        // Layer order is by zPosition, NOT add-order: the SKView sets
+        // `ignoresSiblingOrder = true` (a batching win), so equal-z siblings draw
+        // in an undefined order. The cell tiles are opaque `SKSpriteNode`s; without
+        // an explicit higher z the glow's `SKShapeNode` tiles batch *under* them and
+        // vanish (the same trap the per-cell overlays hit — see BoardScene+Render).
+        boardLayer.zPosition = 0
+        glowLayer.zPosition = 1  // above tiles…
+        effectsLayer.zPosition = 2  // …but below end-game effects
         addChild(boardLayer)
-        addChild(glowLayer)  // above tiles…
-        addChild(effectsLayer)  // …but below end-game effects
+        addChild(glowLayer)
+        addChild(effectsLayer)
         addChild(cameraNode)
         camera = cameraNode
     }
