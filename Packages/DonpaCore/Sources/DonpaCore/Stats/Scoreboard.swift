@@ -246,7 +246,13 @@ public final class Scoreboard: ObservableObject {
     /// progress from a loss. `nil` if the config has never been finished.
     public func bestProgress(for config: GameConfig) -> Double? {
         guard let record = displayRecords[config.storageKey] else { return nil }
-        if record.wins.total > 0 { return 1.0 }
+        // A recorded best TIME is itself proof the board was cleared (100%) — more
+        // robust than the wins counter, which can read 0 while a best time survives
+        // (the tolerant decode resets counters but keeps best times; and best time
+        // merges by `min` across devices independently of the wins sum). Checking
+        // the time avoids showing "<100% AND a best time" for a board that was, in
+        // fact, cleared (possibly only on another device).
+        if record.bestCentiseconds != nil || record.wins.total > 0 { return 1.0 }
         return record.bestLossProgress
     }
 

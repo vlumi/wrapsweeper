@@ -98,6 +98,25 @@ final class ScoreboardTests: XCTestCase {
         XCTAssertNil(board.bestProgress(for: .beginner))
     }
 
+    /// A recorded best TIME means the board was cleared → 100%, even if the wins
+    /// counter reads 0 (the tolerant decode keeps best times but can reset counters;
+    /// across devices the time merges independently of the wins sum). Guards the bug
+    /// where a row showed "<100% AND a best time" for a board that was in fact
+    /// cleared (often only on another synced device).
+    func testBestTimeImpliesFullProgressEvenIfWinsCounterIsZero() {
+        // A record carrying a best time but a zero wins counter and an old loss %.
+        let key = GameConfig.beginner.storageKey
+        writeRaw(
+            #"{"version":1,"records":{"\#(key)":{"bestCentiseconds":1234,"bestLossProgress":0.97}}}"#
+        )
+        let board = Scoreboard(defaults: defaults)
+        XCTAssertEqual(board.wins(for: .beginner), 0, "wins counter is zero in this record")
+        XCTAssertEqual(board.best(for: .beginner), 1234, "but a best time is present")
+        XCTAssertEqual(
+            board.bestProgress(for: .beginner) ?? 0, 1.0, accuracy: 1e-9,
+            "a best time means cleared → 100%, never the stale loss %")
+    }
+
     func testLossProgressIsRecordedAndOnlyRises() {
         let board = Scoreboard(defaults: defaults)
         XCTAssertTrue(board.submitLossProgress(0.5, for: .beginner))
