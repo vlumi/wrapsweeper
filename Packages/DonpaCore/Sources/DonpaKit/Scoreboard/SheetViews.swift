@@ -328,9 +328,18 @@ struct ScoreboardView: View {
         let totalMinutes = centiseconds / 6000
         let h = totalMinutes / 60
         let m = totalMinutes % 60
-        if h > 0 { return "\(h)h \(m)m" }
-        if m > 0 { return "\(m)m" }
-        return "< 1m"
+        // Localized units (en "14h 23m" / fi "14 t 23 min" / ja "14時間23分").
+        if h > 0 {
+            return String(
+                localized: "\(h)h \(m)m", bundle: .module,
+                comment: "Playtime, hours+minutes: H hours M minutes")
+        }
+        if m > 0 {
+            return String(
+                localized: "\(m)m", bundle: .module, comment: "Playtime, minutes only: M minutes")
+        }
+        return String(
+            localized: "< 1m", bundle: .module, comment: "Playtime under a minute")
     }
 
     private func section(_ title: LocalizedStringKey, configs: [GameConfig]) -> some View {
