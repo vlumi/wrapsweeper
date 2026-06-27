@@ -76,6 +76,13 @@ struct DonpaApp: App {
 
                 Divider()
 
+                // Overview = zoom all the way out to see the whole board; ⌘0 pairs
+                // with ⌘+/⌘− as the "fit / actual-size" slot many apps use. Escape
+                // closes the overview (its own .cancelAction button).
+                Button("Board Overview") { navigator.showingOverview = true }
+                    .keyboardShortcut("0", modifiers: .command)
+                    .disabled(modalOpen)
+
                 // ⌘+ / ⌘− zoom the board (about its centre). Bind zoom-in to the
                 // "+" *character*, not a physical key: SwiftUI matches on the char
                 // the keystroke produces, so this follows "+" wherever a layout puts
