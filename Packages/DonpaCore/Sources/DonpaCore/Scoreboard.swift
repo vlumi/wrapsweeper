@@ -1,21 +1,100 @@
 import Foundation
 
-/// Per-config stats: how many games have been cleared, the best time, and the
-/// best partial progress (for boards rarely cleared outright).
-public struct ScoreRecord: Codable, Equatable, Sendable {
-    /// Total games cleared on this config.
-    public var wins: Int
+/// Per-config stats. "Best" fields are idempotent merges (min/max); the cumulative
+/// counts are `DeviceCounter`s so they sum correctly across devices. Counts are
+/// tracked per-config here even though several are only *displayed* as global
+/// totals (summed across configs) — keeping the per-config breakdown for possible
+/// per-tier views later, at no extra cost.
+public struct ScoreRecord: Equatable, Sendable {
+    /// Games cleared. (Displayed per-config in the scoreboard table.)
+    public var wins: DeviceCounter
+    /// Games finished (won or lost). Never shown as a ratio with `wins` — a
+    /// win-rate readout would just discourage; the raw totals stay neutral.
+    public var gamesPlayed: DeviceCounter
+    /// Safe cells revealed across all games on this config.
+    public var tilesOpened: DeviceCounter
+    /// Flags placed (each flag action).
+    public var flagsPlaced: DeviceCounter
+    /// Mines detonated (losing moves).
+    public var minesHit: DeviceCounter
+    /// Mines correctly flagged at game end ("disarmed") — a positive accuracy stat.
+    public var minesDisarmed: DeviceCounter
+    /// Time spent in games, in centiseconds.
+    public var playtimeCentiseconds: DeviceCounter
     /// Fastest winning time in centiseconds (hundredths), or nil if none yet.
     public var bestCentiseconds: Int?
     /// Best fraction (0...1) of safe cells revealed in a *losing* game. A win is
-    /// implicitly 100%, so this only tracks losses; `wins > 0` means 100% at
+    /// implicitly 100%, so this only tracks losses; `wins.total > 0` means 100% at
     /// display time. Optional so old saved records (without it) decode cleanly.
     public var bestLossProgress: Double?
 
-    public init(wins: Int = 0, bestCentiseconds: Int? = nil, bestLossProgress: Double? = nil) {
+    public init(
+        wins: DeviceCounter = .init(), gamesPlayed: DeviceCounter = .init(),
+        tilesOpened: DeviceCounter = .init(), flagsPlaced: DeviceCounter = .init(),
+        minesHit: DeviceCounter = .init(), minesDisarmed: DeviceCounter = .init(),
+        playtimeCentiseconds: DeviceCounter = .init(),
+        bestCentiseconds: Int? = nil, bestLossProgress: Double? = nil
+    ) {
         self.wins = wins
+        self.gamesPlayed = gamesPlayed
+        self.tilesOpened = tilesOpened
+        self.flagsPlaced = flagsPlaced
+        self.minesHit = minesHit
+        self.minesDisarmed = minesDisarmed
+        self.playtimeCentiseconds = playtimeCentiseconds
         self.bestCentiseconds = bestCentiseconds
         self.bestLossProgress = bestLossProgress
+    }
+}
+
+/// The cumulative tallies from one finished game, recorded via `recordGameEnd`.
+public struct GameTally: Sendable {
+    public var tilesOpened: Int
+    public var flagsPlaced: Int
+    public var minesHit: Int
+    public var minesDisarmed: Int
+    public var playtimeCentiseconds: Int
+
+    public init(
+        tilesOpened: Int, flagsPlaced: Int, minesHit: Int, minesDisarmed: Int,
+        playtimeCentiseconds: Int
+    ) {
+        self.tilesOpened = tilesOpened
+        self.flagsPlaced = flagsPlaced
+        self.minesHit = minesHit
+        self.minesDisarmed = minesDisarmed
+        self.playtimeCentiseconds = playtimeCentiseconds
+    }
+}
+
+extension ScoreRecord: Codable {
+    enum CodingKeys: String, CodingKey {
+        case wins, gamesPlayed, tilesOpened, flagsPlaced, minesHit, minesDisarmed
+        case playtimeCentiseconds, bestCentiseconds, bestLossProgress
+    }
+
+    /// Tolerant decode. **Best time / best %% are idempotent (min/max) fields, not
+    /// per-device — they decode unchanged, so existing high scores SURVIVE.** The
+    /// cumulative counters use `try?`: a missing field (older save) *or* a legacy
+    /// scalar `wins` (a bare Int from before per-device counters) both yield an
+    /// empty counter, so the counts reset to zero without dropping the record (and
+    /// its preserved high scores). No migration code to carry forever.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func counter(_ key: CodingKeys) -> DeviceCounter {
+            // `try?` so a legacy scalar (old bare-Int `wins`) or missing field
+            // yields an empty counter rather than throwing and dropping the record.
+            (try? c.decode(DeviceCounter.self, forKey: key)) ?? .init()
+        }
+        wins = counter(.wins)
+        gamesPlayed = counter(.gamesPlayed)
+        tilesOpened = counter(.tilesOpened)
+        flagsPlaced = counter(.flagsPlaced)
+        minesHit = counter(.minesHit)
+        minesDisarmed = counter(.minesDisarmed)
+        playtimeCentiseconds = counter(.playtimeCentiseconds)
+        bestCentiseconds = try c.decodeIfPresent(Int.self, forKey: .bestCentiseconds)
+        bestLossProgress = try c.decodeIfPresent(Double.self, forKey: .bestLossProgress)
     }
 }
 
@@ -108,7 +187,7 @@ public final class Scoreboard: ObservableObject {
     }
 
     public func wins(for config: GameConfig) -> Int {
-        records[config.storageKey]?.wins ?? 0
+        records[config.storageKey]?.wins.total ?? 0
     }
 
     /// Best progress (0...1) to display for this config: 1.0 once the board has
@@ -116,7 +195,7 @@ public final class Scoreboard: ObservableObject {
     /// progress from a loss. `nil` if the config has never been finished.
     public func bestProgress(for config: GameConfig) -> Double? {
         guard let record = records[config.storageKey] else { return nil }
-        if record.wins > 0 { return 1.0 }
+        if record.wins.total > 0 { return 1.0 }
         return record.bestLossProgress
     }
 
@@ -131,7 +210,7 @@ public final class Scoreboard: ObservableObject {
     @discardableResult
     public func submit(_ centiseconds: Int, for config: GameConfig) -> Bool {
         var record = records[config.storageKey] ?? ScoreRecord()
-        record.wins += 1
+        record.wins.add(1)
         let isBest = record.bestCentiseconds.map { centiseconds < $0 } ?? true
         if isBest {
             record.bestCentiseconds = centiseconds
@@ -152,7 +231,7 @@ public final class Scoreboard: ObservableObject {
         // A win is implicitly 100%, so once the board has ever been cleared a
         // loss can't be a "new best" — compare against the displayed best, which
         // is 1.0 when there's a win.
-        let currentBest = record.wins > 0 ? 1.0 : (record.bestLossProgress ?? 0)
+        let currentBest = record.wins.total > 0 ? 1.0 : (record.bestLossProgress ?? 0)
         let isBest = progress > currentBest
         if isBest {
             record.bestLossProgress = progress
@@ -161,6 +240,37 @@ public final class Scoreboard: ObservableObject {
             persist()
         }
         return isBest
+    }
+
+    /// Record the cumulative tallies from a finished game (won or lost), on top of
+    /// the win / loss-progress recorded via `submit`/`submitLossProgress`. Bumps the
+    /// per-config G-Counters; displayed as global totals (see the `total*` accessors).
+    /// Call once per finished game.
+    public func recordGameEnd(for config: GameConfig, tally: GameTally) {
+        var record = records[config.storageKey] ?? ScoreRecord()
+        record.gamesPlayed.add(1)
+        record.tilesOpened.add(tally.tilesOpened)
+        record.flagsPlaced.add(tally.flagsPlaced)
+        record.minesHit.add(tally.minesHit)
+        record.minesDisarmed.add(tally.minesDisarmed)
+        record.playtimeCentiseconds.add(tally.playtimeCentiseconds)
+        records[config.storageKey] = record
+        persist()
+    }
+
+    /// Global cumulative totals (summed across every config). These are the
+    /// player-facing lifetime stats — never a ratio (no win%, which only
+    /// discourages); the raw counts stay neutral.
+    public var totalWins: Int { records.values.reduce(0) { $0 + $1.wins.total } }
+    public var totalGamesPlayed: Int { records.values.reduce(0) { $0 + $1.gamesPlayed.total } }
+    public var totalTilesOpened: Int { records.values.reduce(0) { $0 + $1.tilesOpened.total } }
+    public var totalFlagsPlaced: Int { records.values.reduce(0) { $0 + $1.flagsPlaced.total } }
+    public var totalMinesHit: Int { records.values.reduce(0) { $0 + $1.minesHit.total } }
+    public var totalMinesDisarmed: Int {
+        records.values.reduce(0) { $0 + $1.minesDisarmed.total }
+    }
+    public var totalPlaytimeCentiseconds: Int {
+        records.values.reduce(0) { $0 + $1.playtimeCentiseconds.total }
     }
 
     /// Clear the just-set-record highlight. Called when the next game ends.

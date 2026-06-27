@@ -313,6 +313,7 @@ struct GameContent: View {
         scoreboard.clearRecentRecord()
 
         let kind: MangaPanelView.Kind
+        let isWin = result.isWin
         switch result {
         case .won(let centiseconds, let config):
             let isRecord = scoreboard.submit(centiseconds, for: config)
@@ -325,6 +326,17 @@ struct GameContent: View {
             let safeRemaining = viewModel.game.safeCellCount - viewModel.game.revealedSafeCount
             kind = .loss(progress: progress, safeRemaining: safeRemaining, isBest: isBest)
         }
+        // Lifetime cumulative tallies (in addition to the win / loss-progress above).
+        // minesHit is the single detonation on a loss; on a win all mines are
+        // accounted for, so disarmedMineCount reads the full set (you solved it).
+        scoreboard.recordGameEnd(
+            for: viewModel.config,
+            tally: GameTally(
+                tilesOpened: viewModel.game.revealedSafeCount,
+                flagsPlaced: viewModel.flagsPlacedThisGame,
+                minesHit: isWin ? 0 : 1,
+                minesDisarmed: viewModel.game.board.disarmedMineCount,
+                playtimeCentiseconds: viewModel.elapsedCentiseconds))
         showPanel(kind)
 
         if !reduceMotion {
