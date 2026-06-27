@@ -186,7 +186,12 @@ test wins a full game with unchanged rules. This release makes it playable.
 - [ ] Rendering that conveys wrap-around (edge ghosting / seamless scroll, or
       explicit "this edge connects to that one" affordance)
 - [ ] Pan behaviour for a seamless/torus surface (no hard edges to clamp to)
-- [ ] Scoreboards keyed by topology
+- [ ] Scoreboards keyed by topology — and **restructure the scoreboard UI** for
+      the new axis: the per-board High Scores tables roughly triple (square /
+      wrapped / hex × sizes), so scope them under a topology filter/toggle (mirrors
+      the New Game shape axis). Career totals stay global (summed across all). The
+      current section layout (Career + High Scores + sync footer) is the base; the
+      filter just narrows the High Scores section.
 
 ### Hex grids
 
