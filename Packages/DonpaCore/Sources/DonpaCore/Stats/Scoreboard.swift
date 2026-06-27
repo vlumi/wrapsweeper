@@ -83,7 +83,16 @@ extension ScoreRecord: Codable {
 /// determined user can edit it, which is fine for a local high-score table.
 @MainActor
 public final class Scoreboard: ObservableObject {
-    @Published public private(set) var records: [String: ScoreRecord]
+    /// THIS device's own records — the source of truth for our counts (every
+    /// `DeviceCounter.mine`) and best times. Writes mutate this; it's persisted
+    /// locally and pushed to the cloud as this device's blob. Internal: the UI
+    /// reads the merged view via the accessors / `displayRecords`.
+    @Published private(set) var records: [String: ScoreRecord]
+
+    /// The cross-device view: this device's records merged with every other
+    /// device's cloud blob (see `StatsMerge`). Equals `records` when sync is off or
+    /// unavailable. All public read accessors and the UI go through this.
+    @Published public private(set) var displayRecords: [String: ScoreRecord]
 
     /// Storage key of the config whose record was just set, so the scoreboard can
     /// highlight that row. Set by `submit`/`submitLossProgress` on a new best;
@@ -93,6 +102,35 @@ public final class Scoreboard: ObservableObject {
 
     private let defaults: UserDefaults
     private let key = "donpa.stats.v1"
+
+    // MARK: Cross-device sync (iCloud KVS)
+
+    /// The cloud store, or nil for a pure-local scoreboard (the default, and every
+    /// existing test). Injected by the app.
+    private let cloud: (any CloudStatsStore)?
+    private let deviceID: String
+    /// User preference gate. When false, the cloud is never read/written and the
+    /// display is just this device's own records. Settable so a Settings toggle
+    /// can flip it live.
+    public var syncEnabled: Bool {
+        didSet {
+            guard syncEnabled != oldValue else { return }
+            if syncEnabled {
+                // Re-enabling: re-publish this device's blob and pull everyone's.
+                pushAndMerge()
+            } else {
+                // Turning off is a real opt-out: remove this device's blob from the
+                // cloud so it stops contributing to other devices' totals (other
+                // devices' blobs are untouched). Then show local-only.
+                cloud?.deleteOwnBlob(deviceID: deviceID)
+                refreshDisplay()
+            }
+        }
+    }
+
+    /// True when sync is on AND the cloud is reachable (signed into iCloud) — for
+    /// the Settings status row.
+    public var isCloudActive: Bool { syncEnabled && (cloud?.isAvailable ?? false) }
 
     /// On-disk envelope: a format `version` wrapping the keyed records, so a
     /// breaking change can be detected and migrated (rather than mis-read or
@@ -107,9 +145,64 @@ public final class Scoreboard: ObservableObject {
     /// When bumped, add a step to `migrated(_:)`.
     private static let currentVersion = 1
 
-    public init(defaults: UserDefaults = .standard) {
+    public init(
+        defaults: UserDefaults = .standard,
+        cloud: (any CloudStatsStore)? = nil,
+        syncEnabled: Bool = true
+    ) {
         self.defaults = defaults
-        records = Self.load(from: defaults, key: key)
+        self.cloud = cloud
+        self.deviceID = DeviceID.current(in: defaults)
+        self.syncEnabled = syncEnabled
+        let own = Self.load(from: defaults, key: key)
+        records = own
+        displayRecords = own
+        // Re-merge when another device syncs or the iCloud account changes.
+        cloud?.onExternalChange = { [weak self] in self?.refreshDisplay() }
+        // Initial reconcile: publish our blob and pull everyone's.
+        pushAndMerge()
+    }
+
+    /// Push this device's blob to the cloud, then re-merge for display. No-op when
+    /// sync is off or the cloud is unavailable.
+    private func pushAndMerge() {
+        guard syncEnabled, let cloud, cloud.isAvailable else {
+            refreshDisplay()
+            return
+        }
+        let file = StatsFile(version: Self.currentVersion, records: records)
+        if let data = try? JSONEncoder().encode(file) {
+            cloud.writeOwnBlob(data, deviceID: deviceID)
+        }
+        refreshDisplay()
+    }
+
+    /// Pull the latest from the cloud and re-merge — call when the app becomes
+    /// active, so a change made on another device (incl. removing a device, which
+    /// REDUCES totals) lands even if the live notification was missed while
+    /// backgrounded. `synchronize()` nudges KVS to fetch; the re-merge reflects
+    /// whatever's arrived. No-op when sync is off/unavailable.
+    public func refreshFromCloud() {
+        guard syncEnabled, let cloud, cloud.isAvailable else { return }
+        cloud.synchronize()
+        refreshDisplay()
+    }
+
+    /// Recompute `displayRecords` = own records merged with the other devices'
+    /// cloud blobs. Falls back to own-only when sync is off/unavailable.
+    private func refreshDisplay() {
+        guard syncEnabled, let cloud, cloud.isAvailable else {
+            displayRecords = records
+            return
+        }
+        let blobs = cloud.readAllBlobs()
+        var others: [String: [String: ScoreRecord]] = [:]
+        for (id, data) in blobs where id != deviceID {
+            // Decode each device's blob with the same tolerant per-entry loader, so
+            // one corrupt foreign blob can't break the merge.
+            others[id] = Self.decodeBlob(data)
+        }
+        displayRecords = StatsMerge.merge(mine: records, others: others)
     }
 
     /// Load the stats, resilient to partial corruption and old formats:
@@ -121,6 +214,17 @@ public final class Scoreboard: ObservableObject {
     ///    record is dropped, never wiping the whole table.
     private static func load(from defaults: UserDefaults, key: String) -> [String: ScoreRecord] {
         guard let data = defaults.data(forKey: key) else { return [:] }
+        return decodeBlob(data)
+    }
+
+    /// Decode a stats blob (local or a cloud per-device blob) into records,
+    /// resilient to partial corruption and old formats:
+    /// 1. Prefer the versioned envelope; reject a *newer* version (a breaking
+    ///    change this build predates) so we don't overwrite/mis-read it.
+    /// 2. Fall back to a legacy bare `[String: ScoreRecord]` (pre-envelope).
+    /// 3. Either way, decode **per entry** — one corrupt/incompatible record is
+    ///    dropped, never wiping the whole table.
+    static func decodeBlob(_ data: Data) -> [String: ScoreRecord] {
         // Decode each record independently (re-serialize its JSON fragment, then
         // decode), so a single corrupt or incompatible row is dropped rather than
         // failing the whole table.
@@ -157,31 +261,36 @@ public final class Scoreboard: ObservableObject {
         records
     }
 
+    // Read accessors reflect the cross-device DISPLAY view (own merged with other
+    // devices'); writes below mutate this device's OWN `records`.
+
     public func record(for config: GameConfig) -> ScoreRecord? {
-        records[config.storageKey]
+        displayRecords[config.storageKey]
     }
 
     /// Best time for this config, in centiseconds.
     public func best(for config: GameConfig) -> Int? {
-        records[config.storageKey]?.bestCentiseconds
+        displayRecords[config.storageKey]?.bestCentiseconds
     }
 
     public func wins(for config: GameConfig) -> Int {
-        records[config.storageKey]?.wins.total ?? 0
+        displayRecords[config.storageKey]?.wins.total ?? 0
     }
 
     /// Best progress (0...1) to display for this config: 1.0 once the board has
     /// ever been cleared (a win is implicitly full), otherwise the best partial
     /// progress from a loss. `nil` if the config has never been finished.
     public func bestProgress(for config: GameConfig) -> Double? {
-        guard let record = records[config.storageKey] else { return nil }
+        guard let record = displayRecords[config.storageKey] else { return nil }
         if record.wins.total > 0 { return 1.0 }
         return record.bestLossProgress
     }
 
-    /// True if `centiseconds` would beat (or set) the best time for this config.
+    /// True if `centiseconds` would beat (or set) the best time for this config —
+    /// compared against the cross-device best (so a faster time on another device
+    /// already counts).
     public func isNewRecord(_ centiseconds: Int, for config: GameConfig) -> Bool {
-        guard let best = records[config.storageKey]?.bestCentiseconds else { return true }
+        guard let best = displayRecords[config.storageKey]?.bestCentiseconds else { return true }
         return centiseconds < best
     }
 
@@ -222,10 +331,6 @@ public final class Scoreboard: ObservableObject {
         return isBest
     }
 
-    /// Record the cumulative tallies from a finished game (won or lost), on top of
-    /// the win / loss-progress recorded via `submit`/`submitLossProgress`. Bumps the
-    /// per-config G-Counters; displayed as global totals (see the `total*` accessors).
-    /// Call once per finished game.
     /// Add a slice of in-game **activity** to the lifetime totals: tiles opened,
     /// flag placements, and centiseconds played. Called repeatedly during a game
     /// (flushed on pause / scoreboard-open / background / end), so the Career page
@@ -262,16 +367,22 @@ public final class Scoreboard: ObservableObject {
     /// Global cumulative totals (summed across every config). These are the
     /// player-facing lifetime stats — never a ratio (no win%, which only
     /// discourages); the raw counts stay neutral.
-    public var totalWins: Int { records.values.reduce(0) { $0 + $1.wins.total } }
-    public var totalGamesPlayed: Int { records.values.reduce(0) { $0 + $1.gamesPlayed.total } }
-    public var totalTilesOpened: Int { records.values.reduce(0) { $0 + $1.tilesOpened.total } }
-    public var totalFlagsPlaced: Int { records.values.reduce(0) { $0 + $1.flagsPlaced.total } }
-    public var totalMinesHit: Int { records.values.reduce(0) { $0 + $1.minesHit.total } }
+    public var totalWins: Int { displayRecords.values.reduce(0) { $0 + $1.wins.total } }
+    public var totalGamesPlayed: Int {
+        displayRecords.values.reduce(0) { $0 + $1.gamesPlayed.total }
+    }
+    public var totalTilesOpened: Int {
+        displayRecords.values.reduce(0) { $0 + $1.tilesOpened.total }
+    }
+    public var totalFlagsPlaced: Int {
+        displayRecords.values.reduce(0) { $0 + $1.flagsPlaced.total }
+    }
+    public var totalMinesHit: Int { displayRecords.values.reduce(0) { $0 + $1.minesHit.total } }
     public var totalMinesDisarmed: Int {
-        records.values.reduce(0) { $0 + $1.minesDisarmed.total }
+        displayRecords.values.reduce(0) { $0 + $1.minesDisarmed.total }
     }
     public var totalPlaytimeCentiseconds: Int {
-        records.values.reduce(0) { $0 + $1.playtimeCentiseconds.total }
+        displayRecords.values.reduce(0) { $0 + $1.playtimeCentiseconds.total }
     }
 
     /// Clear the just-set-record highlight. Called when the next game ends.
@@ -279,16 +390,27 @@ public final class Scoreboard: ObservableObject {
         recentRecord = nil
     }
 
+    /// Clear THIS device's scores — locally AND its contribution to iCloud (delete
+    /// its cloud blob). So the shared totals on the player's OTHER devices drop by
+    /// this device's amount too. Other devices' own blobs are untouched — a reset
+    /// here can't erase another device's history. (When sync is off, this is a
+    /// purely local clear; deleting the blob is a no-op since it isn't published.)
     public func reset() {
+        cloud?.deleteOwnBlob(deviceID: deviceID)
         records = [:]
         recentRecord = nil
+        // persist() re-publishes an empty own-blob and re-merges; combined with the
+        // delete above, this device contributes nothing anywhere.
         persist()
     }
 
+    /// Persist this device's own records locally, then push to the cloud + re-merge
+    /// the display. Every write path funnels here.
     private func persist() {
         let file = StatsFile(version: Self.currentVersion, records: records)
         if let data = try? JSONEncoder().encode(file) {
             defaults.set(data, forKey: key)
         }
+        pushAndMerge()
     }
 }
