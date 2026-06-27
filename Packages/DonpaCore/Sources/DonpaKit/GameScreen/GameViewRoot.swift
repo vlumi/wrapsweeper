@@ -21,9 +21,13 @@ public struct GameView: View {
     @State private var showSplash = true
 
     public init(config: GameConfig = .classic(.beginner)) {
+        // The scoreboard can sync across the player's devices via iCloud KVS, gated
+        // by the `syncScores` setting (opt-in, OFF by default); the cloud store also
+        // no-ops when signed out, so it's local-only until explicitly enabled.
+        let syncOn = UserDefaults.standard.object(forKey: "donpa.syncScores") as? Bool ?? false
         self.init(
             viewModel: GameViewModel(config: config),
-            scoreboard: Scoreboard(),
+            scoreboard: Scoreboard(cloud: UbiquitousStatsStore(), syncEnabled: syncOn),
             settings: Settings(),
             navigator: Navigator())
     }
@@ -108,6 +112,8 @@ public struct GameView: View {
         .preferredColorScheme(settings.appearance.colorScheme)
         .animation(.easeInOut(duration: 0.2), value: navigator.showingNewGame)
         .animation(.easeInOut(duration: 0.2), value: navigator.showingOverview)
+        // Keep the scoreboard's iCloud-sync gate in step with the Settings toggle.
+        .onChangeCompat(of: settings.syncScores) { scoreboard.syncEnabled = $0 }
     }
 
     /// Start a fresh game with the popup's current selection and leave the title.

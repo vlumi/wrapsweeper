@@ -5,7 +5,9 @@ import SwiftUI
 @main
 struct DonpaApp: App {
     @StateObject private var viewModel = GameViewModel()
-    @StateObject private var scoreboard = Scoreboard()
+    @StateObject private var scoreboard = Scoreboard(
+        cloud: UbiquitousStatsStore(),
+        syncEnabled: UserDefaults.standard.object(forKey: "donpa.syncScores") as? Bool ?? false)
     @StateObject private var settings = Settings()
     @StateObject private var navigator = Navigator()
     @State private var showingAbout = false

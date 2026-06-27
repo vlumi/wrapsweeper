@@ -51,6 +51,10 @@ targets:
         # User-visible app/bundle name; without this it'd be the target name
         # "Donpa-iOS". Module name stays Donpa_iOS (PRODUCT_MODULE_NAME).
         PRODUCT_NAME: Donpa Squad
+        # iCloud Key-Value Storage capability (cross-device scoreboard sync); the
+        # explicit kvstore identifier inside matches the macOS app's so they share
+        # one store. (macOS wires its own entitlements path below.)
+        CODE_SIGN_ENTITLEMENTS: Sources/iOS/Donpa.entitlements
         MARKETING_VERSION: "0.2.0"
         # Build number is shared across iOS + macOS (kept in lock-step by
         # Scripts/bump-build.sh) — bump both together so the two apps never diverge.

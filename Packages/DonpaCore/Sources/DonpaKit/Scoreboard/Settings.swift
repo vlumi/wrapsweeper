@@ -146,6 +146,13 @@ public final class Settings: ObservableObject {
     @Published public var showMinimap: Bool {
         didSet { defaults.set(showMinimap, forKey: showMinimapKey) }
     }
+    /// Whether to sync the scoreboard across the player's devices via iCloud.
+    /// **Opt-in: OFF by default** — scores stay strictly local until the player
+    /// turns it on. (There's no iCloud permission prompt — KVS rides on the system
+    /// sign-in — so this toggle is our own opt-in, not a system grant.)
+    @Published public var syncScores: Bool {
+        didSet { defaults.set(syncScores, forKey: syncScoresKey) }
+    }
     /// Language override. Persisted as our own preference *and* written to
     /// `AppleLanguages` so the system picks it up on the next launch.
     @Published public var language: LanguagePreference {
@@ -168,6 +175,7 @@ public final class Settings: ObservableObject {
     private let handednessKey = "donpa.handedness"
     private let languageKey = "donpa.language"
     private let showMinimapKey = "donpa.showMinimap"
+    private let syncScoresKey = "donpa.syncScores"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -189,6 +197,7 @@ public final class Settings: ObservableObject {
         // Default ON: absent key → show. (`bool(forKey:)` is false when missing,
         // so check presence explicitly to default true.)
         showMinimap = defaults.object(forKey: showMinimapKey) as? Bool ?? true
+        syncScores = defaults.object(forKey: syncScoresKey) as? Bool ?? false
         language =
             defaults.string(forKey: languageKey).flatMap(LanguagePreference.init(rawValue:))
             ?? .system

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- iCloud Key-Value Storage, for cross-device scoreboard sync (the tiny
+	     Codable stats blob; no CloudKit container needed). The identifier is
+	     pinned EXPLICITLY and is identical on iOS + macOS so the two apps share
+	     one KVS store — without this they'd derive separate stores from their
+	     (now shared) bundle id and never see each other's scores. -->
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)fi.misaki.donpa</string>
+</dict>
+</plist>

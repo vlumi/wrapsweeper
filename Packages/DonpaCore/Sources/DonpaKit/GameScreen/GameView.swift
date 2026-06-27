@@ -128,6 +128,11 @@ struct GameContent: View {
             if phase != .active {
                 viewModel.pause()
                 autosaveBlocking()  // process may suspend/exit; write inline
+            } else {
+                // Coming back to the foreground: pull the latest scores from iCloud,
+                // so a change on another device (incl. a removed device, which
+                // lowers totals) lands even if the live notification was missed.
+                scoreboard.refreshFromCloud()
             }
         }
         // Pausing flushes a save (it's a natural "I'm stepping away" moment, and
@@ -155,7 +160,7 @@ struct GameContent: View {
         }
         #endif
         .sheet(isPresented: $navigator.showingScores) {
-            ScoreboardView(scoreboard: scoreboard, available: windowSize)
+            ScoreboardView(scoreboard: scoreboard, settings: settings, available: windowSize)
         }
         // Opening the scoreboard pauses a live game: it flushes the career activity
         // (so the Career tab is current) and stops the clock running behind the
