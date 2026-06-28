@@ -55,6 +55,29 @@ test:  ## Run the package logic tests (no Xcode project needed)
 uitest: Donpa.xcodeproj  ## Run the local-only iOS UI tests (simulator)
 	@Scripts/uitest.sh
 
+# ── Release lane ──────────────────────────────────────────────────────────────
+# Scripts/release.sh does the whole cut: bump versions (asks about the marketing
+# version on a `both` release; always bumps the shared build number), open an
+# auto-merging PR, wait for CI, then tag the merge commit (ios/ and/or mac/
+# vX.Y.Z-N) and archive/export — uploading to App Store Connect unless built via a
+# `*-build` target. Run from a clean, up-to-date main.
+
+.PHONY: release
+release:  ## Cut a release of BOTH apps (bump, PR, tag, distribute → App Store Connect)
+	@Scripts/release.sh both
+
+.PHONY: release-build
+release-build:  ## Like `release` but stop after export (no upload to App Store Connect)
+	@Scripts/release.sh both --no-upload
+
+.PHONY: release-ios
+release-ios:  ## Release iOS only (keeps the version; bumps the shared build number)
+	@Scripts/release.sh ios
+
+.PHONY: release-macos
+release-macos:  ## Release macOS only (keeps the version; bumps the shared build number)
+	@Scripts/release.sh macos
+
 .PHONY: clean
 clean:  ## Remove the generated project + local build output
 	@rm -rf Donpa.xcodeproj .build-xcode
