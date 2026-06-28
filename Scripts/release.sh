@@ -120,8 +120,9 @@ git add "$file"
 git commit --quiet -m "$(cat <<EOF
 Release v${new_version} build ${new_build} (${platform})
 
-Marketing version ${new_version}, shared build number ${new_build} (both
-targets). Tagged $( [ "$platform" = both ] && echo "ios/ + mac/" || echo "${platform}/" )v${new_version}-${new_build} and distributed via Scripts/release.sh.
+Marketing version ${new_version}, shared build number ${new_build} (bumped
+on both targets). Opened by Scripts/release.sh, which tags this merge commit
+and distributes ${platform} once CI passes.
 EOF
 )"
 git push --quiet -u origin "$rel_branch"
@@ -129,14 +130,28 @@ git push --quiet -u origin "$rel_branch"
 say "Opening PR…"
 gh pr create \
     --title "Release v${new_version} build ${new_build} (${platform})" \
-    --body "Version **${new_version}**, build **${new_build}** (both targets). Opened by \`Scripts/release.sh\`; set to auto-merge once CI passes. The resulting merge commit on main is tagged and distributed." \
+    --body "Version **${new_version}**, build **${new_build}** (build bumped on both targets; release scope: **${platform}**). Opened by \`Scripts/release.sh\`; set to auto-merge once CI passes. The resulting merge commit on main is tagged and distributed." \
     --head "$rel_branch" >/dev/null
 
 say "Enabling auto-merge (merge commit) — will merge when CI passes…"
 gh pr merge "$rel_branch" --auto --merge
 
 # ── 6. Wait for CI; stop before tagging/building if it fails ──────────────────
-say "Waiting for CI (auto-merge completes on green)…"
+# Give the workflow a moment to register: right after `pr create`, gh may report
+# "no checks" and exit before any have appeared. Poll (exit 8 = pending) until at
+# least one check exists, then --watch to completion. Distinguish a real failure
+# (non-zero, non-8) from merely-pending so we never proceed on unverified code.
+say "Waiting for CI to register…"
+tries=0
+while true; do
+    gh pr checks "$rel_branch" >/dev/null 2>&1 && break          # all checks already done & green
+    rc=$?
+    [ "$rc" -eq 8 ] && break                                     # pending — checks exist, go watch
+    tries=$(( tries + 1 ))
+    [ "$tries" -ge 12 ] && die "no CI checks registered after ~60s — PR left open at $rel_branch."
+    sleep 5
+done
+say "Waiting for CI to finish (auto-merge completes on green)…"
 if ! gh pr checks "$rel_branch" --watch --fail-fast; then
     die "CI failed — PR left open at $rel_branch. No tag, build, or upload was done."
 fi
