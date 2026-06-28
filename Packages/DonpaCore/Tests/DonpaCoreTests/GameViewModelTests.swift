@@ -194,6 +194,17 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertFalse(restored.isPaused, "a freshly restored game is live, not paused")
     }
 
+    func testRestoreKeepsTheInputMode() async {
+        let vm = await startedGame()
+        vm.inputMode = .flag  // player switched to flagging before leaving
+        let snapshot = try? XCTUnwrap(vm.snapshot())
+        guard let snapshot else { return }
+
+        let restored = GameViewModel(config: .classic(.expert))
+        restored.restore(from: snapshot)
+        XCTAssertEqual(restored.inputMode, .flag, "resuming keeps the dig/flag toggle")
+    }
+
     func testRestoreClearsAnyPriorResult() async {
         // A finished VM that then restores a live snapshot must drop the stale result.
         let live = await startedGame()

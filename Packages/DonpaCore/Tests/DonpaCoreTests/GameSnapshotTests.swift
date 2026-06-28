@@ -130,6 +130,28 @@ final class GameSnapshotTests: XCTestCase {
         XCTAssertNil(snap.camera)
     }
 
+    // MARK: Input mode (so a resumed game keeps the dig/flag toggle)
+
+    func testInputModeRoundTrips() throws {
+        let (game, config) = playingGame()
+        let snap = try XCTUnwrap(
+            GameSnapshot(
+                game: game, config: config, elapsedCentiseconds: 0, inputMode: .flag))
+        let decoded = try JSONDecoder().decode(
+            GameSnapshot.self, from: try JSONEncoder().encode(snap))
+        XCTAssertEqual(decoded.inputMode, .flag, "the saved dig/flag mode survives a round-trip")
+    }
+
+    func testInputModeDefaultsToReveal() throws {
+        let (game, config) = playingGame()
+        // Default init (no inputMode given) and an older save both mean reveal.
+        let snap = try XCTUnwrap(GameSnapshot(game: game, config: config, elapsedCentiseconds: 0))
+        XCTAssertEqual(snap.inputMode, .reveal)
+        let json = #"{"config":{"classic":{"_0":"beginner"}},"mines":[[0,0]]}"#
+        let old = try JSONDecoder().decode(GameSnapshot.self, from: Data(json.utf8))
+        XCTAssertEqual(old.inputMode, .reveal, "a pre-inputMode save defaults to reveal")
+    }
+
     /// A corrupt/tampered save with off-board coordinates must restore to a valid
     /// in-bounds board — no phantom cells, no skewed counts — never a broken game.
     func testRestoreIgnoresOutOfBoundsCoords() throws {

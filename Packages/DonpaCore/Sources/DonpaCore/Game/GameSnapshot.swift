@@ -44,6 +44,9 @@ public struct GameSnapshot: Codable, Sendable {
     /// The camera view to restore, or nil if none was captured (older saves, or a
     /// board that fits the viewport).
     public let camera: CameraView?
+    /// The dig/flag input mode the player left on, so a resumed game keeps it
+    /// (defaults to `.reveal` for older saves).
+    public let inputMode: InputMode
 
     /// Tolerant decode: `config` + `mines` required; everything else defaults.
     public init(from decoder: Decoder) throws {
@@ -59,11 +62,13 @@ public struct GameSnapshot: Codable, Sendable {
         elapsedCentiseconds =
             try c.decodeIfPresent(Int.self, forKey: .elapsedCentiseconds) ?? 0
         camera = try c.decodeIfPresent(CameraView.self, forKey: .camera)
+        inputMode = try c.decodeIfPresent(InputMode.self, forKey: .inputMode) ?? .reveal
     }
 
     /// Capture a snapshot of a live game; nil unless it's genuinely in progress.
     public init?(
-        game: Game, config: GameConfig, elapsedCentiseconds: Int, camera: CameraView? = nil
+        game: Game, config: GameConfig, elapsedCentiseconds: Int, camera: CameraView? = nil,
+        inputMode: InputMode = .reveal
     ) {
         guard game.status == .playing else { return nil }
         self.version = Self.currentVersion
@@ -76,6 +81,7 @@ public struct GameSnapshot: Codable, Sendable {
         self.lossCoord = game.lossCoord
         self.elapsedCentiseconds = elapsedCentiseconds
         self.camera = camera
+        self.inputMode = inputMode
     }
 
     /// Rebuild the `Game` this snapshot describes (topology from the config).

@@ -3,7 +3,7 @@ import Foundation
 
 /// What a plain tap/click on a *hidden* cell does. A revealed number always
 /// chords and a long-press always does the opposite action, regardless of mode.
-public enum InputMode: Sendable {
+public enum InputMode: String, Codable, Sendable {
     case reveal
     case flag
 
@@ -235,7 +235,7 @@ public final class GameViewModel: ObservableObject {
     public func snapshot() -> GameSnapshot? {
         GameSnapshot(
             game: game, config: config, elapsedCentiseconds: currentCentiseconds(),
-            camera: cameraView)
+            camera: cameraView, inputMode: inputMode)
     }
 
     /// Restore a persisted game and resume its clock from the saved elapsed.
@@ -244,7 +244,7 @@ public final class GameViewModel: ObservableObject {
         game = snapshot.makeGame()
         lastWin = nil
         lastResult = nil
-        inputMode = .reveal
+        inputMode = snapshot.inputMode
         pendingCameraRestore = snapshot.camera
         cameraView = snapshot.camera
         timer?.cancel()
