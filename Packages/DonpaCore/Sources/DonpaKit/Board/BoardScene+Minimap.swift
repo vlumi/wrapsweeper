@@ -21,10 +21,19 @@ extension BoardScene {
     func refreshMinimap() {
         let w = viewModel.boardWidth
         let h = viewModel.boardHeight
-        let range = visibleRange()
-        // `visibleRange` is clamped to the board, so covering it whole means it fits.
+        // Whether the WHOLE board fits, from the true visible world rect — NOT
+        // `visibleRange()`, whose +1-cell culling margin (so cells build before
+        // scrolling in) makes a board with a partly-clipped edge column read as
+        // "fits", leaving the minimap hidden until a nudge crossed the rounding edge.
+        let board = layout.boardSize(width: w, height: h)
+        let scale = cameraNode.xScale
+        let halfW = size.width / 2 * scale
+        let halfH = size.height / 2 * scale
+        let cam = cameraNode.position
+        let eps: CGFloat = 0.5  // sub-pixel slack, so an exact fit isn't a false "exceeds"
         let fits =
-            range.minX <= 0 && range.minY <= 0 && range.maxX >= w - 1 && range.maxY >= h - 1
+            cam.x - halfW <= eps && cam.y - halfH <= eps
+            && cam.x + halfW >= board.width - eps && cam.y + halfH >= board.height - eps
         // Publish so the toolbar toggle can disable when the board fits. Assign only
         // on change to avoid @Published churn every frame.
         let exceeds = !fits
@@ -48,7 +57,7 @@ extension BoardScene {
             updateMinimapImage(boardW: w, boardH: h)
         }
 
-        layoutMinimap(boardW: w, boardH: h, range: range)
+        layoutMinimap(boardW: w, boardH: h, range: visibleRange())
     }
 
     /// On-screen minimap size: the longer side scaled to the fraction (capped), the
