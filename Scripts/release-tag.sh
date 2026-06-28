@@ -46,9 +46,10 @@ release_one() {  # $1 = ios|macos
         echo "  tagged $tag → ${merge_sha:0:7}"
     fi
 
-    # Changelog: the commit subjects since this platform's previous tag.
+    # Changelog: commit subjects since this platform's previous release (the
+    # highest tag not newer than this one — see previous_tag in release-lib.sh).
     local prev notes_changes since
-    prev="$(git tag --list "${prefix}/v*" --sort=-creatordate | grep -v "^${tag}$" | head -1)"
+    prev="$(previous_tag "$plat" "$version" "$build")"
     if [ -n "$prev" ]; then
         notes_changes="$(git log --no-merges --pretty='- %s' "${prev}..${merge_sha}")"
         since=" since ${prev#"$prefix"/}"

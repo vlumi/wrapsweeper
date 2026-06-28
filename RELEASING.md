@@ -104,17 +104,38 @@ between them is the merged commit on `main` — no state file:
 
 ### Tags
 
-A monorepo with two independently-uploaded apps, so every tag is
-**platform-prefixed** (`ios/` or `mac/`) — a bare `v0.2.0` is ambiguous. The
-suffix is the **build number**, not a beta/rc label (the build number already
-makes each tag unique and ordered):
+Every tag MUST be exactly:
+
+```text
+<prefix>/vMAJOR.MINOR.PATCH-BUILD
+```
+
+— platform `<prefix>` is `ios` or `mac`; the version is plain SemVer; the suffix
+is the **build number**, not a beta/rc label.
 
 ```sh
 ios/v0.2.0-5    # iOS, version 0.2.0, build 5
 mac/v0.2.0-5    # macOS, same version + build (lock-step)
 ```
 
-`make release` creates these; you never tag by hand in the normal flow.
+This format is **load-bearing, not cosmetic** — keep it strict:
+
+- **Platform prefix is required** — a bare `v0.2.0` is ambiguous in a monorepo
+  with two independently-uploaded apps.
+- **The suffix is a plain integer build number.** No `-beta.N` / `-rc.N` / any
+  non-numeric suffix. The release lane orders tags with `git … --sort=-v:refname`
+  and parses `(version, build)` to pick the previous release for a changelog
+  (see `previous_tag` in [Scripts/release-lib.sh](Scripts/release-lib.sh)). A
+  pre-release-style suffix would sort *below* the bare version (git reads `-beta`
+  as a SemVer pre-release) and silently corrupt the "previous tag" choice.
+- **Build numbers are shared across platforms** (lock-step), so `ios/v0.2.0-5`
+  and `mac/v0.2.0-5` name the same source.
+
+`make release` creates these; you never tag by hand in the normal flow. The
+changelog for a release diffs against the **highest existing tag not newer than
+it** — so a forward release (0.3.0) diffs against the prior version (0.2.0), and
+an out-of-line one (a 0.1.0 patch cut after 0.2.0 shipped) diffs against the
+prior 0.1.0, never against something ahead of it.
 
 ### By hand (fallback)
 
