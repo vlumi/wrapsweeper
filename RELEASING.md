@@ -30,16 +30,18 @@ Two numbers, both set in [project.yml](project.yml) (the source of truth — the
 `.xcodeproj` is generated, never edited by hand):
 
 | Setting | Info.plist key | Meaning | Rule |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `MARKETING_VERSION` | `CFBundleShortVersionString` | User-facing version, e.g. `0.1.0` | SemVer. Bump on a meaningful milestone. |
 | `CURRENT_PROJECT_VERSION` | `CFBundleVersion` | Build number, e.g. `5` | Unique & strictly increasing per upload. |
 
 Both targets (`Donpa-iOS`, `Donpa-macOS`) carry their own copy of these. They're
 **one app across two platforms** (§ Platforms — a Universal Purchase sharing the
-bundle ID `fi.misaki.donpa`), but each platform builds and uploads its own binary,
-so versions and build numbers *may* diverge — keep them in step only when you
-choose to ship both at once. The build number is per-platform: iOS `(5)` and Mac
-`(5)` are unrelated counters.
+bundle ID `fi.misaki.donpa`). The release lane keeps both numbers **in lock-step**:
+`make release` bumps `CURRENT_PROJECT_VERSION` on *both* targets together (even a
+single-platform release), and `MARKETING_VERSION` only on an all-platform release.
+So the two apps share one version and one build number — `0.2.0 (5)` means the
+same source on both. (Each still uploads its own binary; the shared numbers are a
+convention the tooling enforces, not an App Store requirement.)
 
 ### When to bump what
 
@@ -71,43 +73,110 @@ committed `main` so the stamp is meaningful.
 
 ## Cutting a release
 
-1. **Versions set** in `project.yml`, committed, merged to `main`.
-2. **Archive** in Xcode: Product → Archive (from a clean `main` checkout). The
-   commit SHA stamps in automatically.
-3. **Distribute**: Window → Organizer → Archives → select archive →
-   **Distribute App** → **App Store Connect** (external-eligible; *not*
-   "TestFlight Internal Only", *not* "Release Testing"). The same archive can be
-   re-distributed any number of times without rebuilding.
-4. **Tag the commit.** This is a monorepo with two independently-released apps,
-   so every tag is **platform-prefixed** (`ios/` or `mac/`) — a bare `v0.1.0`
-   tag is ambiguous. SemVer version, suffix for pre-releases:
+One command from a clean, up-to-date `main`:
 
-   ```
-   ios/v0.1.0-beta.1   # iOS TestFlight beta (dot before the number — sorts right)
-   ios/v0.1.0-rc.1     # iOS release candidate
-   ios/v0.1.0          # iOS store release (no prerelease suffix)
-   mac/v0.1.0-beta.1   # the Mac track, versioned independently
-   ```
+```sh
+make release                  # both platforms → App Store Connect
+make release PLATFORM=ios      # iOS only (keeps the version; still bumps the build)
+make release PLATFORM=macos    # macOS only
+make release UPLOAD=0          # everything through export, no ASC upload
+make release-build             # alias for UPLOAD=0
+```
 
-   ```sh
-   git tag -a ios/v0.1.0-beta.2 -m "Donpa Squad (iOS) 0.1.0 beta 2"
-   git push origin ios/v0.1.0-beta.2
-   ```
+`make release` runs a four-step chain (each step is its own
+[`Scripts/release-*.sh`](Scripts/); the Makefile wires the order). The pure
+steps re-derive their inputs from git + `project.yml`, so the only state passed
+between them is the merged commit on `main` — no state file:
 
-5. **GitHub Release** from the tag — name the platform in the title, mark
-   betas/RCs as **pre-release** so they don't show as "Latest". Record the Apple
-   build number and commit in the body:
+1. **preflight** — refuse unless on a clean `main` that matches `origin/main`.
+2. **publish** — the interactive, stateful step. Prompts to bump
+   `MARKETING_VERSION` (all-platform releases only; blank = keep, `p` = patch
+   bump, or type `X.Y.Z`); always bumps the shared build number. Commits the
+   bump on a `release/vX.Y.Z-N` branch, opens a PR, sets it to **auto-merge**
+   (merge commit), and **blocks until CI passes and it merges**. A red CI stops
+   here — PR left open, nothing tagged or built.
+3. **tag** — tags the merge commit per platform and publishes a GitHub release
+   with a version/build/commit table and the commits since the platform's
+   previous tag. **iOS is pinned "latest"** (GitHub allows one); macOS is a full
+   release without the badge.
+4. **distribute** — archives, exports, and (unless `UPLOAD=0`) uploads each
+   platform to App Store Connect.
 
-   ```sh
-   gh release create ios/v0.1.0-beta.2 --title "iOS v0.1.0-beta.2 — Donpa Squad" \
-     --prerelease --notes "Marketing version 0.1.0 · Apple build 0.1.0 (3) · commit <sha>"
-   ```
+### Tags
 
-6. **Record the beta in `CHANGELOG.md`.** Each version heading carries a
-   `_Betas:_` line listing its tagged betas with dates (there's no single release
-   date — the project is beta-only, per-platform). Add the new one, e.g.
-   `iOS beta.2 (2026-06-25)`. The version headings link to the filtered releases
-   list (`/releases?q=v0.1.0`), so no per-tag link upkeep.
+Every tag MUST be exactly:
+
+```text
+<prefix>/vMAJOR.MINOR.PATCH-BUILD
+```
+
+— platform `<prefix>` is `ios` or `mac`; the version is plain SemVer; the suffix
+is the **build number**, not a beta/rc label.
+
+```sh
+ios/v0.2.0-5    # iOS, version 0.2.0, build 5
+mac/v0.2.0-5    # macOS, same version + build (lock-step)
+```
+
+This format is **load-bearing, not cosmetic** — keep it strict:
+
+- **Platform prefix is required** — a bare `v0.2.0` is ambiguous in a monorepo
+  with two independently-uploaded apps.
+- **The suffix is a plain integer build number.** No `-beta.N` / `-rc.N` / any
+  non-numeric suffix. The release lane orders tags with `git … --sort=-v:refname`
+  and parses `(version, build)` to pick the previous release for a changelog
+  (see `previous_tag` in [Scripts/release-lib.sh](Scripts/release-lib.sh)). A
+  pre-release-style suffix would sort *below* the bare version (git reads `-beta`
+  as a SemVer pre-release) and silently corrupt the "previous tag" choice.
+- **Build numbers are shared across platforms** (lock-step), so `ios/v0.2.0-5`
+  and `mac/v0.2.0-5` name the same source.
+
+The **git tags are the source of truth** — immutable pointers to the exact commit
+each build shipped from. The GitHub releases are a presentation layer on top.
+
+> **Never delete an immutable GitHub release.** GitHub permanently reserves that
+> release's tag name — even after deletion you **cannot** create a new release on
+> the same tag (`tag_name was used by an immutable release`). To revise a
+> release's notes/title, *edit* it (the tag can't change); to re-point it, you'd
+> have to publish under a *new* tag. A delete is effectively irreversible for that
+> tag. (We learned this the hard way and restarted the release list from a later
+> build; the underlying git tags were kept.)
+
+`make release` creates these; you never tag by hand in the normal flow. The
+changelog for a release diffs against the **highest existing tag not newer than
+it** — so a forward release (0.3.0) diffs against the prior version (0.2.0), and
+an out-of-line one (a 0.1.0 patch cut after 0.2.0 shipped) diffs against the
+prior 0.1.0, never against something ahead of it.
+
+### By hand (fallback)
+
+If you must bypass the lane — e.g. Xcode-Organizer archive while debugging
+signing — archive from a clean `main` (the `GitCommitSHA` stamps in), Distribute
+→ App Store Connect, then create the tag + GitHub release matching the scheme
+above. Prefer re-running the lane; this is the escape hatch, not the path.
+
+## Recovering from a failed release
+
+The steps are **idempotent against the real artifacts** (tags, merge state) — no
+progress file to go stale. Re-enter the chain at the right point:
+
+| Where it died | What happened | Recovery |
+| --- | --- | --- |
+| preflight / publish, **before** the PR merged | nothing irreversible; PR (if any) left open | `make release` again — a clean restart |
+| **after** the PR merged, before tagging | `main` has the bumped build but no tag yet | `make release` — **publish self-skips** (its build is already ahead of every tag) and the chain tags + distributes |
+| **partway through tagging** (e.g. iOS tagged, macOS failed) | one platform tagged/released, the other not | `make release-tag` — per platform: skips a done one, creates a missing release for an existing tag, tags the rest |
+| **upload only** (export succeeded, ASC upload flaked) | the `.ipa`/`.pkg` is already in `dist/` | `make release-upload` — uploads the existing package, no rebuild |
+| **archive/export** (or you want a clean rebuild) | release is tagged; the build itself failed | `make release-distribute-retry` (optionally `PLATFORM=macos`) — verifies the tag exists, then re-archives/exports/uploads **without** touching git/PR/tags |
+
+To repeat a single step in isolation (rare), call its script directly —
+`Scripts/release-tag.sh all` — since the scripts stand alone; the Make targets
+chain prerequisites, so `make release-tag` would re-run preflight + publish
+first (both no-op if already done).
+
+> The lane writes the **GitHub release** notes automatically (commits since the
+> last tag) but does **not** touch [CHANGELOG.md](CHANGELOG.md) — that stays a
+> hand-curated, human-readable history. Update it separately when a release is
+> worth a narrative entry.
 
 ## TestFlight notes
 

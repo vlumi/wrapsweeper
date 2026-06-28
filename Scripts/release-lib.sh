@@ -1,0 +1,92 @@
+# Shared helpers for the release scripts (sourced, not executed).
+#
+# The release flow is split by concern: release-preflight.sh, release-publish.sh,
+# release-tag.sh, distribute.sh — wired in order by the Makefile. The pure steps
+# (preflight, tag, distribute) re-derive their inputs from git + project.yml so
+# each runs standalone; only the dirty middle (publish: bump prompts + PR +
+# CI-wait) carries in-memory state, all within one script.
+
+# shellcheck shell=bash
+
+PROJECT_FILE="project.yml"
+
+say() { printf '\033[36m▶︎ %s\033[0m\n' "$*"; }
+die() { echo "error: $*" >&2; exit 1; }
+
+# Echo the sole distinct value of a quoted setting in project.yml, or die if it's
+# missing or differs between the two targets (they're kept in lock-step).
+read_unique() {
+    local key="$1" vals
+    vals="$(grep -oE "${key}: *\"[^\"]+\"" "$PROJECT_FILE" | grep -oE '"[^"]+"' | tr -d '"' | sort -u)"
+    [ -n "$vals" ] || die "no ${key} found in $PROJECT_FILE"
+    [ "$(printf '%s\n' "$vals" | wc -l)" -eq 1 ] \
+        || die "${key} differs between targets in $PROJECT_FILE: $(echo "$vals" | tr '\n' ' ')"
+    printf '%s' "$vals"
+}
+
+# Validate a platform argument (ios|macos|all), echoing it back.
+require_platform() {
+    case "${1:-}" in
+        ios|macos|all) printf '%s' "$1" ;;
+        *) die "platform must be ios|macos|all (got '${1:-}')" ;;
+    esac
+}
+
+# git prefix (ios|mac) and display label (iOS|macOS) for a platform.
+tag_prefix() { [ "$1" = macos ] && echo mac || echo ios; }
+plat_label() { [ "$1" = macos ] && echo macOS || echo iOS; }
+
+# The highest build number N across all ios/ + mac/ vX.Y.Z-N tags, or 0 if none.
+# Lets publish tell "main is a bumped-but-untagged tip" (already merged) from a
+# fresh release, without any state file — the tags are the record.
+highest_tagged_build() {
+    local n max=0
+    while IFS= read -r n; do [ "$n" -gt "$max" ] && max="$n"; done < <(
+        git tag --list 'ios/v*' 'mac/v*' | grep -oE -- '-[0-9]+$' | tr -d '-')
+    printf '%s' "$max"
+}
+
+# True if a git tag exists for this platform at version-build.
+tag_exists() { git rev-parse --verify "$(tag_prefix "$1")/v${2}-${3}" >/dev/null 2>&1; }
+
+# The previous release tag to diff a changelog against: the highest-versioned
+# tag for this platform that is NOT newer than the release at $2-$3 (and not that
+# tag itself). So a normal forward release diffs against the prior version, and an
+# out-of-line release (e.g. a 0.1.0 back-port cut after 0.2.0 shipped) diffs
+# against the prior 0.1.0 — never against a version ahead of it. Echoes nothing if
+# there's no earlier tag.
+#
+# Tags MUST be `<prefix>/vMAJOR.MINOR.PATCH-BUILD` (see RELEASING.md). The order
+# key is (version, build); `v:refname` sorts these correctly only because every
+# tag shares the single `-BUILD` suffix form — a stray `-beta.N` would mis-sort
+# (git reads it as a semver pre-release), so the strict scheme is load-bearing.
+previous_tag() {
+    local plat="$1" version="$2" build="$3"
+    local prefix; prefix="$(tag_prefix "$plat")"
+    local this="${prefix}/v${version}-${build}"
+    # Numeric sort key per tag: MAJOR*1e12 + MINOR*1e8 + PATCH*1e4 + BUILD, paired
+    # with the tag, descending. First entry whose key < this tag's key wins.
+    local this_key; this_key="$(tag_sort_key "$this")"
+    local t k
+    while IFS= read -r t; do
+        [ "$t" = "$this" ] && continue
+        k="$(tag_sort_key "$t")"
+        if [ "$k" -le "$this_key" ]; then printf '%s' "$t"; return; fi
+    done < <(git tag --list "${prefix}/v*" --sort=-v:refname)
+}
+
+# A sortable integer for a `<prefix>/vX.Y.Z-N` tag: X*1e12 + Y*1e8 + Z*1e4 + N.
+# (Comfortably within 64-bit; each field is assumed < 10000.)
+tag_sort_key() {
+    local v="${1#*/v}"            # strip "<prefix>/v"
+    local ver="${v%-*}" build="${v##*-}"
+    # Split sequentially — a single `local a=… b=${a…}` can't see `a` yet.
+    local maj="${ver%%.*}"
+    local rest="${ver#*.}"
+    local min="${rest%%.*}"
+    local pat="${rest#*.}"
+    printf '%d' "$(( maj * 1000000000000 + min * 100000000 + pat * 10000 + build ))"
+}
+
+# True if a GitHub release exists for the given tag.
+gh_release_exists() { gh release view "$1" >/dev/null 2>&1; }
