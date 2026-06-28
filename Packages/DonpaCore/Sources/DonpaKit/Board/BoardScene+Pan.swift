@@ -114,6 +114,12 @@ extension BoardScene {
         } else {
             centerCamera()
         }
+        // Recompute the minimap against the freshly-settled camera/size now, rather
+        // than waiting on the next `update()` tick — the render loop idles when the
+        // scene is static, so on launch (the real viewport size arrives via
+        // `didChangeSize` after the placeholder) the minimap would otherwise stay
+        // hidden until a pan woke the loop and re-evaluated `boardExceedsViewport`.
+        refreshMinimap()
     }
 
     /// Apply a saved camera view: set the zoom, then place the centre by
