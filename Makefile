@@ -108,6 +108,12 @@ release-distribute: release-tag  ## Release step 4: archive/export (+ upload unl
 release-distribute-retry:  ## Re-distribute an already-tagged release (no PR/tag steps)
 	@Scripts/release-distribute.sh $(PLATFORM) $(DIST_FLAGS) --require-tag
 
+# Upload the package already in dist/ (from a prior `release-build`) without
+# rebuilding — for when export succeeded but only the ASC upload failed.
+.PHONY: release-upload
+release-upload:  ## Upload the already-built dist/ package (no rebuild)
+	@Scripts/release-distribute.sh $(PLATFORM) --upload-only
+
 .PHONY: clean
 clean:  ## Remove the generated project + local build output
 	@rm -rf Donpa.xcodeproj .build-xcode

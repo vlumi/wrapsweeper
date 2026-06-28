@@ -30,7 +30,7 @@ Two numbers, both set in [project.yml](project.yml) (the source of truth — the
 `.xcodeproj` is generated, never edited by hand):
 
 | Setting | Info.plist key | Meaning | Rule |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `MARKETING_VERSION` | `CFBundleShortVersionString` | User-facing version, e.g. `0.1.0` | SemVer. Bump on a meaningful milestone. |
 | `CURRENT_PROJECT_VERSION` | `CFBundleVersion` | Build number, e.g. `5` | Unique & strictly increasing per upload. |
 
@@ -133,7 +133,8 @@ progress file to go stale. Re-enter the chain at the right point:
 | preflight / publish, **before** the PR merged | nothing irreversible; PR (if any) left open | `make release` again — a clean restart |
 | **after** the PR merged, before tagging | `main` has the bumped build but no tag yet | `make release` — **publish self-skips** (its build is already ahead of every tag) and the chain tags + distributes |
 | **partway through tagging** (e.g. iOS tagged, macOS failed) | one platform tagged/released, the other not | `make release-tag` — per platform: skips a done one, creates a missing release for an existing tag, tags the rest |
-| **distribute / upload** (the likeliest, and safe to repeat) | release is fully tagged; archive/export/upload flaked | `make release-distribute-retry` (optionally `PLATFORM=macos`) — verifies the tag exists, then re-archives/exports/uploads **without** touching git/PR/tags |
+| **upload only** (export succeeded, ASC upload flaked) | the `.ipa`/`.pkg` is already in `dist/` | `make release-upload` — uploads the existing package, no rebuild |
+| **archive/export** (or you want a clean rebuild) | release is tagged; the build itself failed | `make release-distribute-retry` (optionally `PLATFORM=macos`) — verifies the tag exists, then re-archives/exports/uploads **without** touching git/PR/tags |
 
 To repeat a single step in isolation (rare), call its script directly —
 `Scripts/release-tag.sh all` — since the scripts stand alone; the Make targets

@@ -5,7 +5,8 @@
 # Usage:
 #   Scripts/distribute.sh ios            # archive → export → upload iOS
 #   Scripts/distribute.sh macos          # same for macOS
-#   Scripts/distribute.sh ios --no-upload   # build the .ipa/.pkg, skip the upload
+#   Scripts/distribute.sh ios --no-upload    # build the .ipa/.pkg, skip the upload
+#   Scripts/distribute.sh ios --upload-only  # upload the already-built dist/ package
 #
 # Requires (one-time):
 #   • A paid Apple Developer account (you already upload via Xcode).
@@ -20,48 +21,63 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 platform="${1:-}"
-upload=1
+upload=1          # 0 = build only, skip upload
+build=1           # 0 = upload-only, skip archive/export
 shift || true
 while [ $# -gt 0 ]; do
     case "$1" in
         --no-upload) upload=0 ;;
+        --upload-only) build=0 ;;
         *) echo "error: unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
 done
+[ "$upload" -eq 1 ] || [ "$build" -eq 1 ] \
+    || { echo "error: --no-upload and --upload-only are mutually exclusive." >&2; exit 2; }
 
 case "$platform" in
     ios)   scheme="Donpa-iOS";   destination="generic/platform=iOS";   ext="ipa" ;;
     macos) scheme="Donpa-macOS"; destination="generic/platform=macOS"; ext="pkg" ;;
-    *) echo "usage: distribute.sh <ios|macos> [--no-upload]" >&2; exit 2 ;;
+    *) echo "usage: distribute.sh <ios|macos> [--no-upload|--upload-only]" >&2; exit 2 ;;
 esac
-
-project="Donpa.xcodeproj"
-[ -d "$project" ] || { echo "error: $project missing — run Scripts/generate.sh first." >&2; exit 1; }
 
 out="dist/${platform}"
 archive="${out}/Donpa-${platform}.xcarchive"
-rm -rf "$out"
-mkdir -p "$out"
 
-echo "▶︎ Archiving ${scheme}…"
-xcodebuild archive \
-    -project "$project" \
-    -scheme "$scheme" \
-    -destination "$destination" \
-    -archivePath "$archive" \
-    -allowProvisioningUpdates
+if [ "$build" -eq 1 ]; then
+    project="Donpa.xcodeproj"
+    [ -d "$project" ] || { echo "error: $project missing — run Scripts/generate.sh first." >&2; exit 1; }
+    rm -rf "$out"
+    mkdir -p "$out"
 
-echo "▶︎ Exporting (.${ext})…"
-xcodebuild -exportArchive \
-    -archivePath "$archive" \
-    -exportPath "$out" \
-    -exportOptionsPlist Scripts/ExportOptions.plist \
-    -allowProvisioningUpdates
+    echo "▶︎ Archiving ${scheme}…"
+    xcodebuild archive \
+        -project "$project" \
+        -scheme "$scheme" \
+        -destination "$destination" \
+        -archivePath "$archive" \
+        -allowProvisioningUpdates
+
+    echo "▶︎ Exporting (.${ext})…"
+    xcodebuild -exportArchive \
+        -archivePath "$archive" \
+        -exportPath "$out" \
+        -exportOptionsPlist Scripts/ExportOptions.plist \
+        -allowProvisioningUpdates
+fi
 
 # The exported package's name varies (Xcode names it after the product); find it.
-pkg="$(/usr/bin/find "$out" -maxdepth 1 -name "*.${ext}" | head -1)"
-[ -n "$pkg" ] || { echo "error: no .${ext} produced in $out" >&2; exit 1; }
+# Tolerate a missing dir (upload-only with nothing built) so the check below gives
+# the helpful message rather than find's raw error.
+pkg="$( [ -d "$out" ] && /usr/bin/find "$out" -maxdepth 1 -name "*.${ext}" | head -1 || true )"
+[ -n "$pkg" ] || {
+    if [ "$build" -eq 0 ]; then
+        echo "error: no .${ext} in $out to upload — run a build (e.g. make release-build) first." >&2
+    else
+        echo "error: no .${ext} produced in $out" >&2
+    fi
+    exit 1
+}
 echo "  → $pkg"
 
 if [ "$upload" -eq 0 ]; then
