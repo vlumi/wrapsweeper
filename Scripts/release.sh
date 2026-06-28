@@ -11,13 +11,14 @@
 #
 # Flow:
 #   preflight (clean main, up to date) → bump → branch+commit+push → PR with
-#   auto-merge (--merge) → wait for CI → on green+merged: tag → archive/export
-#   → upload. CI failure stops before any tag/build/upload (PR left open).
+#   auto-merge (--merge) → wait for CI → on green+merged: tag the merge commit +
+#   publish a per-platform GitHub release (iOS is "latest") → archive/export →
+#   upload. CI failure stops before any tag/build/upload (PR left open).
 #
 # Usage:
-#   Scripts/release.sh [ios|macos|both]            # default: both, upload to ASC
+#   Scripts/release.sh                             # default: both (just confirm), upload to ASC
 #   Scripts/release.sh both --no-upload            # everything through export, no upload
-#   Scripts/release.sh ios                         # iOS only (no version-bump prompt)
+#   Scripts/release.sh ios                         # iOS only (no version-bump prompt, no confirm)
 #
 # Requires: gh (authenticated), and the App Store Connect API key set up exactly
 # as Scripts/distribute.sh documents (only needed when uploading).
@@ -44,6 +45,14 @@ esac
 file="project.yml"
 say() { printf '\033[36m▶︎ %s\033[0m\n' "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
+
+# Releasing both is the common path (just confirm). A single-platform release is
+# the explicit one, so it skips the prompt.
+if [ "$platform" = "both" ]; then
+    printf 'Release BOTH iOS + macOS? [Y/n] '
+    read -r ans || ans=""
+    case "$ans" in [nN]*) die "aborted." ;; esac
+fi
 
 # ── 1. Preflight ────────────────────────────────────────────────────────────
 # Start from a known-clean main that matches origin, so the commit we tag (and
@@ -148,17 +157,52 @@ expected_subject="Merge pull request"
 git log -1 --pretty=%s | grep -q "$expected_subject" \
     || echo "  note: main tip isn't a merge commit (subject: $(git log -1 --pretty=%s)) — tagging it anyway."
 
-tag_one() {  # $1 = ios|macos → prefix ios|mac
-    local prefix; prefix="$([ "$1" = macos ] && echo mac || echo ios)"
+# Tag the merge commit and publish a GitHub Release for one platform. iOS is the
+# repo's "latest" (GitHub allows one); macOS is a full release without the badge.
+release_one() {  # $1 = ios|macos → prefix ios|mac, label iOS|macOS
+    local plat="$1"
+    local prefix label
+    prefix="$([ "$plat" = macos ] && echo mac || echo ios)"
+    label="$([ "$plat" = macos ] && echo macOS || echo iOS)"
     local tag="${prefix}/v${new_version}-${new_build}"
     git rev-parse --verify "$tag" >/dev/null 2>&1 && die "tag '$tag' already exists."
-    git tag -a "$tag" "$merge_sha" -m "Donpa $1 v${new_version} (build ${new_build})"
+    git tag -a "$tag" "$merge_sha" -m "Donpa ${label} v${new_version} (build ${new_build})"
     git push --quiet origin "$tag"
     echo "  tagged $tag → ${merge_sha:0:7}"
+
+    # Notes: a version/build/commit table + the commit subjects since this
+    # platform's previous tag (newest first), so the changelog is per-platform.
+    local prev notes_changes
+    prev="$(git tag --list "${prefix}/v*" --sort=-creatordate | grep -v "^${tag}$" | head -1)"
+    if [ -n "$prev" ]; then
+        notes_changes="$(git log --no-merges --pretty='- %s' "${prev}..${merge_sha}")"
+    else
+        notes_changes="- Initial ${label} release."
+    fi
+    local since; since="$([ -n "$prev" ] && echo " since ${prev#"$prefix"/}" || echo "")"
+    local notes
+    notes="$(cat <<EOF
+${label} release for ${new_version} build ${new_build}.
+
+| | |
+|---|---|
+| Marketing version | ${new_version} |
+| Apple build number | ${new_version} (${new_build}) |
+| Commit | ${merge_sha:0:7} |
+
+**Changes${since}**
+${notes_changes}
+EOF
+)"
+    local latest; latest="$([ "$plat" = ios ] && echo true || echo false)"
+    gh release create "$tag" --verify-tag \
+        --title "${label} v${new_version} (build ${new_build}) — Donpa Squad" \
+        --notes "$notes" --latest="$latest" >/dev/null
+    echo "  published GitHub release for $tag (latest=$latest)"
 }
-say "Tagging the merge commit on main…"
-case "$platform" in ios|both) tag_one ios ;; esac
-case "$platform" in macos|both) tag_one macos ;; esac
+say "Tagging + publishing GitHub releases…"
+case "$platform" in ios|both) release_one ios ;; esac
+case "$platform" in macos|both) release_one macos ;; esac
 
 # ── 8. Archive / export / upload the selected platform(s) ─────────────────────
 # Built straight from main's tip (the tagged merge commit).
