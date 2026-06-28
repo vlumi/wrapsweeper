@@ -35,3 +35,19 @@ require_platform() {
 # git prefix (ios|mac) and display label (iOS|macOS) for a platform.
 tag_prefix() { [ "$1" = macos ] && echo mac || echo ios; }
 plat_label() { [ "$1" = macos ] && echo macOS || echo iOS; }
+
+# The highest build number N across all ios/ + mac/ vX.Y.Z-N tags, or 0 if none.
+# Lets publish tell "main is a bumped-but-untagged tip" (already merged) from a
+# fresh release, without any state file — the tags are the record.
+highest_tagged_build() {
+    local n max=0
+    while IFS= read -r n; do [ "$n" -gt "$max" ] && max="$n"; done < <(
+        git tag --list 'ios/v*' 'mac/v*' | grep -oE -- '-[0-9]+$' | tr -d '-')
+    printf '%s' "$max"
+}
+
+# True if a git tag exists for this platform at version-build.
+tag_exists() { git rev-parse --verify "$(tag_prefix "$1")/v${2}-${3}" >/dev/null 2>&1; }
+
+# True if a GitHub release exists for the given tag.
+gh_release_exists() { gh release view "$1" >/dev/null 2>&1; }

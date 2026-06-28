@@ -31,6 +31,15 @@ cur_version="$(read_unique MARKETING_VERSION)"
 cur_build="$(read_unique CURRENT_PROJECT_VERSION)"
 echo "current: version ${cur_version}, build ${cur_build}"
 
+# Resume guard: if main's build is already ahead of every tag, a previous run's
+# bump merged but wasn't tagged — publishing is done. Skip (don't re-bump / open
+# a second PR); the chain flows on to release-tag. The tags are the record, so no
+# state file is needed.
+if [ "$cur_build" -gt "$(highest_tagged_build)" ]; then
+    echo "✓ build ${cur_build} already merged to main but untagged — publish already done, skipping to tag."
+    exit 0
+fi
+
 new_version="$cur_version"
 if [ "$platform" = "all" ]; then
     IFS='.' read -r MA MI PA <<EOF

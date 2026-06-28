@@ -29,10 +29,22 @@ release_one() {  # $1 = ios|macos
     prefix="$(tag_prefix "$plat")"
     label="$(plat_label "$plat")"
     tag="${prefix}/v${version}-${build}"
-    git rev-parse --verify "$tag" >/dev/null 2>&1 && die "tag '$tag' already exists."
-    git tag -a "$tag" "$merge_sha" -m "Donpa ${label} v${version} (build ${build})"
-    git push --quiet origin "$tag"
-    echo "  tagged $tag → ${merge_sha:0:7}"
+
+    # Idempotent per platform, so a partial re-run (e.g. iOS done, macOS failed)
+    # finishes only what's missing rather than dying:
+    #   tag + release exist → skip; tag only → just create the release; neither →
+    #   tag then release.
+    if tag_exists "$plat" "$version" "$build" && gh_release_exists "$tag"; then
+        echo "  $tag already tagged + released — skipping."
+        return
+    fi
+    if tag_exists "$plat" "$version" "$build"; then
+        echo "  $tag already tagged; creating its GitHub release."
+    else
+        git tag -a "$tag" "$merge_sha" -m "Donpa ${label} v${version} (build ${build})"
+        git push --quiet origin "$tag"
+        echo "  tagged $tag → ${merge_sha:0:7}"
+    fi
 
     # Changelog: the commit subjects since this platform's previous tag.
     local prev notes_changes since

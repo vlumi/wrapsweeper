@@ -100,6 +100,14 @@ release-tag: release-publish  ## Release step 3: tag the merge commit + publish 
 release-distribute: release-tag  ## Release step 4: archive/export (+ upload unless UPLOAD=0)
 	@Scripts/release-distribute.sh $(PLATFORM) $(DIST_FLAGS)
 
+# Distribute is the likeliest step to fail (archive/export/ASC upload) and is
+# safe to repeat. This standalone retry has NO prereqs — it re-distributes an
+# already-tagged release without touching git/PR/tags, after verifying the tag
+# for the current version+build exists.
+.PHONY: release-distribute-retry
+release-distribute-retry:  ## Re-distribute an already-tagged release (no PR/tag steps)
+	@Scripts/release-distribute.sh $(PLATFORM) $(DIST_FLAGS) --require-tag
+
 .PHONY: clean
 clean:  ## Remove the generated project + local build output
 	@rm -rf Donpa.xcodeproj .build-xcode
