@@ -10,7 +10,7 @@
 // from the rendered ink), and writes the three catalog scales into the BootPrint
 // imageset, where it tints like the procedural chrome glyphs.
 //
-//   swift Scripts/make-boot.swift
+//   swift Scripts/assets/make-boot.swift
 //
 // Requires ImageMagick (`magick`) — `brew install imagemagick`. Quick Look's
 // `qlmanage -t` was tried first but CROPS the tall print (drops the heel), so a
@@ -22,7 +22,8 @@ import ImageIO
 import UniformTypeIdentifiers
 
 let root = URL(fileURLWithPath: #filePath)
-    .deletingLastPathComponent().deletingLastPathComponent()  // repo root
+    .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+// repo root (this script lives at Scripts/assets/, three levels down)
 let svg = root.appendingPathComponent("Scripts/assets/boot-print.svg")
 let imageset = root.appendingPathComponent(
     "Packages/DonpaCore/Sources/DonpaKit/Resources/Panels.xcassets/BootPrint.imageset")

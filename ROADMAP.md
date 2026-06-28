@@ -294,7 +294,7 @@ icon, and **procedural manga chrome glyphs** (`MangaIcon`): a war-medal High
 Scores button, a Quonset-hut "home"
 barracks, a swallowtail flag, a pause/play toggle, and an army boot-print
 reveal/"dig" glyph (a CC0 silhouette baked to a tintable template via
-`Scripts/make-boot.swift`). The mode toggle is a single-tap dig|flag segmented
+`Scripts/assets/make-boot.swift`). The mode toggle is a single-tap dig|flag segmented
 pair in distinct mode colours; the status bar carries a tappable config "change
 game" badge (replacing the separate New-Game button, mirroring the title splash).
 The **board's unopened tiles carry a faint manga screentone keyed to the input
@@ -315,7 +315,7 @@ treatment: heavier ink, custom number styling).
   than decorative everywhere, or the UI gets noisy.
 - **Art sources** — the scene panels (title / win / loss / pause) are DALL·E
   (commercial-use OK via OpenAI TOS on a personal account; verify before ship);
-  the app icon is *procedural* (`Scripts/make-icon.swift`), not DALL·E. If
+  the app icon is *procedural* (`Scripts/assets/make-icon.swift`), not DALL·E. If
   iterating on an icon: keep it a single bold focal subject, no baked title text,
   readable at 64px.
   Alternatives to DALL·E worth a look when commissioning final art: a real manga

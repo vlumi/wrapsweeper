@@ -147,7 +147,7 @@ anti-cheat; lean on Game Center's server-side validation if leaderboards land).
 ## Assets are generated, not hand-drawn-in-repo
 
 The app icon, the B&W variant, the launch image, and the in-grid detonation mark
-all come from **one procedural source** (`Scripts/make-icon.swift`, pure
+all come from **one procedural source** (`Scripts/assets/make-icon.swift`, pure
 CoreGraphics) — reproducible, no binary-blob churn, and the launch screen and
 in-app splash share the *same* rendered PNG so they can't drift. The manga
 result/title panels are the exception: swappable PNG asset slots (currently

@@ -2,12 +2,12 @@
 //
 // App icon: a detonating mine in a halftone comic burst, at every catalog size.
 // Pure CoreGraphics. `--mono` renders the grayscale treatment.
-//   swift Scripts/make-icon.swift <outDir> [--mono]
+//   swift Scripts/assets/make-icon.swift <outDir> [--mono]
 //
 // `--launch` instead emits the launch-screen image — the mono burst-mine on a
 // transparent background (it sits on the launch screen's charcoal bg colour) at
 // @1x/@2x/@3x: launch.png, launch@2x.png, launch@3x.png.
-//   swift Scripts/make-icon.swift <outDir> --launch
+//   swift Scripts/assets/make-icon.swift <outDir> --launch
 
 import CoreGraphics
 import Foundation

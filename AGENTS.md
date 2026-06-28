@@ -39,10 +39,11 @@ Two seams isolate all "epic" variation; everything else is written once.
 donpa/
 ├── project.yml                  XcodeGen spec (iOS + macOS app targets)
 ├── Scripts/generate.sh          Regenerates the .xcodeproj (refuses if THIS project is open in Xcode)
-├── Scripts/make-icon.swift      Regenerates the app icon + launch PNGs (pure CoreGraphics)
-├── Scripts/make-boot.swift      Boot-print "dig" glyph: SVG → tintable template (needs ImageMagick)
-├── Scripts/make-panels.swift    Win/loss/pause panels: source PNG → keyed transparent asset
-├── Scripts/assets/              Committed art sources (SVG / cleaned DALL·E PNGs) for the above
+├── Scripts/assets/              Asset generators (hand-run, rare) + their committed art sources:
+│     make-icon.swift            Regenerates the app icon + launch PNGs (pure CoreGraphics)
+│     make-boot.swift            Boot-print "dig" glyph: SVG → tintable template (needs ImageMagick)
+│     make-panels.swift          Win/loss/pause panels: source PNG → keyed transparent asset
+│     *.svg / *-source.png       The SVG / cleaned DALL·E PNG sources the above consume
 ├── Sources/{iOS,macOS}/         Thin @main app shells
 ├── Sources/Shared/              Assets shared by both targets (the AppIcon set)
 └── Packages/DonpaCore/    Swift package — most of the code
@@ -68,13 +69,13 @@ asset, replace the source and re-run its script — don't hand-edit the catalog
 PNGs. (See the README "AI assistance" note: the source art is AI-generated;
 licensing for any future commissioned art is an open ROADMAP item.)
 
-- **App icon / launch** — `swift Scripts/make-icon.swift <outDir> [--mono|--launch]`.
+- **App icon / launch** — `swift Scripts/assets/make-icon.swift <outDir> [--mono|--launch]`.
   Pure CoreGraphics (a detonating mine in a halftone burst); no external source.
-- **Boot-print "dig" glyph** — `swift Scripts/make-boot.swift`. Rasterises
+- **Boot-print "dig" glyph** — `swift Scripts/assets/make-boot.swift`. Rasterises
   `assets/boot-print.svg` (CC0) and keys it to a tintable **template** PNG in the
   `BootPrint` imageset. Needs ImageMagick (`brew install imagemagick`); Quick
   Look was tried but crops the tall print.
-- **Framed panels (win / loss / pause)** — `swift Scripts/make-panels.swift [win loss pause]`.
+- **Framed panels (win / loss / pause)** — `swift Scripts/assets/make-panels.swift [win loss pause]`.
   These three are the *same kind* of art — a black-bordered manga panel where art
   may **spill past the border** (rocks/boot/detector breaking the frame). The
   sources are **already keyed** (`assets/<panel>-source.png`, alpha baked in:

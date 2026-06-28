@@ -12,8 +12,8 @@
 // No keying / flood / thresholds here: do the transparency in the source (an
 // editor), and this just outlines + packages it.
 //
-//   swift Scripts/make-panels.swift            # all three panels
-//   swift Scripts/make-panels.swift win loss   # a subset
+//   swift Scripts/assets/make-panels.swift            # all three panels
+//   swift Scripts/assets/make-panels.swift win loss   # a subset
 //
 // Sources: Scripts/assets/<panel>-source.png (pre-keyed, alpha baked in).
 // Output: the matching imageset in Panels.xcassets.
@@ -43,7 +43,9 @@ let panels = [
         file: "panel-pause"),
 ]
 
-let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+// repo root (this script lives at Scripts/assets/, three levels down)
+let root = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 let requested = Array(CommandLine.arguments.dropFirst())
 let selected = requested.isEmpty ? panels : panels.filter { requested.contains($0.name) }
 
