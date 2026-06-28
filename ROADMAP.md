@@ -7,11 +7,11 @@ plus UI, without touching the game logic.
 
 Versions are indicative, not contractual; scope may shift between minor
 releases. Each minor groups **related** work into one meaty release rather than
-giving every feature its own number (so v0.2.0 carries both cross-device sync
-and big boards; v0.3.0 carries both board-topology variants). The former v0.2
-"fairer boards" lives on as un-versioned backlog items. The project is
-**currently unversioned** — the first cut is v0.1.0 (TestFlight pre-release; not
-a public store release).
+giving every feature its own number: v0.2.0 carries both cross-device sync and
+big boards; v0.3.0 both board-topology variants; v0.4.0 achievements (held late,
+once the feature set they reference is settled); v1.0.0 the composed epic set.
+The project ships **0.2.0** on TestFlight today (pre-release, not yet a public
+store release).
 
 ---
 
@@ -77,10 +77,14 @@ slot into whichever release they're ready for.
 
 **Gameplay fairness** (builds on the v0.1 logical solver):
 
-- [ ] "No-guess" board generation: reject layouts the solver can't finish
-      without a guess (the `Solver` and `TierAnalysis` are the foundation —
-      generation just resamples until solvable).
-- [ ] Optional per-config "no-guess" toggle (esp. for the harder densities).
+- **"No-guess" boards — questioned, probably not wanted.** The machinery is cheap
+  (the `Solver` + `TierAnalysis` already exist; generation would just resample
+  until solvable), but the *desire* is in doubt: a chance of a forced guess is part
+  of classic Minesweeper's character, and pure-deduction-only can feel sterile.
+  Left here as a deliberate maybe, not planned work — revisit only if play
+  testing says the guessing genuinely frustrates rather than spices. If it ever
+  lands, ship it as an **optional per-config toggle**, never the default, so the
+  classic risk stays the norm.
 - [ ] Safe-reveal / question-mark flag cycle (classic third flag state).
 
 **Navigation / UX:**
@@ -146,6 +150,20 @@ The "hex grids" pillar — exercises the second seam.
 - [ ] Hex-aware tile/number rendering
 - [ ] Verify game logic is genuinely unchanged (same test pattern as torus)
 
+## v0.4.0 — Achievements
+
+Achievements come **late on purpose**: they're a layer *over* gameplay, and their
+IDs are permanent once shipped (like the scoreboard keys), so they're designed
+against the (by-now) settled feature set — square + hex + wrapped boards all
+exist, so achievements can reference the full variant matrix without churn. See
+the **Achievements** section below for the architecture, the no-leaderboards
+decision, and the design principles. The milestone is the build-out:
+
+- [ ] Internal achievement layer (events on game-end → local store) + in-app UI
+- [ ] Local + iCloud-KVS sync of the earned set (reuses the v0.2 sync blob)
+- [ ] Game Center reporter bolted on behind the layer (achievements only)
+- [ ] The curated achievement list defined (IDs locked) in App Store Connect
+
 ## v1.0.0 — The epic set
 
 Everything composes: square **or** hex, bounded **or** wrapped, any size.
@@ -163,34 +181,35 @@ Everything composes: square **or** hex, bounded **or** wrapped, any size.
       and flaky mid-iteration. Decide near 1.0 whether the regression value is
       worth wiring it into CI.
 
-## Publishing & distribution (planned — gated on a paid account)
+## Publishing & distribution
 
-How the apps reach the stores once a paid Apple Developer account exists:
+The paid account exists and both apps ship to TestFlight. How they reach the
+public stores from here:
 
 - **iOS is one universal app**: a single App Store Connect record + binary runs
   on **both iPhone and iPad** and appears on both stores automatically (shared
   page, reviews, price). No extra work — it's the default device family.
-- **macOS is a separate native app**: our Mac target is a distinct native build
-  (not Mac Catalyst), so it's its **own** App Store Connect record + binary +
-  review. The Mac and iOS stores are browsed independently.
-- **Bundle IDs likely need to diverge**: iOS and the separate native Mac app
-  generally need **distinct bundle IDs** (both currently share
-  `fi.misaki.donpa`). Pick the Mac ID (e.g. `fi.misaki.donpa.mac`)
-  and split it in `project.yml` **before** registering IDs with Apple — changing
-  it after registration is painful. (Unifying them into a single "universal
-  purchase" is a deliberate Catalyst/SwiftUI-app setup, not automatic.)
+- **macOS is a separate native binary** (a distinct native build, not Mac
+  Catalyst) — its own archive + review track.
+- **Universal Purchase — done.** iOS and macOS now share the **one** bundle ID
+  `fi.misaki.donpa` (unified this round), so they're a single App Store Connect
+  record / Universal Purchase, not two. (Earlier this section assumed diverging
+  IDs; that was reversed — see ARCHITECTURE.md.) Each platform still uploads its
+  own binary under the shared record.
 - **App age rating**: 4+ / PEGI 3 (set via the App Store Connect questionnaire;
   nothing in the feature set pushes it higher).
-- **Release/CD strategy.** Decision: **manual for v0.1** — archive + upload via
-  Xcode (or one local `fastlane` lane run by hand). The solo pre-release cadence
-  doesn't justify automation, and it sidesteps secret-management entirely. When
-  uploads get tedious, add **GitHub Actions CD on the (public) repo, triggered
-  only on version tags**, with the App Store Connect API key + signing certs as
-  repo secrets scoped so they NEVER run on untrusted fork PRs — the repo staying
-  public is fine, the *secrets* stay private. A **separate private repo for the
-  pipeline** is only warranted if private material appears (commissioned-art
-  sources, or wanting the signing flow fully walled off) — same trigger as the
-  art-licensing question, so don't do it preemptively.
+- **App age rating**: 4+ / PEGI 3 (set via the App Store Connect questionnaire;
+  nothing in the feature set pushes it higher).
+- **Release/CD strategy.** A **local release lane** now does the whole cut:
+  `make release` bumps the version/build, opens an auto-merging PR, waits for CI,
+  tags the merge commit, publishes the GitHub release, and uploads to App Store
+  Connect (see [RELEASING.md](RELEASING.md)). Credentials (the ASC API key) stay
+  on the dev machine, outside the repo — so no secret management and it runs from
+  one command. **GitHub Actions CD** (tag-triggered, secrets scoped off fork PRs)
+  remains a *possible* later step only if the solo local cadence ever becomes a
+  bottleneck — not currently needed, since the lane already makes a release one
+  command. A separate private pipeline repo is only warranted if private material
+  appears (commissioned-art sources) — same trigger as the art-licensing question.
 - **AI disclosure.** The README carries an honest "AI assistance" note
       (human-directed; code largely AI-written; current art AI-generated;
       procedural chrome is AI-written code, not generated images). Remaining
@@ -233,17 +252,26 @@ How the apps reach the stores once a paid Apple Developer account exists:
 (The **two-native-targets, no-Catalyst** decision and the distinct Mac bundle id
 that follows from it are recorded in [ARCHITECTURE.md](ARCHITECTURE.md).)
 
-## Game Center & achievements (planned — gated on a paid account)
+## Achievements (the v0.4 milestone — detail)
 
-Achievements (and possibly leaderboards) via Game Center. Mostly an
-event-plumbing job, but with real prerequisites and some permanence to design
-around. Targeted once a **paid Apple Developer account** exists (Game Center
-can't be provisioned under a free personal ID).
+Achievements via Game Center — mostly an event-plumbing job, but with real
+permanence to design around. The paid account now exists and the app ships to
+TestFlight, so this is no longer account-gated; what remains is the App Store
+Connect Game Center setup + the build-out.
 
-**Prerequisites (the real gate, not the code):**
+**No leaderboards — deliberate.** Game Center *leaderboards* are out of scope, not
+just deferred. Scores here are local and **user-editable by design** (see Design
+principles — no anti-cheat), so a global leaderboard would fill with impossible
+times almost immediately and there's no honest way to police it without the
+server-side validation we've chosen not to build. Achievements don't have this
+problem: they're personal (between the player and their own play), not a ranked
+comparison, so a tampered local score only ever "cheats" yourself. So: Game Center
+**achievements yes, leaderboards no.**
 
-- Paid Apple Developer account; app registered in **App Store Connect** with the
-  **Game Center** capability enabled.
+**Prerequisites:**
+
+- App registered in **App Store Connect** with the **Game Center** capability
+  enabled (the paid account exists; this is just the ASC setup).
 - Each achievement defined in App Store Connect (ID, title, description, points,
   hidden/visible, icon). Achievement **IDs are permanent once shipped** — like
   the scoreboard keys, you can add but not cleanly rename/remove. Design the ID
@@ -334,8 +362,8 @@ Still open:
 ## Distribution & extras (later)
 
 - [ ] **Static home page** (marketing/landing site for the app).
-- [ ] **TestFlight** beta distribution (iOS + Mac) — comes with the paid
-      account; the channel for pre-release testing.
+- [x] **TestFlight** beta distribution (iOS + Mac) — live; the channel for
+      pre-release testing.
 - [ ] **watchOS version?** — a big maybe; minesweeper on a tiny screen is its
       own design problem. Parked.
 - [ ] **Tip jar?** — see the monetization note below; would be a *deliberate*
@@ -344,8 +372,9 @@ Still open:
 ## Design principles
 
 - **No anti-cheat, by design.** Scores are local and user-editable (low
-  security, by choice). If Game Center leaderboards land later, lean on GC's
-  own server-side validation rather than building anti-cheat here.
+  security, by choice). This is *why* global leaderboards are out of scope (see
+  Achievements): with no validation they'd just fill with impossible scores.
+  Achievements stay personal, so tampering only cheats yourself.
 
 ## Deliberately out of scope
 
