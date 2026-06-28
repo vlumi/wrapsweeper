@@ -202,4 +202,7 @@ No third-party dependencies. CI runs SwiftLint + swift-format, the logic tests
 
 ## License
 
-[MIT](LICENSE).
+Code: [MIT](LICENSE). The **name and brand assets** ("Donpa Squad" / ドンパ隊, the
+icon, and the artwork) are reserved and **not** covered by the MIT grant — see
+[TRADEMARKS.md](TRADEMARKS.md). In short: fork the code freely, but a public fork
+needs its own name and branding.
