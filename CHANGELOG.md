@@ -8,6 +8,12 @@ Grouped by **marketing version** (a roadmap milestone), then by **build number**
 within it — the version stays steady while the build climbs each TestFlight
 upload (see [RELEASING.md](RELEASING.md)). Newest first.
 
+Each version's top section, **Unreleased (next build)**, collects entries merged
+to `main` but not yet in a TestFlight build; cutting a release renames it to that
+build's heading and opens a fresh empty one. Keep that heading immediately
+followed by its list items (no prose between), so the release script can promote
+it with a one-line edit.
+
 ## [0.2.0] — Cross-device & big boards
 
 **Cross-device sync & big boards** (see ROADMAP.md). Both pillars have landed;
@@ -15,7 +21,7 @@ cross-device sync awaits a real two-device verification pass.
 
 ### Unreleased (next build)
 
-Merged to `main`, not yet in a TestFlight build.
+### build 8
 
 - **Scoreboard orientation.** The board you're playing gets a persistent "you are
   here" row band; opening the scoreboard mid-game scrolls that row into view (from
@@ -24,6 +30,19 @@ Merged to `main`, not yet in a TestFlight build.
   better-than-before loss — instead of the final time (already on the timer). The
   just-improved value carries a small "↑" marker (a shape, not colour, so it's
   colour-blind safe and accent-independent).
+- **Minimap is a navigator.** Tap or drag inside the corner minimap to move the
+  camera there — the quick way around a board too big to see at once.
+- **Resizable minimap.** Drag the caret hugging its corner to resize it freely, or
+  tap the caret to snap between min and max; on macOS ⌘0 toggles the size. The
+  chosen size persists across new game, restart, and resume. (Replaces the old
+  full-screen board overview.)
+- **Over-flagged numbers are flagged.** A revealed number with more flags around it
+  than its value gets a faint ring — a guaranteed mistake, surfaced so you can fix
+  the slip. It marks only the impossible number, not which flag is wrong, so it's a
+  nudge, not a solver.
+- **Huge boards stay smooth.** Fixed a runaway where a very large board (超特大)
+  could peg the CPU and stall after opening tiles; reveals, flagging, and idle are
+  all much lighter now, especially on macOS.
 
 ### build 7
 

@@ -183,9 +183,12 @@ chain prerequisites, so `make release-tag` would re-run preflight + publish
 first (both no-op if already done).
 
 > The lane writes the **GitHub release** notes automatically (commits since the
-> last tag) but does **not** touch [CHANGELOG.md](CHANGELOG.md) — that stays a
-> hand-curated, human-readable history. Update it separately when a release is
-> worth a narrative entry.
+> last tag). It also **stamps** [CHANGELOG.md](CHANGELOG.md): the publish step
+> renames the `### Unreleased (next build)` heading to `### build N` and opens a
+> fresh empty one, in the release commit. The *entries* stay hand-curated — write
+> them under **Unreleased** as PRs merge (keep the heading immediately followed by
+> its list items, nothing between); the release just assigns the build number. If
+> Unreleased is empty, the stamp is a no-op.
 
 ## TestFlight notes
 

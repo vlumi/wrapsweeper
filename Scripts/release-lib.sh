@@ -9,9 +9,52 @@
 # shellcheck shell=bash
 
 PROJECT_FILE="project.yml"
+CHANGELOG_FILE="CHANGELOG.md"
 
 say() { printf '\033[36m▶︎ %s\033[0m\n' "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
+
+# Stamp the changelog's "Unreleased (next build)" section with a build number at
+# release time, so the human-written entries accumulated there during the cycle get
+# promoted to a `### build N` heading (and a fresh empty Unreleased takes its place).
+# The release author still writes the entries as PRs merge; this only does the
+# mechanical promotion — closing the gap where a build could ship without a heading.
+# No-op (exit 0, nothing staged) if Unreleased has no real content yet, so a build
+# with only doc/internal changes doesn't get an empty heading.
+promote_changelog_build() {
+    local build="$1"
+    local heading="### Unreleased (next build)"
+    [ -f "$CHANGELOG_FILE" ] || { say "no $CHANGELOG_FILE — skipping changelog stamp."; return 0; }
+
+    # The format keeps the Unreleased heading immediately followed by its list items
+    # (nothing in between — see CHANGELOG.md's preamble), so "is there anything to
+    # promote" is just: a list item before the next "### " heading. No-op otherwise,
+    # so a doc/internal-only build doesn't get an empty heading.
+    awk '
+        f && /^#/ { exit 1 }               # hit the next heading first → no items
+        f && /^[[:space:]]*-[[:space:]]/ { exit 0 }   # a list item → promote
+        $0 == h { f = 1 }
+    ' h="$heading" "$CHANGELOG_FILE" || {
+        echo "  (Unreleased has no entries — nothing to promote)"
+        return 0
+    }
+
+    # Promote: rename the heading to "### build N", and put a fresh empty Unreleased
+    # heading back above it. One substitution on the single heading line — the entries
+    # below it are already in the right place, so nothing else moves.
+    local tmp; tmp="$(mktemp)"
+    awk -v build="$build" '
+        $0 == h && !done {
+            print h "\n\n### build " build
+            done = 1
+            next
+        }
+        { print }
+    ' h="$heading" "$CHANGELOG_FILE" > "$tmp"
+    mv "$tmp" "$CHANGELOG_FILE"
+    git add "$CHANGELOG_FILE"
+    echo "  promoted Unreleased → build ${build}"
+}
 
 # Echo the sole distinct value of a quoted setting in project.yml, or die if it's
 # missing or differs between the two targets (they're kept in lock-step).

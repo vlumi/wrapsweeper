@@ -70,16 +70,23 @@ sed -i '' -E "s/(CURRENT_PROJECT_VERSION: *)\"[0-9]+\"/\1\"${new_build}\"/" "$PR
 [ "$(read_unique MARKETING_VERSION)" = "$new_version" ] || die "version not applied to all targets."
 [ "$(read_unique CURRENT_PROJECT_VERSION)" = "$new_build" ] || die "build not applied to all targets."
 
+# ── Stamp the changelog: Unreleased → build N (stages CHANGELOG.md if it had entries)
+say "Stamping the changelog…"
+promote_changelog_build "$new_build"
+
 # ── Branch, commit, push, PR with auto-merge ──────────────────────────────────
 rel_branch="release/v${new_version}-${new_build}"
 git rev-parse --verify "$rel_branch" >/dev/null 2>&1 && die "branch '$rel_branch' already exists."
 git checkout -q -b "$rel_branch"
-git add "$PROJECT_FILE"
+# project.yml always; CHANGELOG.md too when the stamp promoted entries (a no-op add
+# is harmless if it was already staged or had nothing to promote).
+git add "$PROJECT_FILE" "$CHANGELOG_FILE"
 git commit --quiet -m "$(cat <<EOF
 Release v${new_version} build ${new_build} (${platform})
 
 Marketing version ${new_version}, shared build number ${new_build} (bumped
-on every target). Opened by Scripts/release-publish.sh, which tags this merge
+on every target). The changelog Unreleased section is stamped as build
+${new_build}. Opened by Scripts/release-publish.sh, which tags this merge
 commit and distributes ${platform} once CI passes.
 EOF
 )"
