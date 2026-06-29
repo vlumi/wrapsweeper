@@ -173,6 +173,45 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertNil(vm.snapshot(), "an untouched game produces no snapshot")
     }
 
+    /// `snapshotInputs()` is the cheap main-actor capture that lets the heavy
+    /// snapshot build run off-thread; it mirrors `snapshot()`'s nil-unless-playing
+    /// gate, and `GameSnapshot(inputs:)` must produce the same snapshot as the direct
+    /// initialiser.
+    func testSnapshotInputsGateAndRoundTrip() async {
+        let fresh = GameViewModel(config: .beginner)
+        XCTAssertNil(fresh.snapshotInputs(), "a not-started game yields no inputs")
+
+        let vm = await startedGame()
+        vm.toggleFlag(aHiddenCell(vm))
+        guard let inputs = vm.snapshotInputs() else { return XCTFail("playing → inputs") }
+
+        guard let built = GameSnapshot(inputs: inputs), let direct = vm.snapshot() else {
+            return XCTFail("both build paths produce a snapshot for a playing game")
+        }
+        // Same board-derived state regardless of which path built it.
+        XCTAssertEqual(built.mines, direct.mines)
+        XCTAssertEqual(built.revealed, direct.revealed)
+        XCTAssertEqual(built.flagged, direct.flagged)
+        XCTAssertEqual(built.config, direct.config)
+    }
+
+    /// A no-op chord (a number with no/insufficient flags around it) must NOT bump
+    /// `revision` — that's what stops a stream of dud taps from each queuing a
+    /// full-board snapshot + minimap raster on a huge board.
+    func testNoOpChordDoesNotBumpRevision() async {
+        let vm = await startedGame()
+        guard
+            let numbered = vm.game.board.allCoords.first(where: {
+                vm.game.board[$0].state == .revealed && vm.game.board[$0].adjacentMines > 0
+            })
+        else { return XCTFail("no numbered revealed cell after the opening") }
+
+        let revBefore = vm.revision
+        vm.chord(numbered)  // no flags placed → inert
+        await vm.awaitPendingWork()
+        XCTAssertEqual(vm.revision, revBefore, "an inert chord must not request a redraw")
+    }
+
     func testRestoreRebuildsTheGameState() async {
         let vm = await startedGame()
         // Make some moves so the restored state is non-trivial.

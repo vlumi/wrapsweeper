@@ -87,6 +87,25 @@ final class FlatStorageTests: XCTestCase {
         XCTAssertEqual(board.revealedSafeCount, 1)
     }
 
+    /// `forEachCellIndexed` is the fast bulk-scan seam (minimap raster, autosave):
+    /// it must visit every cell exactly once in dense row-major order, with the flat
+    /// index matching `index(of:)` so callers can derive `x = i % w`, `y = i / w`.
+    func testForEachCellIndexedIsRowMajorAndComplete() {
+        var board = Board(topology: BoundedSquareTopology(width: 4, height: 3))
+        board[Coord(0, 0)].state = .revealed
+        board[Coord(3, 2)].state = .flagged  // last cell, index 11
+
+        var seen: [Int: Cell] = [:]
+        board.forEachCellIndexed { i, cell in seen[i] = cell }
+
+        XCTAssertEqual(seen.count, board.cellCount, "every cell visited once")
+        XCTAssertEqual(Set(seen.keys), Set(0..<board.cellCount), "indices dense 0..<count")
+        // Index → coord mapping the callers rely on.
+        XCTAssertEqual(seen[0]?.state, .revealed)  // (0,0)
+        XCTAssertEqual(seen[11]?.state, .flagged)  // (3,2) = 2*4 + 3
+        XCTAssertEqual(seen[5]?.state, .hidden)  // a middle cell, untouched
+    }
+
     func testAdjacencyComputedOnFlatBoard() {
         var board = Board(topology: BoundedSquareTopology(width: 3, height: 3))
         board.placeMines(at: [Coord(0, 0)])

@@ -126,4 +126,42 @@ final class GameTests: XCTestCase {
         }
         XCTAssertEqual(game.status, .won, "wrapped game should be winnable with unchanged logic")
     }
+
+    // MARK: changeToken — cheap "did anything change" fingerprint
+
+    /// The token must move when a reveal opens cells and when a flag toggles — the
+    /// mutations a redraw/save cares about.
+    func testChangeTokenMovesOnRealMutations() {
+        var game = Game(difficulty: .beginner)
+        var rng = SeededRNG(seed: 1)
+
+        let t0 = game.changeToken
+        game.reveal(Coord(4, 4), using: &rng)  // first click opens a region
+        let tReveal = game.changeToken
+        XCTAssertNotEqual(tReveal, t0, "a reveal changes the token")
+
+        let hidden = game.board.allCoords.first { game.board[$0].state == .hidden }!
+        game.toggleFlag(hidden)
+        XCTAssertNotEqual(game.changeToken, tReveal, "a flag toggle changes the token")
+    }
+
+    /// The point of the token: a no-op chord (number whose flag count doesn't match)
+    /// mutates nothing, so the token is identical — letting the VM skip the
+    /// redraw/autosave/minimap-rebuild it would otherwise trigger.
+    func testChangeTokenStableAcrossNoOpChord() {
+        var game = Game(difficulty: .beginner)
+        var rng = SeededRNG(seed: 2)
+        game.reveal(Coord(4, 4), using: &rng)
+        // A revealed number with NO flags around it: chording it can't satisfy the
+        // count, so it does nothing.
+        guard
+            let numbered = game.board.allCoords.first(where: {
+                game.board[$0].state == .revealed && game.board[$0].adjacentMines > 0
+            })
+        else { return XCTFail("no numbered revealed cell after the opening") }
+
+        let before = game.changeToken
+        game.chord(numbered, using: &rng)  // no flags placed → inert
+        XCTAssertEqual(game.changeToken, before, "a no-op chord must not move the token")
+    }
 }
