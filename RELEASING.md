@@ -52,10 +52,19 @@ convention the tooling enforces, not an App Store requirement.)
   one-time Beta App Review** (~hours). The review keys on the *version string*,
   not the size of the change — a patch bump reviews the same as a major one.
 
-Practical loop: keep `MARKETING_VERSION` steady while iterating on a release,
-letting the build number climb freely; bump the version when you cross a
-milestone you'd write release notes for. **Internal** TestFlight testers never
-need review — use an internal group for the fastest feedback loop.
+**Version-bump policy (pre-1.0 beta).** Bump `MARKETING_VERSION` only when a
+**roadmap milestone** lands (0.3.0 = board variants, 0.4.0 = achievements, etc.),
+never for routine iteration — climb build numbers freely within a milestone. So
+the version string stays *meaningful* (version = milestone, matching the tags /
+GitHub releases / changelog), and each one's one-time Beta App Review is spread
+across the project rather than dumped on a big-bang 1.0 (a feature-rich first
+review is marginally likelier to snag). It also de-risks the eventual 1.0: by
+then the major feature sets have each cleared review at least once.
+
+Don't bump just to mark progress — that's pure review tax with no testing-loop
+benefit (the review keys on the version string, not the change size). **Internal**
+TestFlight testers never need review at all — use an internal group for the
+fastest feedback loop within a milestone.
 
 > Xcode's Organizer auto-increments the build number past an existing one at
 > distribution time. If that happens, resync `project.yml`'s
