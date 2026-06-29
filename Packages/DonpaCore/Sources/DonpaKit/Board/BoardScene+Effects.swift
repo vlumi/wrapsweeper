@@ -52,45 +52,6 @@ extension BoardScene {
         return node
     }
 
-    /// The swallowtail flag for a flagged cell, drawn with SpriteKit paths to match
-    /// the toolbar toggle and stay crisp at any zoom. Centred on the cell (y-up).
-    func flagNode(size: CGFloat, color: SKColor) -> SKNode {
-        let node = SKNode()
-        // Centred box of side `g`, mapping MangaIcon's top-down 0…1 space to
-        // SpriteKit y-up: x → x-0.5, y → 0.5-y, scaled by g.
-        let g = size * 0.66
-        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: (x - 0.5) * g, y: (0.5 - y) * g)
-        }
-        let poleX: CGFloat = 0.30
-        let ball = SKShapeNode(circleOfRadius: 0.07 * g)  // finial
-        ball.position = p(poleX, 0.12)
-        ball.fillColor = color
-        ball.strokeColor = .clear
-        node.addChild(ball)
-        let pole = CGMutablePath()
-        pole.move(to: p(poleX, 0.17))
-        pole.addLine(to: p(poleX, 0.86))
-        let poleNode = SKShapeNode(path: pole)
-        poleNode.strokeColor = color
-        poleNode.lineWidth = max(1, 0.07 * g)
-        poleNode.lineCap = .round
-        node.addChild(poleNode)
-        // Swallowtail flag with a V-notch cut into the fly edge.
-        let flag = CGMutablePath()
-        flag.move(to: p(poleX, 0.20))
-        flag.addLine(to: p(0.80, 0.20))
-        flag.addLine(to: p(0.66, 0.35))  // notch in
-        flag.addLine(to: p(0.80, 0.50))
-        flag.addLine(to: p(poleX, 0.50))
-        flag.closeSubpath()
-        let flagNode = SKShapeNode(path: flag)
-        flagNode.fillColor = color
-        flagNode.strokeColor = .clear
-        node.addChild(flagNode)
-        return node
-    }
-
     // MARK: Mode glow
 
     /// A faint screentone over the unopened tiles signalling which tool a tap will
@@ -118,6 +79,13 @@ extension BoardScene {
         let size = layout.cellSize
         let inset: CGFloat = 1
         let side = size - inset * 2
+        // Each wash tile is an `SKSpriteNode` sharing the one cached screentone
+        // texture — so SpriteKit batches them all into ~one draw call (a huge board
+        // can have thousands of unopened tiles on screen). A per-cell `SKShapeNode`
+        // here pegged the CPU: SpriteKit re-tessellates every shape's path every
+        // frame, never batching, so thousands of them re-stroked at 60fps melted the
+        // Mac (XXXL on a big resizable window). The faint pattern over the rounded
+        // tile beneath reads fine as a square, so no per-tile rounded-rect needed.
         // Flagged tiles are unopened, so they get the screentone too; since the
         // glow layer sits above the board's flag glyph, re-stamp the flag on top.
         // Only the visible window (same cull as the tiles).
@@ -125,19 +93,18 @@ extension BoardScene {
             let state = viewModel.game.board[c].state
             guard state == .hidden || state == .flagged else { return }
             let center = layout.center(of: c)
-            let tile = SKShapeNode(
-                rect: CGRect(x: -side / 2, y: -side / 2, width: side, height: side),
-                cornerRadius: 3)
+            let tile = SKSpriteNode(texture: texture, size: CGSize(width: side, height: side))
             tile.position = center
-            tile.fillColor = .white  // the texture carries the ink; no extra tint
-            tile.fillTexture = texture
-            tile.strokeColor = .clear
             tile.isUserInteractionEnabled = false
             glowLayer.addChild(tile)
             if state == .flagged {
-                let flag = flagNode(size: size, color: palette.flagGlyph)
+                let flag = flagSprite(size: size, color: palette.flagGlyph)
                 flag.position = center
-                glowLayer.addChild(flag)  // above the wash
+                // Above the wash: the view sets `ignoresSiblingOrder`, so equal-z
+                // siblings draw in undefined order — without an explicit higher z the
+                // screentone sprite can land on top and stripe/dot the flag.
+                flag.zPosition = 1
+                glowLayer.addChild(flag)
             }
         }
     }

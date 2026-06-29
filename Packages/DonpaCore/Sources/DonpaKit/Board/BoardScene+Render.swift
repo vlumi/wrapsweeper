@@ -165,7 +165,7 @@ extension BoardScene {
         if cell.state == .revealed, cell.isMine, coord == viewModel.game.lossCoord {
             overlay = burstMineNode(size: size)
         } else if cell.state == .flagged {
-            overlay = flagNode(size: size, color: palette.flagGlyph)
+            overlay = flagSprite(size: size, color: palette.flagGlyph)
         } else if let glyph = glyph(for: cell) {
             let sprite = SKSpriteNode(texture: glyphTexture(glyph.text, color: glyph.color))
             sprite.size = CGSize(width: size, height: size)
@@ -229,6 +229,65 @@ extension BoardScene {
                 transform: nil)
             ctx.addPath(path)
             ctx.setFillColor(fill.cgColor)
+            ctx.fillPath()
+        }
+        let texture = SKTexture(cgImage: img)
+        texture.filteringMode = .linear
+        tileTextureCache[key] = texture
+        return texture
+    }
+
+    /// A sprite carrying the cached flag texture, sized to the cell. Use this instead
+    /// of `flagNode` (a tree of `SKShapeNode`s) anywhere many flags can be on screen
+    /// at once: SpriteKit re-strokes every visible `SKShapeNode`'s path EVERY frame
+    /// (`CGPathCreateCopyByStrokingPath` — profiled hot on a huge board with many
+    /// flags), whereas same-texture sprites batch and never re-stroke.
+    func flagSprite(size: CGFloat, color: SKColor) -> SKSpriteNode {
+        let sprite = SKSpriteNode(texture: flagTexture(color: color))
+        sprite.size = CGSize(width: size, height: size)
+        return sprite
+    }
+
+    /// Cell-sized flag texture, cached by colour + pixel size. Mirrors `flagNode`'s
+    /// swallowtail geometry (pole + finial + V-notched flag) so the cached sprite and
+    /// the animated shape version look identical.
+    private func flagTexture(color: SKColor) -> SKTexture {
+        let px = max(4, Int(layout.cellSize.rounded()))
+        let key = "flag-\(px)-\(color)"
+        if let cached = tileTextureCache[key] { return cached }
+
+        let scale: CGFloat = 2
+        let dim = Int(CGFloat(px) * scale)
+        let g = CGFloat(dim) * 0.66
+        // Centred box, top-down 0…1 mapped into the dim×dim canvas (CG y-up: a
+        // top-down y becomes `mid + (0.5 - y) * g`).
+        let mid = CGFloat(dim) / 2
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: mid + (x - 0.5) * g, y: mid + (0.5 - y) * g)
+        }
+        let poleX: CGFloat = 0.30
+        let img = drawCellImage(dim: dim) { ctx in
+            ctx.setFillColor(color.cgColor)
+            ctx.setStrokeColor(color.cgColor)
+            // Finial.
+            let r = 0.07 * g
+            ctx.fillEllipse(
+                in: CGRect(
+                    x: p(poleX, 0.12).x - r, y: p(poleX, 0.12).y - r,
+                    width: r * 2, height: r * 2))
+            // Pole.
+            ctx.setLineWidth(max(1, 0.07 * g))
+            ctx.setLineCap(.round)
+            ctx.move(to: p(poleX, 0.17))
+            ctx.addLine(to: p(poleX, 0.86))
+            ctx.strokePath()
+            // Swallowtail flag with a V-notch in the fly edge.
+            ctx.move(to: p(poleX, 0.20))
+            ctx.addLine(to: p(0.80, 0.20))
+            ctx.addLine(to: p(0.66, 0.35))
+            ctx.addLine(to: p(0.80, 0.50))
+            ctx.addLine(to: p(poleX, 0.50))
+            ctx.closePath()
             ctx.fillPath()
         }
         let texture = SKTexture(cgImage: img)
