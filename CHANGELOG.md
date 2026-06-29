@@ -4,15 +4,47 @@ All notable changes to Donpa are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] — in progress
+Grouped by **marketing version** (a roadmap milestone), then by **build number**
+within it — the version stays steady while the build climbs each TestFlight
+upload (see [RELEASING.md](RELEASING.md)). Newest first.
+
+## [0.2.0] — Cross-device & big boards
 
 **Cross-device sync & big boards** (see ROADMAP.md). Both pillars have landed;
-cross-device sync awaits a real two-device verification pass. `MARKETING_VERSION`
-is already `0.2.0`.
+cross-device sync awaits a real two-device verification pass.
 
-_Betas:_ iOS beta.1 (2026-06-26) · macOS beta.1 (2026-06-26).
+### Unreleased (next build)
 
-### Added
+Merged to `main`, not yet in a TestFlight build.
+
+- **Scoreboard orientation.** The board you're playing gets a persistent "you are
+  here" row band; opening the scoreboard mid-game scrolls that row into view (from
+  the title it stays at the top). The result panel now shows the *improvement* —
+  how much faster a new best ("−m:ss.t", or "first clear") and "+N%" on a
+  better-than-before loss — instead of the final time (already on the timer). The
+  just-improved value carries a small "↑" marker (a shape, not colour, so it's
+  colour-blind safe and accent-independent).
+
+### build 7
+
+- **Minimap appears immediately** on a board that only slightly exceeds the
+  viewport (e.g. Modern S on an iPhone 14) — it no longer stayed hidden until a
+  small pan.
+
+### build 6
+
+- **Resuming keeps the dig/flag input mode** — it no longer reset to dig on
+  restore.
+- **Wider pan margin on all edges** so edge tiles never sit flush to the window,
+  minimap or not.
+- The in-game clear-% and the loss screen's "best %" now floor (matching the
+  scoreboard) instead of rounding up; flags survive a loss; correctly-flagged
+  ("disarmed") mines no longer detonate in the loss shockwave.
+- **Offline merged-stats cache** so combined cross-device totals survive going
+  offline; a fix so a new record set on another device isn't double-counted.
+- Carousel modal no longer overflows on small iPhones (edges fade instead).
+
+### builds 4–5 (initial 0.2.0)
 
 - **Cross-device scoreboard sync (iCloud).** High scores and career totals follow
   the player across their devices via iCloud Key-Value Storage. Opt-in (off by
@@ -47,9 +79,6 @@ _Betas:_ iOS beta.1 (2026-06-26) · macOS beta.1 (2026-06-26).
   foundation the cross-device sync above builds on).
 - **Mouse + keyboard zoom (macOS).** ⌘-scroll and ⌘+/⌘− zoom the board; ⌘0 opens
   the board overview.
-
-### Changed
-
 - **Huge boards are responsive.** Reveal/mine-placement compute off the main
   thread (the board never freezes; a debounced overlay gates input); mines are
   pre-armed off-thread on New Game so the first tap is instant; placement and
@@ -57,29 +86,11 @@ _Betas:_ iOS beta.1 (2026-06-26) · macOS beta.1 (2026-06-26).
   overview renders off the main thread; autosave is debounced + written on a
   background actor; `Cell` is bit-packed to one byte. Mine-hit shows the burst
   tile instantly; Esc closes the fullscreen overview.
-- Build number is shared across iOS + macOS (one value, bumped together).
-- The game logic and view model moved into the pure `DonpaCore` target, and the
-  `DonpaCore`/`DonpaKit` sources are grouped into domain folders.
-
-### Fixed
-
-- The in-game clear-% and the loss screen's "best %" now floor (matching the
-  scoreboard) instead of rounding up; flags survive a loss; correctly-flagged
-  ("disarmed") mines no longer detonate in the loss shockwave.
-
-### Tooling
-
-- `Scripts/bump-build.sh` bumps the shared build number (+ optional PR), and
-  `Scripts/distribute.sh` archives → exports → uploads to App Store Connect via an
-  ASC API key (credentials kept outside the repo).
 
 ## [0.1.0] — TestFlight beta
 
 First release — classic Minesweeper on iOS and macOS. TestFlight pre-release
-only (no single public release date; shipped as rolling per-platform betas).
-
-_Betas:_ iOS beta.1 (2026-06-24) · beta.2 (2026-06-25);
-macOS beta.1 (2026-06-24) · beta.2 (2026-06-25).
+only. iOS shipped builds 2–3; macOS build 1.
 
 ### Added
 
@@ -190,9 +201,9 @@ macOS beta.1 (2026-06-24) · beta.2 (2026-06-25).
   cleared-cell count from the board, so a corrupt or tampered save can't produce a
   broken or unwinnable game.
 
-<!-- Releases are tagged per platform as betas (ios/vX.Y.Z-beta.N,
-mac/vX.Y.Z-beta.N) — there's no single plain vX.Y.Z tag — so each version links to
-its filtered list of GitHub releases rather than one tag. -->
+<!-- Releases are tagged per platform + build (ios/vX.Y.Z-N, mac/vX.Y.Z-N) — no
+single plain vX.Y.Z tag — so each version links to its filtered list of GitHub
+releases rather than one tag. -->
 
 [0.2.0]: https://github.com/vlumi/donpa/releases?q=v0.2.0
 [0.1.0]: https://github.com/vlumi/donpa/releases?q=v0.1.0
