@@ -17,15 +17,24 @@ public struct SaveStore {
         self.url = directory.appendingPathComponent(filename)
     }
 
+    /// The Application Support directory, resolved ONCE per process. Resolving it
+    /// hits the filesystem (`url(for:create:)` → `getattrlist`); `GameContent.init`
+    /// calls `appSupport()` on every SwiftUI `body` re-evaluation (the timer alone
+    /// fires ~10×/s), so an uncached lookup showed up as a steady idle-CPU drain in
+    /// the `NSHostingView.layout` path. Cached, repeat calls are free.
+    private static let appSupportDirectory: URL = {
+        let fm = FileManager.default
+        return
+            (try? fm.url(
+                for: .applicationSupportDirectory, in: .userDomainMask,
+                appropriateFor: nil, create: true)) ?? fm.temporaryDirectory
+    }()
+
     /// The production store, in Application Support (temp dir as a last resort).
     public static func appSupport(
         fileManager: FileManager = .default, filename: String = "currentGame.json"
     ) -> SaveStore {
-        let dir =
-            (try? fileManager.url(
-                for: .applicationSupportDirectory, in: .userDomainMask,
-                appropriateFor: nil, create: true)) ?? fileManager.temporaryDirectory
-        return SaveStore(directory: dir, fileManager: fileManager, filename: filename)
+        SaveStore(directory: appSupportDirectory, fileManager: fileManager, filename: filename)
     }
 
     /// A fresh, empty store in a unique temp directory, never touching the real
