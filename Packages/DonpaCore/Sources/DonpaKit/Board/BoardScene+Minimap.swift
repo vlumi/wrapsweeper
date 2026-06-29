@@ -17,6 +17,19 @@ extension BoardScene {
     private static let minimapFraction: CGFloat = 0.26
     private static let minimapMaxSide: CGFloat = 200
     private static let minimapPadding: CGFloat = 16
+    /// Scale runs [min…max] mapping linearly from the compact base size to a large
+    /// size that's `minimapMaxFraction` of the viewport's shorter side — so the
+    /// max is genuinely big on a large window, not just base×k. min=1 = base.
+    static let minimapScaleMin: CGFloat = 1
+    static let minimapScaleMax: CGFloat = 4
+    /// The max minimap's longer side as a fraction of the viewport's shorter side.
+    static let minimapMaxFraction: CGFloat = 0.66
+    /// Resize-caret geometry: a gap between the minimap edge and the caret (so the
+    /// map's own corner tile stays tappable), the caret arm length, and the hit
+    /// strip thickness (the L-shaped touch area's width).
+    private static let handleGap: CGFloat = 4
+    private static let handleArm: CGFloat = 20
+    private static let handleThickness: CGFloat = 36
 
     func refreshMinimap() {
         let w = viewModel.boardWidth
@@ -42,7 +55,8 @@ extension BoardScene {
         }
         guard exceeds, showMinimap else {
             minimapNode?.isHidden = true
-            minimapImageRect = nil  // no stale nav hit area while hidden
+            minimapImageRect = nil  // no stale hit areas while hidden
+            minimapHandleRects = []
             return
         }
 
@@ -60,11 +74,23 @@ extension BoardScene {
         layoutMinimap(boardW: w, boardH: h, range: visibleRange())
     }
 
-    /// On-screen minimap size: the longer side scaled to the fraction (capped), the
-    /// shorter following the board aspect.
-    private func minimapSize(boardW: Int, boardH: Int) -> CGSize {
+    /// The minimap's longer-side length in points for a given scale. `scale` runs
+    /// [min…max]; at min it's the compact base size, at max a large fraction of the
+    /// viewport — so on a big window the max is genuinely big, while staying
+    /// viewport-relative on a phone. Linear in between.
+    func minimapLongerSide(scale: CGFloat) -> CGFloat {
         let viewportMin = min(size.width, size.height)
-        let longer = min(Self.minimapMaxSide, viewportMin * Self.minimapFraction)
+        let base = min(Self.minimapMaxSide, viewportMin * Self.minimapFraction)
+        let maxLonger = max(base, viewportMin * Self.minimapMaxFraction)
+        let s = min(max(scale, Self.minimapScaleMin), Self.minimapScaleMax)
+        let t = (s - Self.minimapScaleMin) / (Self.minimapScaleMax - Self.minimapScaleMin)
+        return base + t * (maxLonger - base)
+    }
+
+    /// On-screen minimap size for the current scale, the shorter side following the
+    /// board aspect.
+    private func minimapSize(boardW: Int, boardH: Int) -> CGSize {
+        let longer = minimapLongerSide(scale: minimapScale)
         let aspect = CGFloat(boardW) / CGFloat(max(1, boardH))
         return aspect >= 1
             ? CGSize(width: longer, height: longer / aspect)
@@ -77,7 +103,9 @@ extension BoardScene {
     /// mirrors `layoutMinimap`'s `framePad`.
     func minimapCornerFootprint() -> CGSize {
         let mm = minimapSize(boardW: viewModel.boardWidth, boardH: viewModel.boardHeight)
-        let extra = Self.minimapPadding + 6  // edge gap + frame border (framePad)
+        // edge gap + frame border (framePad) + the resize caret sitting outside the
+        // corner, so the map AND its handle clear all board tiles.
+        let extra = Self.minimapPadding + 6 + Self.handleGap + Self.handleArm
         return CGSize(width: mm.width + extra, height: mm.height + extra)
     }
 
@@ -110,8 +138,44 @@ extension BoardScene {
         container.addChild(viewport)
         minimapViewport = viewport
 
+        // Resize handle: a small grip just outside the bottom-right corner. Drag to
+        // resize; tap to snap min↔max. Positioned in `layoutMinimap`.
+        let handle = resizeHandleNode()
+        handle.zPosition = 3
+        container.addChild(handle)
+        minimapHandle = handle
+
         cameraNode.addChild(container)
         minimapNode = container
+    }
+
+    /// An L-shaped "resize" caret hugging the minimap's bottom-right corner from
+    /// OUTSIDE it: a vertical arm up the right edge + a horizontal arm along the
+    /// bottom, joined by a quarter-arc that ECHOES the minimap's rounded corner
+    /// (concentric, just outside it). Node origin is the corner point (set in
+    /// `layoutMinimap`); arms extend up (+y) and left (−x).
+    private func resizeHandleNode() -> SKNode {
+        let node = SKNode()
+        let arm = Self.handleArm
+        // Match the panel's 6pt corner radius, offset out by the gap so the arc sits
+        // concentric with (just outside) the minimap's rounded corner.
+        let radius = 6 + Self.handleGap
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: arm))  // top of the vertical arm
+        path.addLine(to: CGPoint(x: 0, y: radius))  // down to where the arc begins
+        // Quarter-arc around the corner: tangent to the vertical arm at (0, radius),
+        // tangent to the horizontal arm at (-radius, 0).
+        path.addArc(
+            tangent1End: CGPoint(x: 0, y: 0), tangent2End: CGPoint(x: -radius, y: 0),
+            radius: radius)
+        path.addLine(to: CGPoint(x: -arm, y: 0))  // out along the horizontal arm
+        let caret = SKShapeNode(path: path)
+        caret.strokeColor = palette.flagGlyph
+        caret.lineWidth = 4.5
+        caret.lineCap = .round
+        caret.lineJoin = .round
+        node.addChild(caret)
+        return node
     }
 
     /// Render the whole board to a small image for the minimap sprite.
@@ -236,24 +300,99 @@ extension BoardScene {
             x: minimapNode.position.x - mm.width / 2,
             y: minimapNode.position.y - mm.height / 2,
             width: mm.width, height: mm.height)
+
+        // Resize caret at the corner point OUTSIDE the image's bottom-right (so the
+        // map's own corner tile stays tappable). Container-local origin = the corner.
+        let hx = mm.width / 2 + framePad + Self.handleGap
+        let hy = -mm.height / 2 - framePad - Self.handleGap
+        minimapHandle?.position = CGPoint(x: hx, y: hy)
+        // L-shaped hit area in CAMERA space: a vertical arm (up the right edge) and a
+        // horizontal arm (along the bottom), each a `handleThickness`-wide strip
+        // spanning the arm, overlapping at the corner. Generous for touch.
+        let cornerX = minimapNode.position.x + hx
+        let cornerY = minimapNode.position.y + hy
+        let arm = Self.handleArm
+        let t = Self.handleThickness
+        // Both arms start `t/2` past the corner (down/right) so they overlap a full
+        // t×t square AT the bend — no uncovered notch there.
+        minimapHandleRects = [
+            // vertical arm: spans from below the corner up past the arm top
+            CGRect(x: cornerX - t / 2, y: cornerY - t / 2, width: t, height: arm + t),
+            // horizontal arm: spans from right of the corner left past the arm end
+            CGRect(x: cornerX - arm - t / 2, y: cornerY - t / 2, width: arm + t, height: t),
+        ]
     }
 
-    /// If a scene-space point lands inside the corner minimap, recenter the live
-    /// board on the matching board location and return true (so the caller doesn't
-    /// also treat it as a board tap/pan). The whole map interior navigates.
+    /// Scene point → camera-local (camera children ignore the camera scale).
+    private func cameraLocal(_ p: CGPoint) -> CGPoint {
+        CGPoint(
+            x: (p.x - cameraNode.position.x) / cameraNode.xScale,
+            y: (p.y - cameraNode.position.y) / cameraNode.yScale)
+    }
+
+    /// Begin minimap navigation: only if the point is INSIDE the map (so a tap/drag
+    /// that starts elsewhere isn't hijacked). Recenters and returns true on a hit.
     @discardableResult
     func handleMinimapNavigation(atScenePoint p: CGPoint) -> Bool {
         guard !(minimapNode?.isHidden ?? true), let rect = minimapImageRect else { return false }
-        // Scene → camera-local (camera children ignore the camera scale).
-        let camLocal = CGPoint(
-            x: (p.x - cameraNode.position.x) / cameraNode.xScale,
-            y: (p.y - cameraNode.position.y) / cameraNode.yScale)
-        guard rect.contains(camLocal) else { return false }
-        // Normalize within the image. centerCamera expects (0,0) = board TOP-left,
-        // but the minimap texture renders board row 0 at the BOTTOM — so flip y.
-        let nx = (camLocal.x - rect.minX) / rect.width
-        let ny = 1 - (camLocal.y - rect.minY) / rect.height
-        centerCamera(onNormalizedPoint: CGPoint(x: nx, y: ny))
+        guard rect.contains(cameraLocal(p)) else { return false }
+        scrubMinimap(toScenePoint: p)
         return true
+    }
+
+    /// Continue a minimap scrub: recenter on the point, CLAMPED to the map bounds —
+    /// so dragging a finger past the edge pins to that edge (and into a corner
+    /// reaches the corner), rather than dropping the gesture once outside.
+    func scrubMinimap(toScenePoint p: CGPoint) {
+        guard let rect = minimapImageRect else { return }
+        let camLocal = cameraLocal(p)
+        // Normalize within the image, clamped to [0,1]. centerCamera expects
+        // (0,0) = board TOP-left, but the texture renders row 0 at the BOTTOM →
+        // flip y.
+        let nx = min(max((camLocal.x - rect.minX) / rect.width, 0), 1)
+        let ny = min(max(1 - (camLocal.y - rect.minY) / rect.height, 0), 1)
+        centerCamera(onNormalizedPoint: CGPoint(x: nx, y: ny))
+    }
+
+    /// Whether a scene-space point is on the minimap's L-shaped resize handle.
+    func minimapHandleHit(atScenePoint p: CGPoint) -> Bool {
+        guard !(minimapNode?.isHidden ?? true) else { return false }
+        let local = cameraLocal(p)
+        return minimapHandleRects.contains { $0.contains(local) }
+    }
+
+    /// Resize the minimap so the dragged handle tracks the cursor. The minimap's
+    /// top-LEFT screen anchor is fixed regardless of size, so the cursor's reach from
+    /// that anchor (along the longer axis) IS the desired longer-side length; invert
+    /// the scale↦size mapping to recover the scale.
+    func resizeMinimap(toScenePoint p: CGPoint) {
+        let viewportMin = min(size.width, size.height)
+        let base = min(Self.minimapMaxSide, viewportMin * Self.minimapFraction)
+        let maxLonger = max(base, viewportMin * Self.minimapMaxFraction)
+        guard maxLonger > base else { return }
+        // Fixed top-left anchor in camera-local coords (mirrors layoutMinimap's
+        // corner math: -halfW + pad + framePad, halfH - pad - framePad).
+        let framePad: CGFloat = 6
+        let anchorX = -size.width / 2 + Self.minimapPadding + framePad
+        let anchorY = size.height / 2 - Self.minimapPadding - framePad
+        let local = cameraLocal(p)
+        let reach = max(local.x - anchorX, anchorY - local.y)  // rightward / downward
+        let t = (reach - base) / (maxLonger - base)
+        setMinimapScale(Self.minimapScaleMin + t * (Self.minimapScaleMax - Self.minimapScaleMin))
+    }
+
+    /// Tap on the handle (or ⌘0) snaps between min and max size.
+    func toggleMinimapSize() {
+        let mid = (Self.minimapScaleMin + Self.minimapScaleMax) / 2
+        setMinimapScale(minimapScale >= mid ? Self.minimapScaleMin : Self.minimapScaleMax)
+    }
+
+    /// Clamp + apply a new scale and push it to the host to persist. Re-layout is
+    /// automatic on the next `update()` (refreshMinimap reads `minimapScale`).
+    private func setMinimapScale(_ s: CGFloat) {
+        let clamped = min(max(s, Self.minimapScaleMin), Self.minimapScaleMax)
+        guard clamped != minimapScale else { return }
+        minimapScale = clamped
+        onMinimapScaleChange?(clamped)
     }
 }

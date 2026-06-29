@@ -12,11 +12,13 @@ struct BoardView: View {
     /// When false (e.g. result panel up), show the normal arrow, not the mode cursor.
     var boardCursorActive: Bool = true
     var showMinimap: Bool = true
+    var minimapScale: Double = 1
 
     var body: some View {
         BoardSKView(
             scene: scene, palette: palette, inputMode: inputMode,
-            boardCursorActive: boardCursorActive, showMinimap: showMinimap)
+            boardCursorActive: boardCursorActive, showMinimap: showMinimap,
+            minimapScale: minimapScale)
     }
 }
 
@@ -27,12 +29,14 @@ private struct BoardSKView: NSViewRepresentable {
     let inputMode: InputMode
     let boardCursorActive: Bool
     let showMinimap: Bool
+    let minimapScale: Double
 
     func makeNSView(context: Context) -> ScrollForwardingSKView {
         let view = ScrollForwardingSKView()
         view.ignoresSiblingOrder = true
         scene.palette = palette
         scene.showMinimap = showMinimap
+        scene.minimapScale = CGFloat(minimapScale)
         view.inputMode = inputMode
         view.boardCursorActive = boardCursorActive
         view.presentScene(scene)
@@ -43,6 +47,7 @@ private struct BoardSKView: NSViewRepresentable {
         if view.scene !== scene { view.presentScene(scene) }
         scene.palette = palette
         scene.showMinimap = showMinimap
+        scene.minimapScale = CGFloat(minimapScale)
         view.inputMode = inputMode
         view.boardCursorActive = boardCursorActive
     }
@@ -156,12 +161,14 @@ private struct BoardSKView: UIViewRepresentable {
     let inputMode: InputMode  // unused on iOS (no pointer cursor)
     let boardCursorActive: Bool  // unused on iOS
     let showMinimap: Bool
+    let minimapScale: Double
 
     func makeUIView(context: Context) -> SKView {
         let view = SKView()
         view.ignoresSiblingOrder = true
         scene.palette = palette
         scene.showMinimap = showMinimap
+        scene.minimapScale = CGFloat(minimapScale)
         view.presentScene(scene)
         return view
     }
@@ -170,6 +177,7 @@ private struct BoardSKView: UIViewRepresentable {
         if view.scene !== scene { view.presentScene(scene) }
         scene.palette = palette
         scene.showMinimap = showMinimap
+        scene.minimapScale = CGFloat(minimapScale)
     }
 }
 #endif

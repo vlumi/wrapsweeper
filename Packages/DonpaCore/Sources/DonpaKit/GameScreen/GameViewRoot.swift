@@ -74,18 +74,6 @@ public struct GameView: View {
                 .zIndex(2)
             }
 
-            // Fullscreen board overview (navigable map). Drives the live camera.
-            if navigator.showingOverview {
-                OverviewView(
-                    scene: scene,
-                    onClose: { navigator.showingOverview = false },
-                    settings: settings,
-                    revision: viewModel.revision
-                )
-                .transition(.opacity)
-                .zIndex(2.5)
-            }
-
             // In-app splash on top (zIndex 3), fading out after a beat.
             if showSplash {
                 SplashView()
@@ -99,7 +87,6 @@ public struct GameView: View {
         }
         .preferredColorScheme(settings.appearance.colorScheme)
         .animation(.easeInOut(duration: 0.2), value: navigator.showingNewGame)
-        .animation(.easeInOut(duration: 0.2), value: navigator.showingOverview)
         // Keep the scoreboard's iCloud-sync gate in step with the Settings toggle.
         .onChangeCompat(of: settings.syncScores) { scoreboard.syncEnabled = $0 }
     }

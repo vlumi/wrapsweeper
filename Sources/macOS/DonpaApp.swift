@@ -78,10 +78,9 @@ struct DonpaApp: App {
 
                 Divider()
 
-                // Overview = zoom all the way out to see the whole board; ⌘0 pairs
-                // with ⌘+/⌘− as the "fit / actual-size" slot many apps use. Escape
-                // closes the overview (its own .cancelAction button).
-                Button("Board Overview") { navigator.showingOverview = true }
+                // ⌘0 toggles the corner minimap between its min and max size — it
+                // pairs with ⌘+/⌘− as the "fit / actual-size" slot many apps use.
+                Button("Toggle Minimap Size") { navigator.toggleMinimapRequested &+= 1 }
                     .keyboardShortcut("0", modifiers: .command)
                     .disabled(modalOpen)
 

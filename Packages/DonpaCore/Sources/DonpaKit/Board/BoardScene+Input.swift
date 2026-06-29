@@ -31,6 +31,10 @@ extension BoardScene {
     /// A plain tap/click: a revealed number chords; a hidden cell follows the
     /// current input mode (reveal or flag), so in Flag mode a stray tap can't open.
     func tapAction(atScenePoint p: CGPoint) {
+        if minimapHandleHit(atScenePoint: p) {
+            toggleMinimapSize()
+            return
+        }
         if handleMinimapNavigation(atScenePoint: p) { return }
         guard let c = coord(atScenePoint: p) else { return }
         if viewModel.game.board[c].state == .revealed {
@@ -91,24 +95,30 @@ extension BoardScene {
 
     #if os(iOS)
     @objc func handlePan(_ g: UIPanGestureRecognizer) {
-        // A drag begun on the minimap scrubs the board via it for the whole gesture
-        // (don't also pan). Decided at .began so a fast drag off the map stays a scrub.
+        let sp = scenePoint(fromViewPoint: g.location(in: g.view))
+        // Classify the drag at .began and hold the mode for the whole gesture (so a
+        // fast drag off the map stays what it started as): handle → resize, else
+        // map interior → scrub, else board → pan.
         if g.state == .began {
-            scrubbingMinimap =
-                minimapImageRect != nil
-                && handleMinimapNavigation(
-                    atScenePoint: scenePoint(fromViewPoint: g.location(in: g.view)))
+            resizingMinimap = minimapHandleHit(atScenePoint: sp)
+            scrubbingMinimap = !resizingMinimap && handleMinimapNavigation(atScenePoint: sp)
             lastPan = .zero
         }
+        let ending = g.state == .ended || g.state == .cancelled
+        if resizingMinimap {
+            resizeMinimap(toScenePoint: sp)
+            if ending { resizingMinimap = false }
+            return
+        }
         if scrubbingMinimap {
-            handleMinimapNavigation(atScenePoint: scenePoint(fromViewPoint: g.location(in: g.view)))
-            if g.state == .ended || g.state == .cancelled { scrubbingMinimap = false }
+            scrubMinimap(toScenePoint: sp)  // clamps, so dragging off-edge pins to it
+            if ending { scrubbingMinimap = false }
             return
         }
         let t = g.translation(in: g.view)
         pan(byTranslation: CGPoint(x: t.x - lastPan.x, y: t.y - lastPan.y))
         lastPan = t
-        if g.state == .ended || g.state == .cancelled { panEnded() }
+        if ending { panEnded() }
     }
 
     @objc func handlePinch(_ g: UIPinchGestureRecognizer) {
@@ -162,15 +172,31 @@ extension BoardScene {
         lastDragViewPoint = p
         mouseDownViewPoint = p
         didDragInScene = false
-        // A press on the minimap recenters immediately and scrubs for the drag.
-        scrubbingMinimap = handleMinimapNavigation(atScenePoint: scenePoint(fromViewPoint: p))
+        let sp = scenePoint(fromViewPoint: p)
+        // A press on the resize handle starts a resize drag (a click-without-drag
+        // toggles min/max, handled in mouseUp). Else a press on the map recenters
+        // and scrubs for the drag.
+        resizingMinimap = minimapHandleHit(atScenePoint: sp)
+        scrubbingMinimap = !resizingMinimap && handleMinimapNavigation(atScenePoint: sp)
     }
 
     public override func mouseDragged(with event: NSEvent) {
         guard let view = view else { return }
         let p = view.convert(event.locationInWindow, from: nil)
+        if resizingMinimap {
+            // Only resize once movement clears the threshold — else a click with a
+            // hair of jitter would resize a touch AND swallow the tap-to-toggle.
+            if !didDragInScene {
+                let moved = hypot(p.x - mouseDownViewPoint.x, p.y - mouseDownViewPoint.y)
+                guard moved > Self.dragThreshold else { return }
+                didDragInScene = true
+            }
+            resizeMinimap(toScenePoint: scenePoint(fromViewPoint: p))
+            lastDragViewPoint = p
+            return
+        }
         if scrubbingMinimap {
-            handleMinimapNavigation(atScenePoint: scenePoint(fromViewPoint: p))
+            scrubMinimap(toScenePoint: scenePoint(fromViewPoint: p))  // clamps off-edge
             lastDragViewPoint = p
             return
         }
@@ -188,6 +214,12 @@ extension BoardScene {
     }
 
     public override func mouseUp(with event: NSEvent) {
+        if resizingMinimap {
+            resizingMinimap = false
+            // If it actually dragged, it resized — done. If not (a click on the
+            // caret), fall through to tapAction below, which toggles min/max.
+            if didDragInScene { return }
+        }
         if scrubbingMinimap {  // the whole drag was a minimap scrub; not a board click
             scrubbingMinimap = false
             return

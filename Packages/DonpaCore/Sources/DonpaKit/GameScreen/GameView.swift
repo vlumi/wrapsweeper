@@ -166,6 +166,7 @@ struct GameContent: View {
         .onChangeCompat(of: navigator.homeRequested) { _ in goHome() }
         .onChangeCompat(of: navigator.zoomInRequested) { _ in scene.zoom(by: 1.25) }
         .onChangeCompat(of: navigator.zoomOutRequested) { _ in scene.zoom(by: 0.8) }
+        .onChangeCompat(of: navigator.toggleMinimapRequested) { _ in scene.toggleMinimapSize() }
     }
 
     // MARK: Save / restore lifecycle
@@ -174,6 +175,9 @@ struct GameContent: View {
     /// the title), else stay on the title with the board primed to the persisted
     /// config so an immediate New Game matches the last selection.
     private func onLaunch() {
+        // Persist a minimap resize back to Settings (survives new game / restart /
+        // save-restore). The scene drives the gesture; Settings is the store.
+        scene.onMinimapScaleChange = { settings.minimapScale = Double($0) }
         // Fold each live activity-flush delta (tiles/flags/time) into the lifetime
         // totals WITHOUT counting a game played — the outcome is recorded at end.
         // Wired before any newGame below so the first flush is caught.

@@ -139,6 +139,11 @@ public final class Settings: ObservableObject {
     @Published public var showMinimap: Bool {
         didSet { defaults.set(showMinimap, forKey: showMinimapKey) }
     }
+    /// Minimap size multiplier over its base size, persisted so a resize survives
+    /// new game / restart / save-restore. The scene clamps it to a sane range.
+    @Published public var minimapScale: Double {
+        didSet { defaults.set(minimapScale, forKey: minimapScaleKey) }
+    }
     /// Sync the scoreboard across devices via iCloud. Opt-in, off by default — our
     /// own toggle, not a system grant (KVS rides on the system sign-in).
     @Published public var syncScores: Bool {
@@ -166,6 +171,7 @@ public final class Settings: ObservableObject {
     private let handednessKey = "donpa.handedness"
     private let languageKey = "donpa.language"
     private let showMinimapKey = "donpa.showMinimap"
+    private let minimapScaleKey = "donpa.minimapScale"
     private let syncScoresKey = "donpa.syncScores"
 
     public init(defaults: UserDefaults = .standard) {
@@ -186,6 +192,8 @@ public final class Settings: ObservableObject {
         // Default ON: check presence explicitly, since `bool(forKey:)` is false when
         // the key is missing.
         showMinimap = defaults.object(forKey: showMinimapKey) as? Bool ?? true
+        // Default 1.0 (base size); a stored value restores the player's last size.
+        minimapScale = defaults.object(forKey: minimapScaleKey) as? Double ?? 1.0
         syncScores = defaults.object(forKey: syncScoresKey) as? Bool ?? false
         language =
             defaults.string(forKey: languageKey).flatMap(LanguagePreference.init(rawValue:))
