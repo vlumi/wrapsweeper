@@ -6,15 +6,24 @@ import SwiftUI
 /// stays live, so the panel carries no buttons. The art is a drop-in PNG; the FX
 /// (accent glow, slam-in, record badge) are procedural.
 struct MangaPanelView: View {
+    /// Whether a loss beat the prior best clear-%, and by how much.
+    enum LossBest: Equatable {
+        case notBest  // didn't beat the prior best — no pill
+        case first  // first recorded progress on this config — no delta to show
+        case improved(by: Double)  // beat the prior best by this progress fraction
+    }
+
     enum Kind: Equatable {
         case win
-        /// A win that set a new best time (centiseconds) — gets a record badge.
-        case record(centiseconds: Int)
-        /// A loss: fraction of safe cells cleared, safe cells still unopened, and
-        /// whether it beat the prior best (the "new best %" pill). `safeRemaining`
-        /// lets the display show "N left" instead of a misleading "100%" on a
-        /// last-cell loss.
-        case loss(progress: Double, safeRemaining: Int, isBest: Bool)
+        /// A win that set a new best time. `centiseconds` is the new best; `improvedBy`
+        /// is the centiseconds shaved off the prior best, or nil on a first-ever clear
+        /// (no prior best to beat). The badge shows the improvement, not the final
+        /// time — the time is already on the timer.
+        case record(centiseconds: Int, improvedBy: Int?)
+        /// A loss: fraction of safe cells cleared, safe cells still unopened, and the
+        /// best-progress status. `safeRemaining` lets the display show "N left"
+        /// instead of a misleading "100%" on a last-cell loss.
+        case loss(progress: Double, safeRemaining: Int, best: LossBest)
 
         var isWin: Bool {
             if case .loss = self { return false }
@@ -27,7 +36,7 @@ struct MangaPanelView: View {
             switch self {
             case .win:
                 return String(localized: "Minefield cleared", bundle: .module)
-            case .record(let cs):
+            case .record(let cs, _):
                 return String(
                     localized:
                         "New record! Minefield cleared in \(TimeFormat.mmsst(centiseconds: cs))",
@@ -40,16 +49,28 @@ struct MangaPanelView: View {
         }
         /// The new-best time, if this is a record win.
         var recordCentiseconds: Int? {
-            if case .record(let cs) = self { return cs }
+            if case .record(let cs, _) = self { return cs }
+            return nil
+        }
+        /// The centiseconds improvement over the prior best, if this record win beat
+        /// an existing best (nil on a first-ever clear).
+        var recordImprovedBy: Int? {
+            if case .record(_, let by) = self { return by }
             return nil
         }
         /// The headline string for a *best* loss pill — "N left" when the player
         /// lost on the last cells (would otherwise read a misleading "100%"),
         /// otherwise the cleared percent. `nil` unless this is a new-best loss.
         var bestLossHeadline: String? {
-            if case .loss(let p, let rem, let isBest) = self, isBest {
+            if case .loss(let p, let rem, let best) = self, best != .notBest {
                 return Self.lossHeadline(p, safeRemaining: rem)
             }
+            return nil
+        }
+        /// The progress improvement over the prior best for a best loss, if there was
+        /// a prior to beat (nil on a first run or a non-best loss).
+        var lossImprovedBy: Double? {
+            if case .loss(_, _, .improved(let by)) = self { return by }
             return nil
         }
 
@@ -75,6 +96,17 @@ struct MangaPanelView: View {
                 return String(localized: "So close — \(safeRemaining) tiles left", bundle: .module)
             }
             return String(localized: "Cleared \(percent(fraction))", bundle: .module)
+        }
+
+        /// A time improvement as "−m:ss.t" (or "−s.t" under a minute) — how much was
+        /// shaved off the prior best. The minus sign reads as "faster".
+        static func timeImprovement(_ centiseconds: Int) -> String {
+            "−" + TimeFormat.mmsst(centiseconds: centiseconds)
+        }
+
+        /// A progress improvement as "+N%" (floored, so it never overstates).
+        static func progressImprovement(_ fraction: Double) -> String {
+            "+\(Int((fraction * 100).rounded(.down)))%"
         }
     }
 
@@ -164,15 +196,23 @@ struct MangaPanelView: View {
         .accessibilityLabel(Text("Close", bundle: .module))
     }
 
-    /// "New record" flourish — a tilted corner ribbon stamp.
+    /// "New record" flourish — a tilted corner ribbon stamp. Shows how much faster
+    /// than the prior best (the final time is already on the timer); a first-ever
+    /// clear has no prior to beat, so it reads as the first record instead.
     @ViewBuilder private var recordBadge: some View {
-        if let cs = kind.recordCentiseconds {
+        if kind.recordCentiseconds != nil {
             VStack(spacing: 0) {
                 // Kana headline verbatim in all languages — a manga flourish.
                 Text(verbatim: "新記録")
                     .font(.system(size: 16, weight: .black, design: .rounded))
-                Text(verbatim: TimeFormat.mmsst(centiseconds: cs))
-                    .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                if let improved = kind.recordImprovedBy {
+                    Text(verbatim: Kind.timeImprovement(improved))
+                        .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                } else {
+                    Text("first clear", bundle: .module)
+                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .textCase(.uppercase)
+                }
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 10)
@@ -188,15 +228,24 @@ struct MangaPanelView: View {
     }
 
     /// On a loss that beat the prior best %, a red corner pill mirroring the record
-    /// badge. A plain loss shows nothing.
+    /// badge. Leads with how much further than the prior best you got (+N%); the
+    /// headline % / "N left" stays as the secondary line. A first-ever run has no
+    /// prior to beat, so it just shows the headline. A plain loss shows nothing.
     @ViewBuilder private var bestLossPill: some View {
         if let headline = kind.bestLossHeadline {
             VStack(spacing: 0) {
-                Text(verbatim: headline)
-                    .font(.system(size: 17, weight: .black, design: .rounded))
-                Text("best", bundle: .module)
-                    .font(.system(size: 9, weight: .heavy, design: .rounded))
-                    .textCase(.uppercase)
+                if let improved = kind.lossImprovedBy {
+                    Text(verbatim: Kind.progressImprovement(improved))
+                        .font(.system(size: 17, weight: .black, design: .rounded))
+                    Text(verbatim: headline)
+                        .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                } else {
+                    Text(verbatim: headline)
+                        .font(.system(size: 17, weight: .black, design: .rounded))
+                    Text("best", bundle: .module)
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .textCase(.uppercase)
+                }
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 10)

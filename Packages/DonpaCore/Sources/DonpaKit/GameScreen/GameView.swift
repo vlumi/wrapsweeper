@@ -137,7 +137,11 @@ struct GameContent: View {
         }
         #endif
         .sheet(isPresented: $navigator.showingScores) {
-            ScoreboardView(scoreboard: scoreboard, settings: settings, available: windowSize)
+            // From the title (browsing) there's no current board → no "you are here"
+            // marker. In-game, mark the row for the config being played.
+            ScoreboardView(
+                scoreboard: scoreboard, settings: settings, available: windowSize,
+                currentConfigKey: navigator.showingTitle ? nil : viewModel.config.storageKey)
         }
         // Opening the scoreboard pauses a live game (flushing career activity and
         // stopping the clock); auto-resume on dismiss only if WE paused.
@@ -294,15 +298,34 @@ struct GameContent: View {
         let isWin = result.isWin
         switch result {
         case .won(let centiseconds, let config):
+            // Capture the prior best BEFORE submit() overwrites it, so the panel can
+            // show how much faster this clear was rather than the (already-on-timer)
+            // final time. No prior best → a first-ever clear (improvedBy nil).
+            let priorBest = scoreboard.best(for: config)
             let isRecord = scoreboard.submit(centiseconds, for: config)
-            kind = isRecord ? .record(centiseconds: centiseconds) : .win
+            if isRecord {
+                let improvedBy = priorBest.map { $0 - centiseconds }
+                kind = .record(centiseconds: centiseconds, improvedBy: improvedBy)
+            } else {
+                kind = .win
+            }
         case .lost:
             // Record cleared % as a consolation score; the "new best %" pill shows
-            // only when this loss beat the prior best.
+            // only when this loss beat the prior best, and by how much.
             let progress = viewModel.game.progress
+            // Prior best progress BEFORE submit overwrites it (nil = first run).
+            let priorProgress = scoreboard.bestProgress(for: viewModel.config)
             let isBest = scoreboard.submitLossProgress(progress, for: viewModel.config)
             let safeRemaining = viewModel.game.safeCellCount - viewModel.game.revealedSafeCount
-            kind = .loss(progress: progress, safeRemaining: safeRemaining, isBest: isBest)
+            let best: MangaPanelView.LossBest
+            if !isBest {
+                best = .notBest
+            } else if let prior = priorProgress {
+                best = .improved(by: max(0, progress - prior))
+            } else {
+                best = .first
+            }
+            kind = .loss(progress: progress, safeRemaining: safeRemaining, best: best)
         }
         // The finished game's OUTCOME: games-played + the mine tally (activity
         // already accrued live via flushes). minesHit = the single loss detonation;
