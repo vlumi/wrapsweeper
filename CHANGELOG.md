@@ -26,6 +26,9 @@ cross-device sync awaits a real two-device verification pass.
   redrawing in the background — on a huge board that pinned the CPU even at rest.
   Now built once: idle CPU on a big opened board drops dramatically (both iOS and
   macOS; macOS showed it worst).
+- **Lighter still while the clock runs.** The running timer now re-draws only the
+  timer readout each tick instead of the whole game chrome — a further idle-CPU and
+  battery saving (most noticeable on iOS).
 - **Toggle-side picker reads the right way.** The Left/Right control in Settings
   showed its options reversed (Right on the left); they're now in natural order.
 - **iCloud sync row is honest when signed out.** The toggle no longer turns on

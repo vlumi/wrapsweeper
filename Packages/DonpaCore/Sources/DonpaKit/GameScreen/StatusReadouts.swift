@@ -1,4 +1,18 @@
+import DonpaCore
 import SwiftUI
+
+/// The timer readout, observing the `GameClock` ON ITS OWN so the ~10×/sec tick
+/// re-renders only this little view — not the whole `GameContent` body (which the
+/// surrounding views and the board scene would otherwise re-diff 10×/sec, a real
+/// idle/battery cost, worst on iOS).
+struct TimerReadout: View {
+    @ObservedObject var clock: GameClock
+    let tint: Color
+
+    var body: some View {
+        CounterReadout.time(centiseconds: clock.elapsedCentiseconds, tint: tint)
+    }
+}
 
 /// A fixed-width LED-style readout with a leading glyph (⚑ / ⏱) — the mine count
 /// and timer. Shrinks to fit narrow windows. The glyph is meaningless to

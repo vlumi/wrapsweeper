@@ -255,6 +255,21 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertFalse(restored.isPaused, "a freshly restored game is live, not paused")
     }
 
+    /// Elapsed time now lives on `clock` (split out so the tick doesn't re-render the
+    /// whole chrome); a restore must land the saved value there, and the VM's
+    /// `elapsedCentiseconds` passthrough must reflect it.
+    func testRestoreLandsElapsedOnTheClock() {
+        let config = GameConfig.classic(.beginner)
+        var game = Game(config: config)
+        game.reveal(Coord(0, 0))  // → .playing, so the snapshot is worth saving
+        let snapshot = GameSnapshot(game: game, config: config, elapsedCentiseconds: 4242)!
+
+        let vm = GameViewModel(config: .classic(.expert))
+        vm.restore(from: snapshot)
+        XCTAssertEqual(vm.clock.elapsedCentiseconds, 4242, "restore lands elapsed on the clock")
+        XCTAssertEqual(vm.elapsedCentiseconds, 4242, "the VM passthrough mirrors the clock")
+    }
+
     func testRestoreKeepsTheInputMode() async {
         let vm = await startedGame()
         vm.inputMode = .flag  // player switched to flagging before leaving

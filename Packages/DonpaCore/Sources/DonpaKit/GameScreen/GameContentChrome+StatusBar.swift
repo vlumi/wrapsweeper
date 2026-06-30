@@ -20,8 +20,10 @@ extension GameContent {
                     configButton
                     CounterReadout.mines(viewModel.flagsRemaining, tint: palette.counter)
                     ProgressReadout(progress: viewModel.game.progress, tint: palette.counter)
-                    CounterReadout.time(
-                        centiseconds: viewModel.elapsedCentiseconds, tint: palette.counter)
+                    // Observes the clock on its own (see TimerReadout) so the 10×/sec
+                    // tick re-renders just the readout, not this whole status bar /
+                    // GameContent body.
+                    TimerReadout(clock: viewModel.clock, tint: palette.counter)
                 }
                 .lineLimit(1)
             }

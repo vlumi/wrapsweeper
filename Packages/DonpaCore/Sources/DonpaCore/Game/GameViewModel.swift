@@ -27,14 +27,27 @@ public struct GameResultEvent: Equatable, Sendable {
     public let result: GameResult
 }
 
+/// The live game clock, split out as its own observable so the ~10×/sec timer tick
+/// only re-renders the timer readout — NOT the whole `GameContent` body. (Reading
+/// the tick straight off `GameViewModel` made every view observing the VM re-render
+/// 10×/sec — wasteful, and a battery drain on iOS in particular.)
+@MainActor
+public final class GameClock: ObservableObject {
+    /// Elapsed centiseconds, from the wall clock (not a tick count) so it's exact.
+    @Published public fileprivate(set) var elapsedCentiseconds: Int = 0
+}
+
 /// Bridges the pure `Game` value type to SwiftUI/SpriteKit: owns the current
 /// game/config/timer and republishes on board change so views + scene redraw.
 @MainActor
 public final class GameViewModel: ObservableObject {
     @Published public private(set) var game: Game
     @Published public private(set) var config: GameConfig
-    /// Elapsed centiseconds, from the wall clock (not a tick count) so it's exact.
-    @Published public private(set) var elapsedCentiseconds: Int = 0
+    /// The live clock, observed on its own by the timer readout (see `GameClock`).
+    public let clock = GameClock()
+    /// Elapsed centiseconds — the live display value lives on `clock`; this mirrors
+    /// it for snapshot/restore/tests without making the VM re-publish on every tick.
+    public var elapsedCentiseconds: Int { clock.elapsedCentiseconds }
 
     /// Bumped on every state change so the scene re-renders without diffing.
     @Published public private(set) var revision: Int = 0
@@ -238,7 +251,7 @@ public final class GameViewModel: ObservableObject {
         if game.status == .playing { flushActivity() }
         if let config { self.config = config }
         game = Game(config: self.config)
-        elapsedCentiseconds = 0
+        clock.elapsedCentiseconds = 0
         lastWin = nil
         lastResult = nil
         inputMode = .reveal
@@ -312,7 +325,7 @@ public final class GameViewModel: ObservableObject {
         cameraView = snapshot.camera
         timer?.cancel()
         accumulatedCentiseconds = snapshot.elapsedCentiseconds
-        elapsedCentiseconds = snapshot.elapsedCentiseconds
+        clock.elapsedCentiseconds = snapshot.elapsedCentiseconds
         isPaused = false
         isComputing = false
         // Flag placements aren't persisted, so a resumed game only counts ones made
@@ -336,7 +349,7 @@ public final class GameViewModel: ObservableObject {
         timer = nil
         runningSince = nil
         accumulatedCentiseconds = finalCentiseconds
-        elapsedCentiseconds = finalCentiseconds
+        clock.elapsedCentiseconds = finalCentiseconds
         // Flush the final activity slice BEFORE the host records the outcome, so the
         // end record adds only games-played + win/loss + mines, not tiles/flags/time
         // again (those flow through flushes).
@@ -379,7 +392,7 @@ public final class GameViewModel: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.elapsedCentiseconds = self.currentCentiseconds()
+                self.clock.elapsedCentiseconds = self.currentCentiseconds()
             }
     }
 
@@ -394,7 +407,7 @@ public final class GameViewModel: ObservableObject {
     private func foldRunningSpan() {
         accumulatedCentiseconds = currentCentiseconds()
         runningSince = nil
-        elapsedCentiseconds = accumulatedCentiseconds
+        clock.elapsedCentiseconds = accumulatedCentiseconds
     }
 
     private func resetTimer() {
@@ -403,7 +416,7 @@ public final class GameViewModel: ObservableObject {
         accumulatedCentiseconds = 0
         runningSince = nil
         isPaused = false
-        elapsedCentiseconds = 0
+        clock.elapsedCentiseconds = 0
     }
 
     private func bump() { revision &+= 1 }
