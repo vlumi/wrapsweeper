@@ -166,6 +166,15 @@ final class GameConfigTests: XCTestCase {
 
     // MARK: Wrapped (torus) edges axis
 
+    /// Every edges case has a distinct, non-empty label (the New Game picker's
+    /// Bounded/Wrapped segments) and an id matching its rawValue.
+    func testEdgesLabelsAndIDs() {
+        let labels = BoardEdges.allCases.map(\.label)
+        XCTAssertTrue(labels.allSatisfy { !$0.isEmpty }, "each edges case has a label")
+        XCTAssertEqual(Set(labels).count, BoardEdges.allCases.count, "labels are distinct")
+        for e in BoardEdges.allCases { XCTAssertEqual(e.id, e.rawValue) }
+    }
+
     /// The `edges` axis selects the topology: bounded → square, wrapped → torus.
     func testEdgesSelectsTopology() {
         let bounded = GameConfig.modern(.s, .normal, .bounded)
