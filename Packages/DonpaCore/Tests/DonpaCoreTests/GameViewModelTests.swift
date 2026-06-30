@@ -41,6 +41,28 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertGreaterThan(vm.revision, rev0, "a fresh game bumps revision (redraw)")
     }
 
+    /// A seeded new game (the perf-harness hook) places the SAME mine layout every
+    /// time, so a profiled board is reproducible run to run; an unseeded game uses
+    /// the system generator and (almost surely) differs.
+    func testSeededNewGameIsReproducible() async {
+        let a = GameViewModel(config: .beginner)
+        a.newGame(config: .beginner, seed: 0xABCD)
+        await a.awaitPendingWork()
+        let b = GameViewModel(config: .beginner)
+        b.newGame(config: .beginner, seed: 0xABCD)
+        await b.awaitPendingWork()
+        XCTAssertEqual(
+            a.game.board.mineCoords, b.game.board.mineCoords,
+            "same seed → identical mine layout")
+
+        let c = GameViewModel(config: .beginner)
+        c.newGame(config: .beginner, seed: 0x1234)
+        await c.awaitPendingWork()
+        XCTAssertNotEqual(
+            a.game.board.mineCoords, c.game.board.mineCoords,
+            "a different seed should (almost surely) differ")
+    }
+
     func testRevealBumpsRevision() async {
         let vm = GameViewModel(config: .beginner)
         let rev0 = vm.revision

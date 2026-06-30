@@ -14,8 +14,11 @@ public enum PerfScenario: String, Sendable {
     case xxxlOpened = "xxxl-opened"
 
     /// The scenario requested on the command line, or nil for a normal launch.
-    public static var current: PerfScenario? {
-        let args = ProcessInfo.processInfo.arguments
+    public static var current: PerfScenario? { parse(ProcessInfo.processInfo.arguments) }
+
+    /// Pure parse of `-perf-scenario <name>` from an argument list (split out from
+    /// `current` so it's testable without touching the process-global arguments).
+    static func parse(_ args: [String]) -> PerfScenario? {
         guard let i = args.firstIndex(of: "-perf-scenario"), i + 1 < args.count else {
             return nil
         }
