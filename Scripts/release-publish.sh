@@ -121,7 +121,17 @@ if ! gh pr checks "$rel_branch" --watch --fail-fast; then
 fi
 
 say "Confirming merge…"
-state="$(gh pr view "$rel_branch" --json state --jq .state)"
-[ "$state" = "MERGED" ] || die "PR is '$state', not MERGED (auto-merge may need a review). Re-run the tag + distribute steps once it merges."
+# Auto-merge is ASYNC: GitHub performs the merge a few seconds AFTER checks go
+# green, so a single immediate check races ahead and sees OPEN. Poll until MERGED
+# (or give up after ~60s, which would mean something really is blocking it, e.g. a
+# required review). The later steps re-derive from main, so a timeout here is
+# recoverable by simply re-running `make release`.
+state=""
+for _ in $(seq 1 20); do
+    state="$(gh pr view "$rel_branch" --json state --jq .state)"
+    [ "$state" = "MERGED" ] && break
+    sleep 3
+done
+[ "$state" = "MERGED" ] || die "PR is '$state' after waiting, not MERGED (a required review may be blocking auto-merge). Once it merges, re-run \`make release\` — it detects the merged-but-untagged build and resumes at the tag step."
 
 echo "✓ published: v${new_version} build ${new_build} merged to main."
