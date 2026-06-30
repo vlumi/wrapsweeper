@@ -232,7 +232,7 @@ public final class GameViewModel: ObservableObject {
         }
     }
 
-    public func newGame(config: GameConfig? = nil) {
+    public func newGame(config: GameConfig? = nil, seed: UInt64? = nil) {
         // Flush the outgoing game's activity before discarding it, so abandoning a
         // dug-into game still counts. (A finished game already flushed at end.)
         if game.status == .playing { flushActivity() }
@@ -252,17 +252,24 @@ public final class GameViewModel: ObservableObject {
         resetTimer()
         gameID &+= 1
         bump()
-        armBoard()
+        armBoard(seed: seed)
     }
 
     /// Pre-place mines off the main thread right after a new game, so the heavy
     /// placement on a huge board happens while the player looks at the fresh board,
     /// not on their first tap (the first reveal then only relocates mines under the
     /// click). The empty board shows immediately, gated by `isComputing` while arming.
-    private func armBoard() {
+    /// `seed` (perf harness only) makes mine placement deterministic so a profiled
+    /// board is identical run to run; nil uses the system generator (normal play).
+    private func armBoard(seed: UInt64? = nil) {
         computeOffMain({ game in
-            var rng = SystemRandomNumberGenerator()
-            game.placeMinesEagerly(using: &rng)
+            if let seed {
+                var rng = SeededGenerator(seed: seed)
+                game.placeMinesEagerly(using: &rng)
+            } else {
+                var rng = SystemRandomNumberGenerator()
+                game.placeMinesEagerly(using: &rng)
+            }
         })
     }
 

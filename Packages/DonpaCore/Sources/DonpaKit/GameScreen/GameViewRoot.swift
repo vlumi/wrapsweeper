@@ -6,12 +6,24 @@ import SwiftUI
 /// (which owns all board input natively). `.preferredColorScheme` is applied HERE
 /// so the descendant `GameContent` can read the resolved scheme — a view can't
 /// observe a scheme it forces on itself, so the read must be below the modifier.
+/// Owns the long-lived `BoardScene` so SwiftUI builds it exactly once. `@State`'s
+/// `initialValue:` is EAGER — it ran `BoardScene(viewModel:)` on every `GameView.init`,
+/// and `GameView` re-inits ~10×/s (the timer republishes `elapsedCentiseconds`), so
+/// the app churned out ~one throwaway scene per tick and could leave one leaked,
+/// still rendering. `@StateObject`'s autoclosure is evaluated once, so the scene is
+/// constructed a single time regardless of how often the view re-inits.
+final class SceneHolder: ObservableObject {
+    let scene: BoardScene
+    init(viewModel: GameViewModel) { scene = BoardScene(viewModel: viewModel) }
+}
+
 public struct GameView: View {
     @StateObject private var viewModel: GameViewModel
     @StateObject private var scoreboard: Scoreboard
     @StateObject private var settings: Settings
     @ObservedObject private var navigator: Navigator
-    @State private var scene: BoardScene
+    @StateObject private var sceneHolder: SceneHolder
+    private var scene: BoardScene { sceneHolder.scene }
     /// Brief in-app splash mirroring the OS launch image (which can't be delayed,
     /// being pre-process) so the hand-off into the title is seamless.
     @State private var showSplash = true
@@ -37,7 +49,8 @@ public struct GameView: View {
         _scoreboard = StateObject(wrappedValue: scoreboard)
         _settings = StateObject(wrappedValue: settings)
         _navigator = ObservedObject(wrappedValue: navigator)
-        _scene = State(initialValue: BoardScene(viewModel: viewModel))
+        // Autoclosure → BoardScene is built once, not on every re-init (see SceneHolder).
+        _sceneHolder = StateObject(wrappedValue: SceneHolder(viewModel: viewModel))
     }
 
     public var body: some View {
