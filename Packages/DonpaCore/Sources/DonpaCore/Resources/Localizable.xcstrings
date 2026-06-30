@@ -154,6 +154,23 @@
         }
       }
     },
+    "Bounded" : {
+      "comment" : "Board edges axis: a normal square board with hard edges. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Reunallinen"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "通常"
+          }
+        }
+      }
+    },
     "Clear your evening" : {
       "comment" : "Size L tagline (playful, takes a while). NEEDS REVIEW: ja\/fi.",
       "localizations" : {
@@ -508,6 +525,23 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "古参兵"
+          }
+        }
+      }
+    },
+    "Wrapped" : {
+      "comment" : "Board edges axis: edges wrap around (torus). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Kiertyvä"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ループ"
           }
         }
       }

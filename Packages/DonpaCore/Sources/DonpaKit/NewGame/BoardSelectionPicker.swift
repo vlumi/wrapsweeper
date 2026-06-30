@@ -57,6 +57,14 @@ struct BoardSelectionPicker: View {
                     index: sizeIndex,
                     detail: settings.modernSize.detail,
                     tagline: settings.modernSize.tagline)
+                // Row 3: edges (bounded square vs wrapped torus). Modern only.
+                Picker("Edges", selection: $settings.modernEdges) {
+                    ForEach(BoardEdges.allCases) { Text(verbatim: $0.label).tag($0) }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .modifier(FocusRing(focused: focusedRow == 3))
+                .onChange(of: settings.modernEdges) { _ in onFocusRow?(3) }
             }
         }
     }

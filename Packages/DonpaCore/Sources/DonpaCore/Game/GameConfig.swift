@@ -175,10 +175,19 @@ public enum Density: String, CaseIterable, Sendable, Codable {
 /// Topology axes — one value each ships now; named in the storage key for
 /// forward-compatibility.
 public enum BoardShape: String, Sendable { case square = "sq" }
-public enum BoardEdges: String, Sendable, Codable {
+public enum BoardEdges: String, Sendable, Codable, CaseIterable, Identifiable {
     case bounded
     /// Edges wrap (torus) — `WrappedSquareTopology`. Modern boards only.
     case wrapped
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .bounded: return String(localized: "Bounded", bundle: .module)
+        case .wrapped: return String(localized: "Wrapped", bundle: .module)
+        }
+    }
 }
 
 public enum GameConfig: Hashable, Sendable {

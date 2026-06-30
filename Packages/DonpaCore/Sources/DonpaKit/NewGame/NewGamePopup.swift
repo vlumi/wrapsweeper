@@ -87,7 +87,7 @@ struct NewGamePopup: View {
         switch key {
         case .up: focusedRow = max(0, (focusedRow ?? 0) - 1)
         case .down:
-            let rows = settings.mode == .classic ? 2 : 3
+            let rows = settings.mode == .classic ? 2 : 4  // modern: mode, density, size, edges
             focusedRow = min(rows - 1, (focusedRow ?? -1) + 1)
         case .left: cycleSelection(in: focusedRow ?? 0, by: -1)
         case .right: cycleSelection(in: focusedRow ?? 0, by: 1)
@@ -189,8 +189,10 @@ struct NewGamePopup: View {
             settings.classicPreset = Self.stepped(settings.classicPreset, by: step)
         case (.modern, 1):
             settings.modernDensity = Self.stepped(settings.modernDensity, by: step)
-        case (.modern, _):
+        case (.modern, 2):
             settings.modernSize = Self.stepped(settings.modernSize, by: step)
+        case (.modern, _):  // row 3: edges
+            settings.modernEdges = Self.stepped(settings.modernEdges, by: step)
         }
     }
 

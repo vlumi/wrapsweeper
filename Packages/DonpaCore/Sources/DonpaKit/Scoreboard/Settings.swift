@@ -130,6 +130,11 @@ public final class Settings: ObservableObject {
     @Published public var modernDensity: Density {
         didSet { defaults.set(modernDensity.rawValue, forKey: densityKey) }
     }
+    /// Edges for Modern boards: bounded (square) or wrapped (torus). Classic is
+    /// always bounded.
+    @Published public var modernEdges: BoardEdges {
+        didSet { defaults.set(modernEdges.rawValue, forKey: edgesKey) }
+    }
     @Published public var classicPreset: ClassicPreset {
         didSet { defaults.set(classicPreset.rawValue, forKey: presetKey) }
     }
@@ -169,6 +174,7 @@ public final class Settings: ObservableObject {
     private let modeKey = "donpa.mode"
     private let sizeKey = "donpa.modernSize"
     private let densityKey = "donpa.modernDensity"
+    private let edgesKey = "donpa.modernEdges"
     private let presetKey = "donpa.classicPreset"
     private let handednessKey = "donpa.handedness"
     private let languageKey = "donpa.language"
@@ -187,6 +193,8 @@ public final class Settings: ObservableObject {
         modernSize = defaults.string(forKey: sizeKey).flatMap(BoardSize.init(rawValue:)) ?? .s
         modernDensity =
             defaults.string(forKey: densityKey).flatMap(Density.init(rawValue:)) ?? .normal
+        modernEdges =
+            defaults.string(forKey: edgesKey).flatMap(BoardEdges.init(rawValue:)) ?? .bounded
         classicPreset =
             defaults.string(forKey: presetKey).flatMap(ClassicPreset.init(rawValue:)) ?? .beginner
         handedness =
@@ -206,9 +214,7 @@ public final class Settings: ObservableObject {
     public var currentConfig: GameConfig {
         switch mode {
         case .classic: return .classic(classicPreset)
-        // Edges default to bounded here; the New Game picker's edges choice is wired
-        // in a follow-up (this PR is config/topology plumbing only).
-        case .modern: return .modern(modernSize, modernDensity, .bounded)
+        case .modern: return .modern(modernSize, modernDensity, modernEdges)
         }
     }
 }
