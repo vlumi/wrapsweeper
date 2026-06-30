@@ -32,6 +32,9 @@ public final class Scoreboard: ObservableObject {
     }
     /// Sync on AND iCloud reachable — for the status row.
     public var isCloudActive: Bool { sync.isCloudActive }
+    /// iCloud reachable (signed in), independent of the sync preference — so the UI
+    /// can refuse to enable sync when it couldn't work.
+    public var isCloudAvailable: Bool { sync.isCloudAvailable }
     /// Pull + re-merge from the cloud (call on foreground).
     public func refreshFromCloud() { sync.refreshFromCloud() }
 

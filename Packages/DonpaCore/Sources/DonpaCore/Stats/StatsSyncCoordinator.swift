@@ -43,6 +43,10 @@ final class StatsSyncCoordinator {
     /// Sync on AND iCloud reachable — for the status row.
     var isCloudActive: Bool { syncEnabled && (cloud?.isAvailable ?? false) }
 
+    /// Whether iCloud is reachable at all (signed in), independent of the sync
+    /// preference — so the UI can refuse to enable sync when it couldn't work.
+    var isCloudAvailable: Bool { cloud?.isAvailable ?? false }
+
     init(
         cloud: (any CloudStatsStore)?,
         deviceID: String,

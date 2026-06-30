@@ -1081,6 +1081,23 @@
         }
       }
     },
+    "Sign in to iCloud to sync" : {
+      "comment" : "Sync status (iOS): on-device-only because signed out — plain guidance, not tappable (iOS can't deep-link to iCloud sign-in). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Synkronoi kirjautumalla iCloudiin"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "同期するにはiCloudにサインイン"
+          }
+        }
+      }
+    },
     "Sign into iCloud" : {
       "comment" : "Sync status: on but signed out — tappable nudge (short). NEEDS REVIEW: ja\/fi.",
       "localizations" : {

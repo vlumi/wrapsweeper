@@ -23,6 +23,9 @@ cross-device sync awaits a real two-device verification pass.
 
 - **Toggle-side picker reads the right way.** The Left/Right control in Settings
   showed its options reversed (Right on the left); they're now in natural order.
+- **iCloud sync row is honest when signed out.** The toggle no longer turns on
+  when iCloud isn't available (it can't sync), and on iOS the status is plain
+  guidance to sign in rather than a link that just opened the app's own settings.
 
 ### build 8
 
