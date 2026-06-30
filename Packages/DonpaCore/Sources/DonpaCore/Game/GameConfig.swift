@@ -175,15 +175,23 @@ public enum Density: String, CaseIterable, Sendable, Codable {
 /// Topology axes — one value each ships now; named in the storage key for
 /// forward-compatibility.
 public enum BoardShape: String, Sendable { case square = "sq" }
-public enum BoardEdges: String, Sendable { case bounded }
+public enum BoardEdges: String, Sendable, Codable {
+    case bounded
+    /// Edges wrap (torus) — `WrappedSquareTopology`. Modern boards only.
+    case wrapped
+}
 
-public enum GameConfig: Hashable, Sendable, Codable {
+public enum GameConfig: Hashable, Sendable {
     case classic(ClassicPreset)
-    case modern(BoardSize, Density)
+    case modern(BoardSize, Density, BoardEdges)
 
-    // Square + bounded for every shipping config; future variants add cases.
+    /// Square for every shipping config (hex is a later axis).
     public var shape: BoardShape { .square }
-    public var edges: BoardEdges { .bounded }
+    /// Bounded for Classic; the chosen edges for Modern.
+    public var edges: BoardEdges {
+        if case .modern(_, _, let edges) = self { return edges }
+        return .bounded
+    }
 
     public var width: Int { dims.width }
     public var height: Int { dims.height }
@@ -193,18 +201,20 @@ public enum GameConfig: Hashable, Sendable, Codable {
         switch self {
         case .classic(let preset):
             return preset.dimensions
-        case .modern(let size, let density):
+        case .modern(let size, let density, _):
             let side = size.side
             let mines = Int((Double(side * side) * density.fraction).rounded())
             return BoardDimensions(width: side, height: side, mines: mines)
         }
     }
 
-    /// The board geometry to play on. Square + bounded today; the shape/edges
-    /// axes select other topologies later (all `RectangularTopology`, which
-    /// `Board` requires for flat storage).
+    /// The board geometry to play on, selected by the `edges` axis (all
+    /// `RectangularTopology`, which `Board` requires for flat storage).
     public var topology: any RectangularTopology {
-        BoundedSquareTopology(width: width, height: height)
+        switch edges {
+        case .bounded: return BoundedSquareTopology(width: width, height: height)
+        case .wrapped: return WrappedSquareTopology(width: width, height: height)
+        }
     }
 
     /// Human-facing label; modern configs read as "Size · Density".
@@ -212,20 +222,20 @@ public enum GameConfig: Hashable, Sendable, Codable {
         switch self {
         case .classic(let preset):
             return preset.label
-        case .modern(let size, let density):
+        case .modern(let size, let density, _):
             return "\(size.label) · \(density.label)"
         }
     }
 
     /// The Modern size, or nil for a Classic config.
     public var modernSize: BoardSize? {
-        if case .modern(let size, _) = self { return size }
+        if case .modern(let size, _, _) = self { return size }
         return nil
     }
 
     /// The Modern difficulty tier, or nil for a Classic config.
     public var modernDensity: Density? {
-        if case .modern(_, let density) = self { return density }
+        if case .modern(_, let density, _) = self { return density }
         return nil
     }
 
@@ -247,13 +257,60 @@ public enum GameConfig: Hashable, Sendable, Codable {
     /// All configs offered in each mode, in display order.
     public static let classicConfigs: [GameConfig] =
         ClassicPreset.allCases.map(GameConfig.classic)
+    /// The bounded Modern configs, in display order. (The wrapped variants are a
+    /// separate axis surfaced in the New Game picker, not enumerated here.)
     public static let modernConfigs: [GameConfig] =
         BoardSize.allCases.flatMap { size in
-            Density.allCases.map { GameConfig.modern(size, $0) }
+            Density.allCases.map { GameConfig.modern(size, $0, .bounded) }
         }
 
     // Convenience shortcuts for the classic presets.
     public static let beginner = GameConfig.classic(.beginner)
     public static let intermediate = GameConfig.classic(.intermediate)
     public static let expert = GameConfig.classic(.expert)
+}
+
+// Hand-written `Codable` matching Swift's synthesized enum format
+// (`{"classic":{"_0":…}}` / `{"modern":{"_0":…,"_1":…,"_2":…}}`), but with the
+// new `edges` (`_2`) DEFAULTED to `.bounded` when absent — so a saved game written
+// before wrapped boards existed still decodes (as a bounded board) instead of
+// failing the whole snapshot. Keep `_0`/`_1` exactly as before.
+extension GameConfig: Codable {
+    private enum CaseKey: String, CodingKey { case classic, modern }
+    // Wire keys are `_0`/`_1`/`_2` to match Swift's synthesized enum format (so
+    // pre-existing saves still decode); the Swift identifiers are named to satisfy
+    // the linter while the rawValue keeps the on-disk key unchanged.
+    private enum ClassicKey: String, CodingKey { case preset = "_0" }
+    private enum ModernKey: String, CodingKey {
+        case size = "_0", density = "_1", edges = "_2"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        if let classic = try? c.nestedContainer(keyedBy: ClassicKey.self, forKey: .classic) {
+            self = .classic(try classic.decode(ClassicPreset.self, forKey: .preset))
+        } else if let modern = try? c.nestedContainer(keyedBy: ModernKey.self, forKey: .modern) {
+            let size = try modern.decode(BoardSize.self, forKey: .size)
+            let density = try modern.decode(Density.self, forKey: .density)
+            let edges = try modern.decodeIfPresent(BoardEdges.self, forKey: .edges) ?? .bounded
+            self = .modern(size, density, edges)
+        } else {
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "unknown GameConfig case"))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        switch self {
+        case .classic(let preset):
+            var classic = c.nestedContainer(keyedBy: ClassicKey.self, forKey: .classic)
+            try classic.encode(preset, forKey: .preset)
+        case .modern(let size, let density, let edges):
+            var modern = c.nestedContainer(keyedBy: ModernKey.self, forKey: .modern)
+            try modern.encode(size, forKey: .size)
+            try modern.encode(density, forKey: .density)
+            try modern.encode(edges, forKey: .edges)
+        }
+    }
 }

@@ -60,7 +60,7 @@ final class GameSnapshotTests: XCTestCase {
     }
 
     func testModernConfigRoundTrips() throws {
-        let config = GameConfig.modern(.s, .normal)
+        let config = GameConfig.modern(.s, .normal, .bounded)
         var game = Game(config: config)
         game.reveal(Coord(0, 0))
         let snap = try XCTUnwrap(GameSnapshot(game: game, config: config, elapsedCentiseconds: 0))
