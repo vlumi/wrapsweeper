@@ -17,17 +17,17 @@ final class GameConfigTests: XCTestCase {
     func testModernMineCounts() {
         // S = 16×16 = 256 cells. easy .10→26, normal .13→33, hard .16→41,
         // brutal .19→49, insane .22→56.
-        XCTAssertEqual(GameConfig.modern(.s, .easy).mineCount, 26)
-        XCTAssertEqual(GameConfig.modern(.s, .normal).mineCount, 33)
-        XCTAssertEqual(GameConfig.modern(.s, .hard).mineCount, 41)
-        XCTAssertEqual(GameConfig.modern(.s, .brutal).mineCount, 49)
-        XCTAssertEqual(GameConfig.modern(.s, .insane).mineCount, 56)
+        XCTAssertEqual(GameConfig.modern(.s, .easy, .bounded).mineCount, 26)
+        XCTAssertEqual(GameConfig.modern(.s, .normal, .bounded).mineCount, 33)
+        XCTAssertEqual(GameConfig.modern(.s, .hard, .bounded).mineCount, 41)
+        XCTAssertEqual(GameConfig.modern(.s, .brutal, .bounded).mineCount, 49)
+        XCTAssertEqual(GameConfig.modern(.s, .insane, .bounded).mineCount, 56)
         // Square sizes across the ladder (XS=9, M=25, L=50, XL=100, XXL=300, XXXL=1000).
-        XCTAssertEqual(tuple(GameConfig.modern(.xs, .easy)).prefix(2), [9, 9])
-        XCTAssertEqual(tuple(GameConfig.modern(.m, .easy)).prefix(2), [25, 25])
-        XCTAssertEqual(tuple(GameConfig.modern(.l, .easy)).prefix(2), [50, 50])
-        XCTAssertEqual(tuple(GameConfig.modern(.xxl, .easy)).prefix(2), [300, 300])
-        XCTAssertEqual(tuple(GameConfig.modern(.xxxl, .easy)).prefix(2), [1000, 1000])
+        XCTAssertEqual(tuple(GameConfig.modern(.xs, .easy, .bounded)).prefix(2), [9, 9])
+        XCTAssertEqual(tuple(GameConfig.modern(.m, .easy, .bounded)).prefix(2), [25, 25])
+        XCTAssertEqual(tuple(GameConfig.modern(.l, .easy, .bounded)).prefix(2), [50, 50])
+        XCTAssertEqual(tuple(GameConfig.modern(.xxl, .easy, .bounded)).prefix(2), [300, 300])
+        XCTAssertEqual(tuple(GameConfig.modern(.xxxl, .easy, .bounded)).prefix(2), [1000, 1000])
     }
 
     func testEveryModernConfigLeavesASafeCell() {
@@ -49,7 +49,7 @@ final class GameConfigTests: XCTestCase {
         // S·Hard = 16×16, 41 mines, square + bounded. The key is geometry-based,
         // so renaming the size case (medium→s) leaves existing scores' keys intact.
         XCTAssertEqual(
-            GameConfig.modern(.s, .hard).storageKey, "v1|modern|sq|bounded|16x16|m41")
+            GameConfig.modern(.s, .hard, .bounded).storageKey, "v1|modern|sq|bounded|16x16|m41")
     }
 
     func testEveryConfigHasAUniqueStorageKey() {
@@ -66,8 +66,8 @@ final class GameConfigTests: XCTestCase {
     func testKeyIsGeometryBoundNotTierBound() {
         // Two modern configs with the same density token but different sizes
         // must have different keys (because geometry differs).
-        let xs = GameConfig.modern(.xs, .normal).storageKey
-        let m = GameConfig.modern(.m, .normal).storageKey
+        let xs = GameConfig.modern(.xs, .normal, .bounded).storageKey
+        let m = GameConfig.modern(.m, .normal, .bounded).storageKey
         XCTAssertNotEqual(xs, m)
         // And the key contains the concrete geometry, not the word "normal".
         XCTAssertTrue(xs.contains("9x9"))
@@ -79,7 +79,7 @@ final class GameConfigTests: XCTestCase {
     func testLabels() {
         XCTAssertEqual(GameConfig.classic(.beginner).label, "Beginner")
         // Size label is the shirt-size letter; density is a sapper tier.
-        XCTAssertEqual(GameConfig.modern(.s, .hard).label, "S · Veteran")
+        XCTAssertEqual(GameConfig.modern(.s, .hard, .bounded).label, "S · Veteran")
     }
 
     // MARK: Rank insignia + modern accessors
@@ -97,7 +97,7 @@ final class GameConfigTests: XCTestCase {
     }
 
     func testModernAccessors() {
-        let modern = GameConfig.modern(.m, .brutal)
+        let modern = GameConfig.modern(.m, .brutal, .bounded)
         XCTAssertEqual(modern.modernSize, .m)
         XCTAssertEqual(modern.modernDensity, .brutal)
         // Classic configs have neither.
@@ -113,11 +113,11 @@ final class GameConfigTests: XCTestCase {
     // MARK: A config builds a playable, winnable game (integration sanity)
 
     func testModernConfigProducesAPlayableGame() {
-        var game = Game(config: .modern(.xs, .easy))
+        var game = Game(config: .modern(.xs, .easy, .bounded))
         var rng = SeededRNG(seed: 3)
         game.reveal(Coord(4, 4), using: &rng)
         XCTAssertNotEqual(game.status, .lost, "first click must be safe")
-        XCTAssertEqual(game.mineCount, GameConfig.modern(.xs, .easy).mineCount)
+        XCTAssertEqual(game.mineCount, GameConfig.modern(.xs, .easy, .bounded).mineCount)
     }
 
     private func tuple(_ c: GameConfig) -> [Int] { [c.width, c.height, c.mineCount] }
@@ -162,5 +162,51 @@ final class GameConfigTests: XCTestCase {
             Set(ClassicPreset.allCases.map(\.tagline)).count, ClassicPreset.allCases.count)
         XCTAssertEqual(Set(BoardSize.allCases.map(\.tagline)).count, BoardSize.allCases.count)
         XCTAssertEqual(Set(Density.allCases.map(\.tagline)).count, Density.allCases.count)
+    }
+
+    // MARK: Wrapped (torus) edges axis
+
+    /// The `edges` axis selects the topology: bounded → square, wrapped → torus.
+    func testEdgesSelectsTopology() {
+        let bounded = GameConfig.modern(.s, .normal, .bounded)
+        let wrapped = GameConfig.modern(.s, .normal, .wrapped)
+        XCTAssertTrue(bounded.topology is BoundedSquareTopology)
+        XCTAssertTrue(wrapped.topology is WrappedSquareTopology)
+        XCTAssertEqual(bounded.edges, .bounded)
+        XCTAssertEqual(wrapped.edges, .wrapped)
+        // Classic is always bounded.
+        XCTAssertEqual(GameConfig.classic(.beginner).edges, .bounded)
+    }
+
+    /// Bounded and wrapped key distinctly (so their scores never collide), and the
+    /// wrapped key carries the `wrapped` edges token.
+    func testEdgesDistinguishStorageKey() {
+        let bounded = GameConfig.modern(.s, .normal, .bounded).storageKey
+        let wrapped = GameConfig.modern(.s, .normal, .wrapped).storageKey
+        XCTAssertNotEqual(bounded, wrapped)
+        XCTAssertTrue(wrapped.contains("wrapped"), wrapped)
+        XCTAssertTrue(bounded.contains("bounded"), bounded)
+    }
+
+    /// A config round-trips through Codable with its edges intact.
+    func testCodableRoundTripPreservesEdges() throws {
+        for cfg in [
+            GameConfig.modern(.m, .hard, .wrapped),
+            GameConfig.modern(.l, .easy, .bounded),
+            GameConfig.classic(.expert),
+        ] {
+            let data = try JSONEncoder().encode(cfg)
+            let back = try JSONDecoder().decode(GameConfig.self, from: data)
+            XCTAssertEqual(back, cfg)
+        }
+    }
+
+    /// BACK-COMPAT: a save written before the edges axis existed (modern config with
+    /// no `_2` field) must still decode — as a bounded board, not a failure.
+    func testDecodesLegacyModernWithoutEdgesAsBounded() throws {
+        // The pre-wrapped synthesized format: {"modern":{"_0":<size>,"_1":<density>}}.
+        let legacy = #"{"modern":{"_0":"m","_1":"hard"}}"#
+        let cfg = try JSONDecoder().decode(GameConfig.self, from: Data(legacy.utf8))
+        XCTAssertEqual(cfg, .modern(.m, .hard, .bounded), "missing edges → bounded")
     }
 }

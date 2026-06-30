@@ -206,7 +206,9 @@ public final class Settings: ObservableObject {
     public var currentConfig: GameConfig {
         switch mode {
         case .classic: return .classic(classicPreset)
-        case .modern: return .modern(modernSize, modernDensity)
+        // Edges default to bounded here; the New Game picker's edges choice is wired
+        // in a follow-up (this PR is config/topology plumbing only).
+        case .modern: return .modern(modernSize, modernDensity, .bounded)
         }
     }
 }
