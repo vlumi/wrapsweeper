@@ -271,11 +271,15 @@ extension BoardScene {
     func playWin(reduceMotion: Bool) {
         let cell = layout.cellSize
         let board = layout.boardSize(width: viewModel.boardWidth, height: viewModel.boardHeight)
-        let centre = CGPoint(x: board.width / 2, y: board.height / 2)
+        let boardCentre = CGPoint(x: board.width / 2, y: board.height / 2)
+        // The ripple radiates from where the player is LOOKING (camera/screen centre),
+        // not the board's geometric middle — on a wrapped board the middle can be
+        // off-screen, and even bounded this reads better when zoomed/panned.
+        let centre = cameraNode.position
 
         if reduceMotion {
             let overlay = SKShapeNode(rectOf: CGSize(width: board.width, height: board.height))
-            overlay.position = centre
+            overlay.position = boardCentre
             overlay.fillColor = SKColor.green.withAlphaComponent(0.18)
             overlay.lineWidth = 0
             overlay.blendMode = .add
@@ -294,7 +298,8 @@ extension BoardScene {
         let gameBoard = viewModel.game.board
         let range = visibleRange()
         range.forEach { c in
-            guard gameBoard[c].state == .revealed else { return }
+            // `c` is the screen position; read the logical cell it shows (wrap-safe).
+            guard gameBoard[displayCoord(c)].state == .revealed else { return }
             let p = layout.center(of: c)
             let delay = hypot(p.x - centre.x, p.y - centre.y) / speed
             effectsLayer.addChild(winRipple(at: p, size: cell, delay: delay))

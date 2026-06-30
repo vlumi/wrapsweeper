@@ -300,19 +300,7 @@ extension BoardScene {
             x: -halfW + pad + mm.width / 2 + framePad,
             y: halfH - pad - mm.height / 2 - framePad)
 
-        // Viewport rectangle mapped onto the minimap image. `SKTexture(cgImage:)`
-        // renders board row 0 at the minimap BOTTOM, so map board-y bottom-up.
-        let cellW = mm.width / CGFloat(boardW)
-        let cellH = mm.height / CGFloat(boardH)
-        let rw = CGFloat(range.maxX - range.minX + 1) * cellW
-        let rh = CGFloat(range.maxY - range.minY + 1) * cellH
-        minimapViewport.path = CGPath(
-            rect: CGRect(x: -rw / 2, y: -rh / 2, width: rw, height: rh), transform: nil)
-        let midX = CGFloat(range.minX + range.maxX) / 2 + 0.5
-        let midY = CGFloat(range.minY + range.maxY) / 2 + 0.5
-        minimapViewport.position = CGPoint(
-            x: -mm.width / 2 + midX * cellW,
-            y: -mm.height / 2 + midY * cellH)
+        layoutMinimapViewport(mm: mm, boardW: boardW, boardH: boardH, range: range)
 
         // The minimap image's rect in CAMERA space (container pos + local image
         // half-extents) — the hit area for tap/drag-to-navigate.
@@ -341,6 +329,50 @@ extension BoardScene {
             // horizontal arm: spans from right of the corner left past the arm end
             CGRect(x: cornerX - arm - t / 2, y: cornerY - t / 2, width: arm + t, height: t),
         ]
+    }
+
+    /// Place the "you are here" viewport rect on the minimap. Bounded draws a single
+    /// rect at the visible range; WRAPPED tiles it across the minimap edges (modulo
+    /// the board) so the box splits at the seam to match the torus.
+    private func layoutMinimapViewport(mm: CGSize, boardW: Int, boardH: Int, range: CellRange) {
+        guard let minimapViewport else { return }
+        let cellW = mm.width / CGFloat(boardW)
+        let cellH = mm.height / CGFloat(boardH)
+        let rw = CGFloat(range.maxX - range.minX + 1) * cellW
+        let rh = CGFloat(range.maxY - range.minY + 1) * cellH
+        let midX = CGFloat(range.minX + range.maxX) / 2 + 0.5
+        let midY = CGFloat(range.minY + range.maxY) / 2 + 0.5
+
+        guard isWrapped else {
+            minimapViewport.path = CGPath(
+                rect: CGRect(x: -rw / 2, y: -rh / 2, width: rw, height: rh), transform: nil)
+            minimapViewport.position = CGPoint(
+                x: -mm.width / 2 + midX * cellW, y: -mm.height / 2 + midY * cellH)
+            return
+        }
+        // Torus: centre modulo the board, tile ±one board span per axis (enough — we
+        // never show more than one board-worth), clip to the minimap, cap at its size.
+        func mod(_ v: CGFloat, _ m: CGFloat) -> CGFloat {
+            let r = v.truncatingRemainder(dividingBy: m)
+            return r < 0 ? r + m : r
+        }
+        let cx = mod(midX * cellW, mm.width)
+        let cy = mod(midY * cellH, mm.height)
+        let bw = min(rw, mm.width)
+        let bh = min(rh, mm.height)
+        let full = CGRect(x: -mm.width / 2, y: -mm.height / 2, width: mm.width, height: mm.height)
+        let path = CGMutablePath()
+        for ox in [-mm.width, 0, mm.width] {
+            for oy in [-mm.height, 0, mm.height] {
+                let box = CGRect(
+                    x: -mm.width / 2 + cx + ox - bw / 2,
+                    y: -mm.height / 2 + cy + oy - bh / 2, width: bw, height: bh)
+                let clipped = box.intersection(full)
+                if !clipped.isNull { path.addRect(clipped) }
+            }
+        }
+        minimapViewport.path = path
+        minimapViewport.position = .zero
     }
 
     /// Scene point → camera-local (camera children ignore the camera scale).
