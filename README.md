@@ -8,10 +8,11 @@
 "epic" variants from day one — huge zoomable maps, wrapped/torus edges, and hex
 grids — added later without touching the game logic.
 
-**v0.1.0** (classic mode) shipped to TestFlight; **v0.2.0** (big boards +
-cross-device sync) is in progress. See [CHANGELOG.md](CHANGELOG.md) for the
-version history, [ROADMAP.md](ROADMAP.md) for the path to v1.0, and
-[ARCHITECTURE.md](ARCHITECTURE.md) for the key design decisions.
+**v0.1.0** (classic mode) and **v0.2.0** (big boards + cross-device sync) shipped
+to TestFlight; **v0.3.0** (board variants) is in progress. See
+[CHANGELOG.md](CHANGELOG.md) for the version history, [ROADMAP.md](ROADMAP.md) for
+the path to v1.0, and [ARCHITECTURE.md](ARCHITECTURE.md) for the key design
+decisions.
 
 ## Contents
 
@@ -155,9 +156,12 @@ in TestFlight beta; releases ship as rolling per-platform betas on iOS and macOS
 - **New:** lifetime career stats (games, tiles, flags, mines, playtime) in a
   reworked one-sheet Service Record.
 - **New:** bigger Modern boards — the size ladder now runs XS to XXXL (up to a
-  million cells), panned/zoomed with a minimap.
+  million cells), panned/zoomed with a resizable corner minimap you can tap or
+  drag to jump around.
 - **New:** the New Game difficulty/size pickers became a swipeable carousel; a
   resumed game restores your camera position; macOS gained mouse/keyboard zoom.
+- **New:** an over-flagged number (more flags around it than its count) gets a
+  faint ring — a quiet nudge that you've slipped, without saying which flag.
 - **Changed:** huge boards stay responsive (reveal, mine placement, and the
   minimap compute off the main thread; the first tap is always instant).
 - **Fixed:** the cleared-% and loss "best %" now floor consistently; flags

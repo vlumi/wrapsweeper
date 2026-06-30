@@ -55,7 +55,7 @@ targets:
         # explicit kvstore identifier inside matches the macOS app's so they share
         # one store. (macOS wires its own entitlements path below.)
         CODE_SIGN_ENTITLEMENTS: Sources/iOS/Donpa.entitlements
-        MARKETING_VERSION: "0.2.0"
+        MARKETING_VERSION: "0.3.0"
         # Build number is shared across iOS + macOS (kept in lock-step by the
         # release lane, `make release`) — bumped together so the apps never diverge.
         CURRENT_PROJECT_VERSION: "9"
@@ -125,7 +125,7 @@ targets:
         # Cmd-Tab switcher, .app filename). Without this it's the target name
         # "Donpa-macOS". The module name stays Donpa_macOS (PRODUCT_MODULE_NAME).
         PRODUCT_NAME: Donpa Squad
-        MARKETING_VERSION: "0.2.0"
+        MARKETING_VERSION: "0.3.0"
         # Build number is shared across iOS + macOS (kept in lock-step by the
         # release lane, `make release`) — bumped together so the apps never diverge.
         CURRENT_PROJECT_VERSION: "9"

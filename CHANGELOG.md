@@ -14,12 +14,17 @@ build's heading and opens a fresh empty one. Keep that heading immediately
 followed by its list items (no prose between), so the release script can promote
 it with a one-line edit.
 
+## [0.3.0] — Board variants
+
+**Board-topology variants: wrapped (torus) + hex grids** (see ROADMAP.md). In
+development — entries land under Unreleased as they merge.
+
+### Unreleased (next build)
+
 ## [0.2.0] — Cross-device & big boards
 
 **Cross-device sync & big boards** (see ROADMAP.md). Both pillars have landed;
 cross-device sync awaits a real two-device verification pass.
-
-### Unreleased (next build)
 
 ### build 9
 
