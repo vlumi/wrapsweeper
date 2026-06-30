@@ -21,6 +21,9 @@ cross-device sync awaits a real two-device verification pass.
 
 ### Unreleased (next build)
 
+- **Toggle-side picker reads the right way.** The Left/Right control in Settings
+  showed its options reversed (Right on the left); they're now in natural order.
+
 ### build 8
 
 - **Scoreboard orientation.** The board you're playing gets a persistent "you are

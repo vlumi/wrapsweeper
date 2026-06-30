@@ -55,8 +55,10 @@ public enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
 /// a right-handed player taps with the right hand and reaches the toggle with the
 /// left. Switchable in Settings.
 public enum Handedness: String, CaseIterable, Identifiable, Sendable {
-    case right
+    // Order = how the segmented picker lays out left→right, so "Left" sits on the
+    // left and "Right" on the right (matching the corner each puts the toggle in).
     case left
+    case right
 
     public var id: String { rawValue }
     public var label: String {
