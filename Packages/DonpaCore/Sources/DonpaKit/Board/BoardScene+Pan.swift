@@ -150,7 +150,9 @@ extension BoardScene {
     /// Clamp a proposed camera centre to the resting bounds (up to the per-edge
     /// margin past each board edge). On an axis where the board fits, lock to centre.
     func clampedCameraPosition(_ proposed: CGPoint) -> CGPoint {
-        axisMap(proposed) { center, halfBoard, halfView, loMargin, hiMargin in
+        // A torus has no edges to clamp to — the camera roams freely.
+        guard !isWrapped else { return proposed }
+        return axisMap(proposed) { center, halfBoard, halfView, loMargin, hiMargin in
             let slack = halfBoard - halfView
             if slack <= 0 { return halfBoard }  // board fits this axis → lock to centre
             return min(
@@ -162,7 +164,9 @@ extension BoardScene {
     /// (the further out, the more resistance), so a pull beyond the resting bound
     /// feels elastic. `panEnded()` springs it back to the margin afterward.
     private func rubberBandedCameraPosition(_ proposed: CGPoint) -> CGPoint {
-        axisMap(proposed) { center, halfBoard, halfView, loMargin, hiMargin in
+        // Torus: no edges, so no rubber-band — pan tracks the finger 1:1.
+        guard !isWrapped else { return proposed }
+        return axisMap(proposed) { center, halfBoard, halfView, loMargin, hiMargin in
             let slack = halfBoard - halfView
             if slack <= 0 { return halfBoard }  // board fits → lock to centre
             let lo = halfView - loMargin  // resting edges (per-edge margin applied)
