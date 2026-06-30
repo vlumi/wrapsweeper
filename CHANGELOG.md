@@ -21,6 +21,11 @@ development — entries land under Unreleased as they merge.
 
 ### Unreleased (next build)
 
+- **Wrapped (torus) boards.** A new Modern option: the board's edges connect, so it
+  scrolls seamlessly in every direction — pan off one side and the other flows in,
+  forever. Pick **Wrapped** in the New Game screen (next to the size/difficulty).
+  Scores are tracked separately from bounded boards.
+
 ## [0.2.0] — Cross-device & big boards
 
 **Cross-device sync & big boards** (see ROADMAP.md). Both pillars have landed;
