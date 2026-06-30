@@ -617,6 +617,23 @@
         }
       }
     },
+    "iCloud sign-in required" : {
+      "comment" : "Sync status (iOS): on-device-only because signed out — plain guidance, not tappable (iOS can't deep-link to iCloud sign-in). NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vaatii iCloud-kirjautumisen"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloudへのサインインが必要です。"
+          }
+        }
+      }
+    },
     "In progress" : {
       "comment" : "Game state: a game is underway. NEEDS REVIEW: ja\/fi.",
       "localizations" : {
@@ -1077,23 +1094,6 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "設定"
-          }
-        }
-      }
-    },
-    "Sign in to iCloud to sync" : {
-      "comment" : "Sync status (iOS): on-device-only because signed out — plain guidance, not tappable (iOS can't deep-link to iCloud sign-in). NEEDS REVIEW: ja\/fi.",
-      "localizations" : {
-        "fi" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Synkronoi kirjautumalla iCloudiin"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "同期するにはiCloudにサインイン"
           }
         }
       }

@@ -67,7 +67,7 @@ struct SyncFooterControl: View {
         .buttonStyle(.plain)
         .foregroundStyle(Color.accentColor)
         #else
-        Text("Sign in to iCloud to sync", bundle: .module)
+        Text("iCloud sign-in required", bundle: .module)
             .font(.caption)
             .foregroundStyle(.secondary)
         #endif
