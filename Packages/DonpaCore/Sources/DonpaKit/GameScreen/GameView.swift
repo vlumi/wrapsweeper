@@ -186,11 +186,51 @@ struct GameContent: View {
                 for: viewModel.config, tilesOpened: tiles, flagsPlaced: flags,
                 playtimeCentiseconds: centiseconds)
         }
-        if let snapshot = saveStore.load() {
+        if let scenario = PerfScenario.current {
+            startPerfScenario(scenario)
+        } else if let snapshot = saveStore.load() {
             viewModel.restore(from: snapshot)
             navigator.showingTitle = false
         } else if viewModel.config != settings.currentConfig {
             viewModel.newGame(config: settings.currentConfig)
+        }
+    }
+
+    /// Jump straight into a profiling scenario (see `PerfScenario`): start the heavy
+    /// board, fill the screen, and open a region — off the title — so the harness
+    /// measures the same state the manual repro hit (render cost scales with the
+    /// visible-node count, hence a maximized window).
+    private func startPerfScenario(_ scenario: PerfScenario) {
+        switch scenario {
+        case .xxxlOpened:
+            // Fixed seed → identical mine layout every run, so before/after profiles
+            // compare like with like (the revealed region is then near-identical too).
+            viewModel.newGame(config: .modern(.xxxl, .normal), seed: 0xDEAD_BEEF)
+            navigator.showingTitle = false
+            #if os(macOS)
+            // Maximize so the viewport shows a full screen of cells (the heavy case).
+            DispatchQueue.main.async {
+                if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }),
+                    let screen = window.screen ?? NSScreen.main
+                {
+                    window.setFrame(screen.visibleFrame, display: true)
+                }
+            }
+            #endif
+            // Open a region once mines finish arming. `newGame` arms the board off
+            // the main thread (`isComputing` true), and `reveal` is gated on
+            // `canTakeInput` — so revealing immediately here would be DROPPED and
+            // nothing would open. Await the arming, then reveal: the first click is
+            // first-click-safe and floods a region (the heavy render + autosave-scan
+            // state the perf work targets). Exact tiles vary by RNG; the load is
+            // stable. A second reveal nearby widens the opened area.
+            Task {
+                await viewModel.awaitPendingWork()
+                let w = viewModel.boardWidth, h = viewModel.boardHeight
+                viewModel.reveal(Coord(w / 2, h / 2))
+                await viewModel.awaitPendingWork()
+                viewModel.reveal(Coord(w / 2 + 7, h / 2 + 7))
+            }
         }
     }
 

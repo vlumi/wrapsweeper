@@ -32,3 +32,6 @@ coverage.lcov
 *.ipa
 *.pkg
 Scripts/.asc-config
+
+# Perf-probe output (traces + summaries) — local only
+perf-out/
