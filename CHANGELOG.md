@@ -21,6 +21,8 @@ cross-device sync awaits a real two-device verification pass.
 
 ### Unreleased (next build)
 
+### build 9
+
 - **Big boards are much lighter.** The board scene was being rebuilt on every UI
   tick (the running clock alone re-creates the view ~10×/s), leaving extra scenes
   redrawing in the background — on a huge board that pinned the CPU even at rest.
