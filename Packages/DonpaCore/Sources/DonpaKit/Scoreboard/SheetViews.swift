@@ -29,16 +29,37 @@ struct ScoreboardView: View {
     var body: some View {
         sheetChrome
             .confirmationDialog(
-                Text("Clear all high scores?", bundle: .module), isPresented: $confirmingReset
+                // When sync is active the wipe is global (all the player's devices);
+                // otherwise it's a local clear — the message says which so it's not a
+                // surprise. Follows the sync-scoped wipe rule.
+                scoreboard.isCloudActive
+                    ? Text("Erase scores on all your devices?", bundle: .module)
+                    : Text("Clear all high scores?", bundle: .module),
+                isPresented: $confirmingReset,
+                titleVisibility: .visible
             ) {
                 Button(role: .destructive) {
-                    scoreboard.reset()
+                    scoreboard.wipeAllSynced()
                 } label: {
-                    Text("Clear scores", bundle: .module)
+                    scoreboard.isCloudActive
+                        ? Text("Erase everywhere", bundle: .module)
+                        : Text("Clear scores", bundle: .module)
                 }
                 Button(role: .cancel) {
                 } label: {
                     Text("Cancel", bundle: .module)
+                }
+            } message: {
+                if scoreboard.isCloudActive {
+                    Text(
+                        """
+                        This erases your high scores and career stats on every device \
+                        signed in to your iCloud. It can't be undone.
+                        """, bundle: .module)
+                } else {
+                    Text(
+                        "This clears your high scores and career stats on this device.",
+                        bundle: .module)
                 }
             }
     }

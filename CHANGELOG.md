@@ -29,9 +29,14 @@ development — entries land under Unreleased as they merge.
 - **Board sizes rebalanced to powers of two** (8, 16, 32, 64, 128, 256, 1024). Every
   board is now even-sided (which the wrapped-hex torus needs), and the size ladder is
   cleaner. Mine-density tiers were re-tuned to 10/12/14/16/18% so the five
-  difficulties stay distinct on the larger boards. **These changes reset existing
-  high scores** — the board dimensions they were set on no longer exist. (Pre-1.0, so
-  a clean slate.)
+  difficulties stay distinct on the larger boards. **All existing scores are reset**
+  (a clean pre-release slate) — this one-off clears local and iCloud stats across
+  every device.
+- **Erase synced scores on all your devices.** The stats-sheet reset now offers a
+  true cross-device wipe when iCloud sync is on: it erases every device's scores and
+  **stays erased** — a device that was offline during the wipe clears itself when it
+  reconnects, rather than re-uploading old data. With sync off it stays a local-only
+  clear (the cloud is never touched).
 - **Screentone glow follows the hex shape.** The dig/flag pattern over unopened tiles
   is now clipped to the cell outline, so on hex boards it hugs the hexagon instead of
   overhanging as a square block.

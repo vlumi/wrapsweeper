@@ -107,7 +107,7 @@ final class ScoreboardTests: XCTestCase {
         // A record carrying a best time but a zero wins counter and an old loss %.
         let key = GameConfig.beginner.storageKey
         writeRaw(
-            #"{"version":1,"records":{"\#(key)":{"bestCentiseconds":1234,"bestLossProgress":0.97}}}"#
+            #"{"version":1,"epoch":1,"records":{"\#(key)":{"bestCentiseconds":1234,"bestLossProgress":0.97}}}"#
         )
         let board = Scoreboard(defaults: defaults)
         XCTAssertEqual(board.wins(for: .beginner), 0, "wins counter is zero in this record")
@@ -244,7 +244,7 @@ final class ScoreboardTests: XCTestCase {
         let bad = GameConfig.expert.storageKey
         writeRaw(
             """
-            {"version":1,"records":{
+            {"version":1,"epoch":1,"records":{
               "\(good)":{"wins":{"mine":3},"bestCentiseconds":1234},
               "\(bad)":"totally-not-a-record"
             }}
@@ -255,16 +255,18 @@ final class ScoreboardTests: XCTestCase {
         XCTAssertNil(board.record(for: .expert), "only the bad record was dropped")
     }
 
-    /// A pre-0.2 record (scalar `wins`, before per-device counters): the BEST TIME
-    /// survives (it's an idempotent field, decoded unchanged), but the cumulative
-    /// counts reset to zero rather than dropping the record. High scores are the
-    /// precious data; a reset count is acceptable for a pre-release format change.
-    func testPre02RecordKeepsBestButResetsCounts() {
+    /// Any pre-epoch local store (no `epoch` stamp — includes all pre-0.3 data) is
+    /// dropped wholesale by the reset-epoch floor: this build ships at epoch 1, so
+    /// blobs stamped below it are the one-off pre-release clean slate (see
+    /// `StatsSyncCoordinator.epochFloor`). Even a best time doesn't survive — the
+    /// board size/difficulty rebalance made those scores meaningless anyway.
+    func testPreEpochRecordIsDroppedByTheResetFloor() {
         let key = GameConfig.intermediate.storageKey
-        writeRaw(#"{"\#(key)":{"wins":2,"bestCentiseconds":900}}"#)
+        writeRaw(#"{"version":1,"records":{"\#(key)":{"wins":{"mine":2},"bestCentiseconds":900}}}"#)
         let board = Scoreboard(defaults: defaults)
-        XCTAssertEqual(board.best(for: .intermediate), 900, "best time survives the format change")
-        XCTAssertEqual(board.wins(for: .intermediate), 0, "the scalar win count resets")
+        XCTAssertNil(
+            board.record(for: .intermediate), "pre-epoch data is wiped, best time included")
+        XCTAssertEqual(board.wins(for: .intermediate), 0)
     }
 
     /// A save from a *newer* app (version > current) is not mis-read; rather than
