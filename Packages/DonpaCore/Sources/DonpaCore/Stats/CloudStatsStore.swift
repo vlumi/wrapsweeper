@@ -19,6 +19,20 @@ public protocol CloudStatsStore: AnyObject {
     /// Every device's blob, keyed by device id (including this device's own).
     func readAllBlobs() -> [String: Data]
 
+    /// Delete EVERY device's blob (the global-wipe hammer). Only removes blobs
+    /// currently visible in the cloud — an offline device's blob is dealt with by
+    /// the reset epoch (it self-wipes when it next sees the newer epoch).
+    func deleteAllBlobs()
+
+    /// The board-wide reset generation. Bumping it tombstones all data written
+    /// before it: every device compares this to the epoch it last honored and, when
+    /// this is greater, wipes its own local + blob (so an offline device that missed
+    /// the wipe catches up instead of resurrecting). 0 when never set.
+    func readResetEpoch() -> Int
+
+    /// Publish a new reset epoch (monotonic; only ever bumped upward).
+    func writeResetEpoch(_ epoch: Int)
+
     /// Hint the store to push/pull now (best-effort).
     func synchronize()
 
@@ -33,6 +47,7 @@ public protocol CloudStatsStore: AnyObject {
 @MainActor
 public final class UbiquitousStatsStore: CloudStatsStore {
     private static let blobPrefix = "donpa.stats.blob."
+    private static let resetEpochKey = "donpa.stats.resetEpoch"
 
     private let kvs = NSUbiquitousKeyValueStore.default
     public var onExternalChange: (() -> Void)?
@@ -70,6 +85,26 @@ public final class UbiquitousStatsStore: CloudStatsStore {
             }
         }
         return out
+    }
+
+    public func deleteAllBlobs() {
+        guard isAvailable else { return }
+        for key in kvs.dictionaryRepresentation.keys where key.hasPrefix(Self.blobPrefix) {
+            kvs.removeObject(forKey: key)
+        }
+        kvs.synchronize()
+    }
+
+    public func readResetEpoch() -> Int {
+        guard isAvailable else { return 0 }
+        // KVS longLong is 0 when the key is absent — the pre-wipe baseline.
+        return Int(kvs.longLong(forKey: Self.resetEpochKey))
+    }
+
+    public func writeResetEpoch(_ epoch: Int) {
+        guard isAvailable else { return }
+        kvs.set(Int64(epoch), forKey: Self.resetEpochKey)
+        kvs.synchronize()
     }
 
     public func synchronize() { kvs.synchronize() }

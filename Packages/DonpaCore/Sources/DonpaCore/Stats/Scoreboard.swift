@@ -39,18 +39,42 @@ public final class Scoreboard: ObservableObject {
     public func refreshFromCloud() { sync.refreshFromCloud() }
 
     /// On-disk envelope: a format `version` wrapping the records, keyed by
-    /// `GameConfig.storageKey` (geometry-bearing, so new variants add keys).
-    private struct StatsFile: Codable {
+    /// `GameConfig.storageKey` (geometry-bearing, so new variants add keys). `epoch`
+    /// is the reset generation this blob was written under (see the wipe tombstone
+    /// in `StatsSyncCoordinator`); a reader ignores blobs stamped below the current
+    /// epoch. Only ever ENCODED (decoding reads the fields via `JSONSerialization` in
+    /// `decodeBlob`/`decodeEpoch`, which default a missing epoch to 0), so no
+    /// property default is needed here.
+    private struct StatsFile: Encodable {
         var version: Int
         var records: [String: ScoreRecord]
+        var epoch: Int
     }
     /// Bump only for a *breaking* shape change (additive fields decode tolerantly);
     /// then add a `migrated(_:)` step.
     private static let currentVersion = 1
 
-    private static func encodeFile(_ records: [String: ScoreRecord]) -> Data? {
-        try? JSONEncoder().encode(StatsFile(version: currentVersion, records: records))
+    private static func encodeFile(_ records: [String: ScoreRecord], epoch: Int) -> Data? {
+        try? JSONEncoder().encode(
+            StatsFile(version: currentVersion, records: records, epoch: epoch))
     }
+
+    /// The reset epoch stamped in a blob (0 if absent / undecodable).
+    static func decodeEpoch(_ data: Data) -> Int {
+        guard let top = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return 0 }
+        return top["epoch"] as? Int ?? 0
+    }
+
+    #if DEBUG
+    /// Test-only: forge a single-config blob at a specific epoch, to exercise the
+    /// stale-epoch rejection path (a returning offline device's pre-wipe blob).
+    static func testMakeBlob(wins: Int, for config: GameConfig, epoch: Int) -> Data {
+        var rec = ScoreRecord()
+        rec.wins.add(wins)
+        return encodeFile([config.storageKey: rec], epoch: epoch) ?? Data()
+    }
+    #endif
 
     public init(
         defaults: UserDefaults = .standard,
@@ -58,16 +82,27 @@ public final class Scoreboard: ObservableObject {
         syncEnabled: Bool = true
     ) {
         self.defaults = defaults
+        // Load own records, but drop them if the local blob predates the reset-epoch
+        // floor — the one-off pre-release wipe applies to this device's own store
+        // too, not just the cloud (see StatsSyncCoordinator.epochFloor).
         let own = Self.load(from: defaults, key: key)
         records = own
         displayRecords = own
         sync = StatsSyncCoordinator(
             cloud: cloud, deviceID: DeviceID.current(in: defaults), defaults: defaults,
-            syncEnabled: syncEnabled, encode: Self.encodeFile, decode: Self.decodeBlob)
+            syncEnabled: syncEnabled, encode: Self.encodeFile, decode: Self.decodeBlob,
+            decodeEpoch: Self.decodeEpoch)
         // Wire the coordinator's hooks now that `self` exists; it only calls them
         // from the methods invoked below.
         sync.ownRecords = { [weak self] in self?.records ?? [:] }
         sync.onMerged = { [weak self] merged in self?.displayRecords = merged }
+        // On honoring a remote wipe, drop this device's own records (+ persist the
+        // empty local store, without re-pushing — the coordinator handles the blob).
+        sync.clearOwnRecords = { [weak self] in
+            self?.records = [:]
+            self?.recentRecord = nil
+            self?.persistLocalOnly()
+        }
         // Offline launch: show the last-known cached merge if syncing.
         if syncEnabled, let cached = sync.cachedMerge() { displayRecords = cached }
         sync.pushAndMerge()
@@ -75,6 +110,9 @@ public final class Scoreboard: ObservableObject {
 
     private static func load(from defaults: UserDefaults, key: String) -> [String: ScoreRecord] {
         guard let data = defaults.data(forKey: key) else { return [:] }
+        // Drop own records written below the reset-epoch floor (pre-upgrade), so the
+        // one-off clean slate covers this device's local store, not just the cloud.
+        guard decodeEpoch(data) >= StatsSyncCoordinator.epochFloor else { return [:] }
         return decodeBlob(data)
     }
 
@@ -246,10 +284,39 @@ public final class Scoreboard: ObservableObject {
         persist()  // re-publishes an empty blob + re-merges → contributes nothing
     }
 
-    /// Persist own records locally, then push + re-merge via the coordinator. Every
-    /// write path funnels here.
+    /// GLOBAL wipe across all the player's devices, and it STICKS: bumps the cloud
+    /// reset epoch (a tombstone every device honors, so an offline one wipes itself
+    /// on return instead of resurrecting), deletes all cloud blobs, and clears this
+    /// device. Returns whether the global tombstone was planted — false means sync
+    /// was off or iCloud unreachable, so per the sync-scoped rule this fell back to
+    /// a LOCAL-only clear (the cloud was deliberately left untouched).
+    @discardableResult
+    public func wipeAllSynced() -> Bool {
+        let global = sync.wipeAllSynced()
+        records = [:]
+        recentRecord = nil
+        if global {
+            persistLocalOnly()  // epoch already bumped; coordinator owns the blob
+            sync.refresh()
+        } else {
+            reset()  // local clear (also removes our own blob if one somehow exists)
+        }
+        return global
+    }
+
+    /// Persist own records locally (stamped with the current epoch), then push +
+    /// re-merge via the coordinator. Every score-write path funnels here.
     private func persist() {
-        if let data = Self.encodeFile(records) { defaults.set(data, forKey: key) }
+        persistLocalOnly()
         sync.pushAndMerge()
+    }
+
+    /// Write own records to the local store only (stamped with the honored epoch),
+    /// without touching the cloud. Used when the coordinator already owns the cloud
+    /// side (honoring a remote wipe, or after a global wipe bumped the epoch).
+    private func persistLocalOnly() {
+        if let data = Self.encodeFile(records, epoch: sync.honoredEpoch) {
+            defaults.set(data, forKey: key)
+        }
     }
 }
