@@ -110,17 +110,30 @@ public enum BoardSize: String, CaseIterable, Sendable, Codable {
     }
 }
 
-/// Modern difficulty = mine density (fraction of cells). Even 2-point steps
-/// (10/12/14/16/18%), from fair (easy) to near-unsolvable-by-logic (insane), chosen
-/// via solver analysis on the power-of-two size ladder: bigger boards saturate to
-/// ~100% forced-guess sooner, so the top tier is 18% (not higher) to keep all five
-/// distinct on the boards people actually play. Square and hex SHARE this table:
-/// hex (6 neighbours) plays a touch easier per tier but spreads difficulty more
-/// evenly, so no shape-specific tuning (see the TierAnalysis dev tool, both shapes).
+/// Modern difficulty = mine density (fraction of cells). Even 2-point steps, from
+/// fair (easy) to near-unsolvable-by-logic (insane), chosen via solver analysis on
+/// the power-of-two size ladder: bigger boards saturate to ~100% forced-guess
+/// sooner, so the top tier stays modest to keep all five distinct on the boards
+/// people actually play.
+///
+/// **Hex runs +2 points denser than square** (12/14/16/18/20% vs 10/12/14/16/18%):
+/// a hex cell has 6 neighbours vs 8, so the same mine% cascades more and plays
+/// noticeably easier (the small/sparse boards were near one-tap). The bump matches
+/// hex difficulty back to square roughly tier-for-tier. See the TierAnalysis dev
+/// tool, which measures both topologies.
 public enum Density: String, CaseIterable, Sendable, Codable {
     case easy, normal, hard, brutal, insane
 
-    var fraction: Double {
+    /// Mine fraction for a given board shape. Square is the base ladder; hex adds
+    /// two points per tier to offset its gentler 6-neighbour cascades.
+    func fraction(shape: BoardShape) -> Double {
+        base + (shape == .hex ? 0.02 : 0)
+    }
+
+    /// The square (base) fraction — also what the picker's "N% mines" label shows.
+    var fraction: Double { base }
+
+    private var base: Double {
         switch self {
         case .easy: return 0.10
         case .normal: return 0.12
@@ -236,9 +249,9 @@ public enum GameConfig: Hashable, Sendable {
         switch self {
         case .classic(let preset):
             return preset.dimensions
-        case .modern(let size, let density, _, _):
+        case .modern(let size, let density, _, let shape):
             let side = size.side
-            let mines = Int((Double(side * side) * density.fraction).rounded())
+            let mines = Int((Double(side * side) * density.fraction(shape: shape)).rounded())
             return BoardDimensions(width: side, height: side, mines: mines)
         }
     }
