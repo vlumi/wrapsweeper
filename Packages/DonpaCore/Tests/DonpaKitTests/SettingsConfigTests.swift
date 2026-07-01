@@ -22,7 +22,7 @@ final class SettingsConfigTests: XCTestCase {
         let s = Settings(defaults: freshDefaults())
         s.mode = .modern
         s.modernEdges = .wrapped
-        guard case .modern(_, _, let edges) = s.currentConfig else {
+        guard case .modern(_, _, let edges, _) = s.currentConfig else {
             return XCTFail("modern mode should yield a modern config")
         }
         XCTAssertEqual(edges, .wrapped, "the picker's edges choice flows into the config")

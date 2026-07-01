@@ -87,7 +87,8 @@ struct NewGamePopup: View {
         switch key {
         case .up: focusedRow = max(0, (focusedRow ?? 0) - 1)
         case .down:
-            let rows = settings.mode == .classic ? 2 : 4  // modern: mode, density, size, edges
+            // modern: mode, density, size, shape, edges
+            let rows = settings.mode == .classic ? 2 : 5
             focusedRow = min(rows - 1, (focusedRow ?? -1) + 1)
         case .left: cycleSelection(in: focusedRow ?? 0, by: -1)
         case .right: cycleSelection(in: focusedRow ?? 0, by: 1)
@@ -180,7 +181,7 @@ struct NewGamePopup: View {
 
     #if os(macOS)
     /// Cycle the selection in the given row. Row 0 is Mode; rows 1+ are Difficulty
-    /// (Classic), or Difficulty then Size (Modern).
+    /// (Classic), or Density / Size / Shape / Edges (Modern).
     private func cycleSelection(in row: Int, by step: Int) {
         switch (settings.mode, row) {
         case (_, 0):
@@ -191,7 +192,9 @@ struct NewGamePopup: View {
             settings.modernDensity = Self.stepped(settings.modernDensity, by: step)
         case (.modern, 2):
             settings.modernSize = Self.stepped(settings.modernSize, by: step)
-        case (.modern, _):  // row 3: edges
+        case (.modern, 3):
+            settings.modernShape = Self.stepped(settings.modernShape, by: step)
+        case (.modern, _):  // row 4: edges (a no-op while hex forces bounded)
             settings.modernEdges = Self.stepped(settings.modernEdges, by: step)
         }
     }

@@ -7,6 +7,21 @@ public protocol CellLayout: Sendable {
     /// Side length / nominal size of one cell in points.
     var cellSize: CGFloat { get }
 
+    /// Horizontal centre-to-centre spacing between columns in a row.
+    var columnPitch: CGFloat { get }
+
+    /// Vertical centre-to-centre spacing between rows. Equals `cellSize` for a
+    /// square grid; smaller for a hex grid (rows interlock at 3/4 height).
+    var rowPitch: CGFloat { get }
+
+    /// The tile outline the renderer should draw for a cell.
+    var tileShape: TileShape { get }
+
+    /// The on-screen size of one tile's sprite (its outline's bounding box). Square
+    /// for a square grid; a pointy hex is `cellSize` wide but taller (its vertex-to-
+    /// vertex height), so its sprite must match or vertically-adjacent rows gap.
+    var tileSize: CGSize { get }
+
     /// Centre point of cell `c` in scene coordinates.
     func center(of c: Coord) -> CGPoint
 
@@ -15,6 +30,23 @@ public protocol CellLayout: Sendable {
 
     /// Bounding size of the whole board in points.
     func boardSize(width: Int, height: Int) -> CGSize
+}
+
+/// The outline a cell's tile is drawn with. `CellLayout` picks it so the renderer
+/// stays geometry-agnostic (it just draws the requested shape at `cellSize`).
+public enum TileShape: Sendable {
+    case roundedSquare
+    /// Pointy-top regular hexagon, flat-to-flat width = `cellSize`.
+    case pointyHex
+}
+
+extension CellLayout {
+    // Square defaults: a uniform grid where both pitches are the cell size and the
+    // tile is a `cellSize` square.
+    public var columnPitch: CGFloat { cellSize }
+    public var rowPitch: CGFloat { cellSize }
+    public var tileShape: TileShape { .roundedSquare }
+    public var tileSize: CGSize { CGSize(width: cellSize, height: cellSize) }
 }
 
 /// Square-grid layout. Origin at bottom-left (SpriteKit's coordinate system),

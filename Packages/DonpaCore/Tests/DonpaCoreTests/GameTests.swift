@@ -127,6 +127,24 @@ final class GameTests: XCTestCase {
         XCTAssertEqual(game.status, .won, "wrapped game should be winnable with unchanged logic")
     }
 
+    func testGameLogicRunsUnchangedOnHexTopology() {
+        // Same seam, second geometry: a 6-neighbour hex board plays with zero
+        // game-logic changes. Play a full game to a win.
+        let t = HexTopology(width: 9, height: 9)
+        var game = Game(topology: t, mineCount: 10)
+        var rng = SeededRNG(seed: 11)
+        let click = Coord(4, 4)
+        game.reveal(click, using: &rng)
+        XCTAssertEqual(
+            game.board[click].adjacentMines, 0,
+            "first click on hex must still open a 0")
+        XCTAssertNotEqual(game.status, .lost)
+        for c in game.board.allCoords where !game.board[c].isMine {
+            game.reveal(c, using: &rng)
+        }
+        XCTAssertEqual(game.status, .won, "hex game should be winnable with unchanged logic")
+    }
+
     // MARK: changeToken — cheap "did anything change" fingerprint
 
     /// The token must move when a reveal opens cells and when a flag toggles — the

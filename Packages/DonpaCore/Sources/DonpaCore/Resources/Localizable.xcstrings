@@ -222,6 +222,23 @@
         }
       }
     },
+    "Hex" : {
+      "comment" : "Board shape axis: hexagonal cells. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Kuusikulmio"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "六角"
+          }
+        }
+      }
+    },
     "Intermediate" : {
       "comment" : "Classic difficulty preset (16x16, 40 mines). NEEDS REVIEW: ja\/fi.",
       "localizations" : {
@@ -440,6 +457,23 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "工兵"
+          }
+        }
+      }
+    },
+    "Square" : {
+      "comment" : "Board shape axis: square cells. NEEDS REVIEW: ja\/fi.",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Neliö"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "四角"
           }
         }
       }

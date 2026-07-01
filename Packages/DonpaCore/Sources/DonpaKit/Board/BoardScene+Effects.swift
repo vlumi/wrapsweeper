@@ -78,7 +78,11 @@ extension BoardScene {
         let texture = screentoneTexture(for: mode)
         let size = layout.cellSize
         let inset: CGFloat = 1
-        let side = size - inset * 2
+        // Wash fills the tile's bounding box (taller than wide on a hex), inset a
+        // hair. The faint pattern reads fine within the tile beneath without being
+        // clipped to the exact outline (same reasoning as the square case below).
+        let washSize = CGSize(
+            width: layout.tileSize.width - inset * 2, height: layout.tileSize.height - inset * 2)
         // Each wash tile is an `SKSpriteNode` sharing the one cached screentone
         // texture — so SpriteKit batches them all into ~one draw call (a huge board
         // can have thousands of unopened tiles on screen). A per-cell `SKShapeNode`
@@ -95,7 +99,7 @@ extension BoardScene {
             let state = viewModel.game.board[displayCoord(c)].state
             guard state == .hidden || state == .flagged else { return }
             let center = layout.center(of: c)
-            let tile = SKSpriteNode(texture: texture, size: CGSize(width: side, height: side))
+            let tile = SKSpriteNode(texture: texture, size: washSize)
             tile.position = center
             tile.isUserInteractionEnabled = false
             glowLayer.addChild(tile)

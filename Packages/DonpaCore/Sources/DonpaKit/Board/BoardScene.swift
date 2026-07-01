@@ -11,7 +11,10 @@ import AppKit
 /// from the view model whenever its revision changes.
 public final class BoardScene: SKScene {
     let viewModel: GameViewModel
-    let layout: any CellLayout
+    /// Pixel layout for the current board, derived from the live config so it
+    /// follows a shape switch (square ↔ hex) on New Game — the scene is long-lived
+    /// and rebuilds on `gameID` change, so a stored constant would go stale.
+    var layout: any CellLayout { viewModel.config.layout() }
     let cameraNode = SKCameraNode()
     let boardLayer = SKNode()
     /// End-game effects, a sibling of `boardLayer` so `rebuild()` (which clears
@@ -96,9 +99,8 @@ public final class BoardScene: SKScene {
         }
     }
 
-    public init(viewModel: GameViewModel, layout: any CellLayout = SquareLayout()) {
+    public init(viewModel: GameViewModel) {
         self.viewModel = viewModel
-        self.layout = layout
         super.init(size: CGSize(width: 320, height: 320))
         scaleMode = .resizeFill
         backgroundColor = palette.sceneBackground
