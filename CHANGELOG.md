@@ -21,6 +21,10 @@ development — entries land under Unreleased as they merge.
 
 ### Unreleased (next build)
 
+- **Hex grids.** A new Modern **Shape** option: play on a hexagonal board where each
+  cell has six neighbours instead of eight. Pick **Hex** in the New Game screen
+  (alongside size/difficulty). Scores are tracked separately from square boards.
+  (Hex is bounded-only for now; wrapped hex comes later.)
 - **Minimap shows/hides reliably.** The corner minimap no longer pops in mid-game
   after a small pan on a board that fits (or stays hidden when it shouldn't) — its
   visibility now tracks the zoom level, not the camera position. Wrapped boards

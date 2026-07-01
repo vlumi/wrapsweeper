@@ -49,9 +49,20 @@ func mines(width: Int, height: Int, density: Double) -> Int {
 // Locked Modern tiers (chosen from this analysis): five densities forming a
 // smooth ramp from fair (Easy) to near-unsolvable-by-logic (Insane), across
 // three square sizes. Classic presets included as calibration anchors.
-let densities: [(String, Double)] = [
+// The five Modern tiers, SHARED by square and hex. Hex plays a touch easier per
+// tier (6 neighbours vs 8 → less logic cascade), but its guess% spreads more evenly
+// across the tiers where square bunches Brutal/Insane near 100% — so the same table
+// gives hex a nicely distinct-per-tier curve. Decision (2026-07-01): keep shared,
+// hex-a-bit-easier is fine. SWEEP=1 replaces the tiers with a fine density ramp to
+// re-check the mapping if that's ever revisited.
+var densities: [(String, Double)] = [
     ("Easy", 0.10), ("Normal", 0.13), ("Hard", 0.16), ("Brutal", 0.19), ("Insane", 0.22),
 ]
+if ProcessInfo.processInfo.environment["SWEEP"] == "1" {
+    densities = stride(from: 0.11, through: 0.30, by: 0.01).map {
+        (String(format: "d%02d", Int(($0 * 100).rounded())), $0)
+    }
+}
 
 var candidates: [Candidate] = [
     Candidate(label: "Classic Beginner   9x9", width: 9, height: 9, mines: 10),
@@ -76,15 +87,22 @@ for (setName, sizes) in sizeSets {
 let games = 2000
 let solver = Solver()
 
-print("config                       cells  mines  density  solve%  guess%  deduce  open")
-print(String(repeating: "-", count: 86))
+// Hex cells have 6 neighbours vs square's 8, so each revealed number constrains
+// fewer cells and logic cascades less — meaning the SAME mine% plays harder on
+// hex. This pass runs the identical solver over both topologies so the hex tiers
+// can be re-picked to match the square difficulty CURVE (same solve% per tier),
+// not the same density. `SHAPE=hex` (or `both`, default) selects which to run.
+enum Shape: String { case square, hex }
 
-for c in candidates {
+func run(_ shape: Shape, _ c: Candidate) {
     let cells = c.width * c.height
     var solved = 0
     var deductSum = 0
     var openSum = 0
-    let topo = BoundedSquareTopology(width: c.width, height: c.height)
+    let topo: any RectangularTopology =
+        shape == .hex
+        ? HexTopology(width: c.width, height: c.height)
+        : BoundedSquareTopology(width: c.width, height: c.height)
     let click = Coord(c.width / 2, c.height / 2)
 
     for seed in 0..<games {
@@ -104,9 +122,24 @@ for c in candidates {
     let avgOpen = Double(openSum) / Double(games)
 
     let row =
-        pad(c.label, 28) + " " + pad("\(cells)", 6) + " " + pad("\(c.mines)", 6) + " "
-        + pad(col(density) + "%", 8) + " " + pad(col(solvePct) + "%", 7) + " "
-        + pad(col(100 - solvePct) + "%", 7) + " " + pad(col(avgDeduce), 7) + " "
-        + pad(col(avgOpen), 6)
+        pad(shape.rawValue, 6) + " " + pad(c.label, 28) + " " + pad("\(cells)", 6) + " "
+        + pad("\(c.mines)", 6) + " " + pad(col(density) + "%", 8) + " "
+        + pad(col(solvePct) + "%", 7) + " " + pad(col(100 - solvePct) + "%", 7) + " "
+        + pad(col(avgDeduce), 7) + " " + pad(col(avgOpen), 6)
     print(row)
+}
+
+let shapesToRun: [Shape] = {
+    switch ProcessInfo.processInfo.environment["SHAPE"]?.lowercased() {
+    case "hex": return [.hex]
+    case "square": return [.square]
+    default: return [.square, .hex]
+    }
+}()
+
+print("shape  config                       cells  mines  density  solve%  guess%  deduce  open")
+print(String(repeating: "-", count: 93))
+for shape in shapesToRun {
+    for c in candidates { run(shape, c) }
+    print(String(repeating: "-", count: 93))
 }

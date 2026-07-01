@@ -135,6 +135,10 @@ public final class Settings: ObservableObject {
     @Published public var modernEdges: BoardEdges {
         didSet { defaults.set(modernEdges.rawValue, forKey: edgesKey) }
     }
+    /// Cell shape for Modern boards: square or hex. Classic is always square.
+    @Published public var modernShape: BoardShape {
+        didSet { defaults.set(modernShape.rawValue, forKey: shapeKey) }
+    }
     @Published public var classicPreset: ClassicPreset {
         didSet { defaults.set(classicPreset.rawValue, forKey: presetKey) }
     }
@@ -175,6 +179,7 @@ public final class Settings: ObservableObject {
     private let sizeKey = "donpa.modernSize"
     private let densityKey = "donpa.modernDensity"
     private let edgesKey = "donpa.modernEdges"
+    private let shapeKey = "donpa.modernShape"
     private let presetKey = "donpa.classicPreset"
     private let handednessKey = "donpa.handedness"
     private let languageKey = "donpa.language"
@@ -195,6 +200,8 @@ public final class Settings: ObservableObject {
             defaults.string(forKey: densityKey).flatMap(Density.init(rawValue:)) ?? .normal
         modernEdges =
             defaults.string(forKey: edgesKey).flatMap(BoardEdges.init(rawValue:)) ?? .bounded
+        modernShape =
+            defaults.string(forKey: shapeKey).flatMap(BoardShape.init(rawValue:)) ?? .square
         classicPreset =
             defaults.string(forKey: presetKey).flatMap(ClassicPreset.init(rawValue:)) ?? .beginner
         handedness =
@@ -210,11 +217,15 @@ public final class Settings: ObservableObject {
             ?? .system
     }
 
-    /// The `GameConfig` implied by the current mode + selections.
+    /// The `GameConfig` implied by the current mode + selections. Hex is bounded-
+    /// only for now, so a hex board forces `.bounded` regardless of the edges
+    /// setting — keeping its storage key (and topology) honest.
     public var currentConfig: GameConfig {
         switch mode {
         case .classic: return .classic(classicPreset)
-        case .modern: return .modern(modernSize, modernDensity, modernEdges)
+        case .modern:
+            let edges: BoardEdges = modernShape == .hex ? .bounded : modernEdges
+            return .modern(modernSize, modernDensity, edges, modernShape)
         }
     }
 }

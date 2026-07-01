@@ -205,7 +205,7 @@ struct GameContent: View {
         case .xxxlOpened:
             // Fixed seed → identical mine layout every run, so before/after profiles
             // compare like with like (the revealed region is then near-identical too).
-            viewModel.newGame(config: .modern(.xxxl, .normal, .bounded), seed: 0xDEAD_BEEF)
+            viewModel.newGame(config: .modern(.xxxl, .normal, .bounded, .square), seed: 0xDEAD_BEEF)
             navigator.showingTitle = false
             #if os(macOS)
             // Maximize so the viewport shows a full screen of cells (the heavy case).

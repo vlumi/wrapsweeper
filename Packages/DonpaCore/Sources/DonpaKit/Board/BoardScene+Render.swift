@@ -77,13 +77,16 @@ extension BoardScene {
         let halfW = size.width / 2 * scale
         let halfH = size.height / 2 * scale
         let cam = cameraNode.position
-        let cell = layout.cellSize
-        // World rect → cell indices, +1 cell of margin each side so cells appear
-        // before fully scrolling in.
-        let rawMinX = Int(((cam.x - halfW) / cell).rounded(.down)) - 1
-        let rawMaxX = Int(((cam.x + halfW) / cell).rounded(.down)) + 1
-        let rawMinY = Int(((cam.y - halfH) / cell).rounded(.down)) - 1
-        let rawMaxY = Int(((cam.y + halfH) / cell).rounded(.down)) + 1
+        // Column/row pitch differ on a hex board (rows interlock at 3/4 height, and
+        // odd rows shift half a column right), so map the world rect to indices with
+        // each axis's own pitch. +2 columns / +1 row of margin covers the half-shift
+        // and lets cells appear before fully scrolling in.
+        let colPitch = layout.columnPitch
+        let rowPitch = layout.rowPitch
+        let rawMinX = Int(((cam.x - halfW) / colPitch).rounded(.down)) - 2
+        let rawMaxX = Int(((cam.x + halfW) / colPitch).rounded(.down)) + 2
+        let rawMinY = Int(((cam.y - halfH) / rowPitch).rounded(.down)) - 1
+        let rawMaxY = Int(((cam.y + halfH) / rowPitch).rounded(.down)) + 1
         guard !isWrapped else {
             return CellRange(minX: rawMinX, maxX: rawMaxX, minY: rawMinY, maxY: rawMaxY)
         }
@@ -168,7 +171,7 @@ extension BoardScene {
         cellNodes[c]?.removeFromParent()
         let container = SKNode()
         let tile = SKSpriteNode(texture: tileTexture(forFill: palette.mineTile))
-        tile.size = CGSize(width: size, height: size)
+        tile.size = layout.tileSize
         container.addChild(tile)
         let burst = burstMineNode(size: size)
         burst.zPosition = 1
@@ -183,7 +186,7 @@ extension BoardScene {
         let container = SKNode()
 
         let tile = SKSpriteNode(texture: tileTexture(for: cell))
-        tile.size = CGSize(width: size, height: size)
+        tile.size = layout.tileSize
         container.addChild(tile)
 
         // Overlay above the tile. SKShapeNodes (flag, burst) render in a separate
@@ -215,7 +218,8 @@ extension BoardScene {
         return container
     }
 
-    private func fillColor(for cell: Cell) -> SKColor {
+    // Non-private: read by the tile-texture builders in BoardScene+TileTextures.
+    func fillColor(for cell: Cell) -> SKColor {
         switch cell.state {
         case .hidden, .flagged:
             return palette.hiddenTile
@@ -237,202 +241,7 @@ extension BoardScene {
         }
     }
 
-    // MARK: Cached cell textures
-
-    /// Cell-sized rounded-rect tile background, cached by fill colour + pixel size.
-    /// ~3 distinct textures (hidden / revealed / mine) shared across every tile.
-    private func tileTexture(for cell: Cell) -> SKTexture {
-        tileTexture(forFill: fillColor(for: cell))
-    }
-
-    /// The cached rounded-rect tile background for a given fill colour.
-    func tileTexture(forFill fill: SKColor) -> SKTexture {
-        let px = max(4, Int(layout.cellSize.rounded()))
-        let key = "tile-\(px)-\(fill)"
-        if let cached = tileTextureCache[key] { return cached }
-
-        let scale: CGFloat = 2  // supersample for a crisp rounded corner
-        let dim = Int(CGFloat(px) * scale)
-        let inset = 1 * scale
-        let corner = 3 * scale
-        let img = drawCellImage(dim: dim) { ctx in
-            let rect = CGRect(
-                x: inset, y: inset, width: CGFloat(dim) - inset * 2,
-                height: CGFloat(dim) - inset * 2)
-            let path = CGPath(
-                roundedRect: rect, cornerWidth: corner, cornerHeight: corner,
-                transform: nil)
-            ctx.addPath(path)
-            ctx.setFillColor(fill.cgColor)
-            ctx.fillPath()
-        }
-        let texture = SKTexture(cgImage: img)
-        texture.filteringMode = .linear
-        tileTextureCache[key] = texture
-        return texture
-    }
-
-    /// A sprite carrying the cached flag texture, sized to the cell. Use this instead
-    /// of `flagNode` (a tree of `SKShapeNode`s) anywhere many flags can be on screen
-    /// at once: SpriteKit re-strokes every visible `SKShapeNode`'s path EVERY frame
-    /// (`CGPathCreateCopyByStrokingPath` — profiled hot on a huge board with many
-    /// flags), whereas same-texture sprites batch and never re-stroke.
-    func flagSprite(size: CGFloat, color: SKColor) -> SKSpriteNode {
-        let sprite = SKSpriteNode(texture: flagTexture(color: color))
-        sprite.size = CGSize(width: size, height: size)
-        return sprite
-    }
-
-    /// A sprite ringing an over-flagged number (more flags around it than its count —
-    /// a definite error). A cached texture, not an `SKShapeNode`, so it batches and
-    /// never re-strokes per frame like everything else on the board. Kept faint: it's
-    /// a quiet "check this", not an alarm.
-    func overFlagRingSprite(size: CGFloat) -> SKSpriteNode {
-        let sprite = SKSpriteNode(texture: overFlagRingTexture(color: palette.mineGlyph))
-        sprite.size = CGSize(width: size, height: size)
-        sprite.alpha = 0.35
-        return sprite
-    }
-
-    /// Cell-sized hollow rounded-rect ring, cached by colour + pixel size. The cue is
-    /// a SHAPE (a ring inset from the tile edge), not a fill tint — so it reads
-    /// without relying on colour (the app's a11y stance), over the number glyph.
-    private func overFlagRingTexture(color: SKColor) -> SKTexture {
-        let px = max(4, Int(layout.cellSize.rounded()))
-        let key = "overflag-\(px)-\(color)"
-        if let cached = tileTextureCache[key] { return cached }
-
-        let scale: CGFloat = 2
-        let dim = Int(CGFloat(px) * scale)
-        let lineWidth = max(2, CGFloat(dim) * 0.06)
-        let inset = lineWidth  // ring sits just inside the tile edge
-        let corner = 4 * scale
-        let img = drawCellImage(dim: dim) { ctx in
-            let rect = CGRect(
-                x: inset, y: inset, width: CGFloat(dim) - inset * 2,
-                height: CGFloat(dim) - inset * 2)
-            ctx.addPath(
-                CGPath(
-                    roundedRect: rect, cornerWidth: corner, cornerHeight: corner,
-                    transform: nil))
-            ctx.setStrokeColor(color.cgColor)
-            ctx.setLineWidth(lineWidth)
-            ctx.strokePath()
-        }
-        let texture = SKTexture(cgImage: img)
-        texture.filteringMode = .linear
-        tileTextureCache[key] = texture
-        return texture
-    }
-
-    /// Cell-sized flag texture, cached by colour + pixel size. Mirrors `flagNode`'s
-    /// swallowtail geometry (pole + finial + V-notched flag) so the cached sprite and
-    /// the animated shape version look identical.
-    private func flagTexture(color: SKColor) -> SKTexture {
-        let px = max(4, Int(layout.cellSize.rounded()))
-        let key = "flag-\(px)-\(color)"
-        if let cached = tileTextureCache[key] { return cached }
-
-        let scale: CGFloat = 2
-        let dim = Int(CGFloat(px) * scale)
-        let g = CGFloat(dim) * 0.66
-        // Centred box, top-down 0…1 mapped into the dim×dim canvas (CG y-up: a
-        // top-down y becomes `mid + (0.5 - y) * g`).
-        let mid = CGFloat(dim) / 2
-        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: mid + (x - 0.5) * g, y: mid + (0.5 - y) * g)
-        }
-        let poleX: CGFloat = 0.30
-        let img = drawCellImage(dim: dim) { ctx in
-            ctx.setFillColor(color.cgColor)
-            ctx.setStrokeColor(color.cgColor)
-            // Finial.
-            let r = 0.07 * g
-            ctx.fillEllipse(
-                in: CGRect(
-                    x: p(poleX, 0.12).x - r, y: p(poleX, 0.12).y - r,
-                    width: r * 2, height: r * 2))
-            // Pole.
-            ctx.setLineWidth(max(1, 0.07 * g))
-            ctx.setLineCap(.round)
-            ctx.move(to: p(poleX, 0.17))
-            ctx.addLine(to: p(poleX, 0.86))
-            ctx.strokePath()
-            // Swallowtail flag with a V-notch in the fly edge.
-            ctx.move(to: p(poleX, 0.20))
-            ctx.addLine(to: p(0.80, 0.20))
-            ctx.addLine(to: p(0.66, 0.35))
-            ctx.addLine(to: p(0.80, 0.50))
-            ctx.addLine(to: p(poleX, 0.50))
-            ctx.closePath()
-            ctx.fillPath()
-        }
-        let texture = SKTexture(cgImage: img)
-        texture.filteringMode = .linear
-        tileTextureCache[key] = texture
-        return texture
-    }
-
-    /// Cell-sized texture of a centred glyph (number or `✸` mine), cached by text +
-    /// colour + pixel size. Drawn via the platform image renderer, not text into a
-    /// raw CGContext — the latter renders flipped/off-canvas.
-    private func glyphTexture(_ text: String, color: SKColor) -> SKTexture {
-        let px = max(4, Int(layout.cellSize.rounded()))
-        let key = "glyph-\(text)-\(px)-\(color)"
-        if let cached = tileTextureCache[key] { return cached }
-
-        let scale: CGFloat = 2
-        let dim = CGFloat(px) * scale
-        let fontSize = dim * 0.5
-        #if os(macOS)
-        let font =
-            NSFont(name: "Menlo-Bold", size: fontSize)
-            ?? .monospacedSystemFont(ofSize: fontSize, weight: .bold)
-        #else
-        let font =
-            UIFont(name: "Menlo-Bold", size: fontSize)
-            ?? .monospacedSystemFont(ofSize: fontSize, weight: .bold)
-        #endif
-        let str = NSAttributedString(
-            string: text, attributes: [.font: font, .foregroundColor: color])
-        let bounds = str.size()
-        let rect = CGRect(
-            x: (dim - bounds.width) / 2, y: (dim - bounds.height) / 2,
-            width: bounds.width, height: bounds.height)
-        let canvas = CGSize(width: dim, height: dim)
-
-        let cgImage: CGImage
-        #if os(macOS)
-        let image = NSImage(size: canvas)
-        image.lockFocus()
-        str.draw(in: rect)
-        image.unlockFocus()
-        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return SKTexture()
-        }
-        cgImage = cg
-        #else
-        let renderer = UIGraphicsImageRenderer(size: canvas)
-        let uiImage = renderer.image { _ in str.draw(in: rect) }
-        guard let cg = uiImage.cgImage else { return SKTexture() }
-        cgImage = cg
-        #endif
-
-        let texture = SKTexture(cgImage: cgImage)
-        texture.filteringMode = .linear
-        tileTextureCache[key] = texture
-        return texture
-    }
-
-    /// Render a square `dim×dim` transparent image with `draw` into a CGImage for an
-    /// `SKTexture`. Shapes only; text uses the platform renderer in `glyphTexture`.
-    private func drawCellImage(dim: Int, _ draw: (CGContext) -> Void) -> CGImage {
-        let cs = CGColorSpace(name: CGColorSpace.sRGB)!
-        let ctx = CGContext(
-            data: nil, width: dim, height: dim, bitsPerComponent: 8, bytesPerRow: 0,
-            space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        ctx.clear(CGRect(x: 0, y: 0, width: dim, height: dim))
-        draw(ctx)
-        return ctx.makeImage()!
-    }
+    // Cached cell textures (tile / ring / flag / glyph) live in
+    // BoardScene+TileTextures.swift — the shape-aware drawing that keeps big boards
+    // batching. `fillColor` / `glyph` below feed them the per-cell colour + text.
 }
