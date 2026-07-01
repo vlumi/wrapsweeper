@@ -199,8 +199,9 @@ make test       # run the package logic tests (no Xcode project needed)
 make uitest     # run the iOS UI tests in a simulator (local only; not on CI)
 ```
 
-No third-party dependencies. CI runs SwiftLint + swift-format, the logic tests
-(with coverage), and both platform builds.
+No third-party runtime dependencies (nothing ships in the app; SwiftLint /
+swift-format are dev-only tools, not SPM packages). CI runs SwiftLint (pinned) +
+swift-format, the logic tests (with coverage), and both platform builds.
 
 ## License
 

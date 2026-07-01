@@ -59,7 +59,9 @@ donpa/
 - App targets are thin: `@main` app + a view hosting `GameView()`.
 - Engine: **SpriteKit** (`SKScene` + `SKCameraNode`) in a SwiftUI `SpriteView`.
   All board input (tap/click/flag/chord/pan/zoom) is handled natively inside
-  `BoardScene`, not via SwiftUI gestures. First-party only, no third-party deps.
+  `BoardScene`, not via SwiftUI gestures. First-party frameworks only — **no
+  third-party *runtime* dependencies** (nothing ships in the app binary; dev
+  tools like SwiftLint don't count and aren't SPM deps).
 
 ### Art assets
 
@@ -134,6 +136,14 @@ CI runs both with `--strict` (warnings fail). **swift-format is the authority
 on whitespace/punctuation**; where SwiftLint conflicts (trailing commas, brace
 placement) those SwiftLint rules are disabled rather than fought. Run the
 formatter before committing.
+
+**SwiftLint is pinned to a specific version** (`SWIFTLINT_VERSION` in
+`.github/workflows/ci.yml`, currently **0.65.0**) so CI and local runs agree — an
+unpinned `brew install` follows the rolling latest, so a new release can turn CI
+red on untouched code. Match it locally (`brew install swiftlint` tracks latest;
+`brew upgrade`/downgrade or install the same tagged release to line up). Bump the
+CI version deliberately and update this line. swift-format needs no pin — it ships
+with the Xcode toolchain, which CI pins via `XCODE_VERSION`.
 
 ## Conventions
 

@@ -26,9 +26,21 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
       - name: SwiftLint
+        # Pinned to an exact version so CI and local installs agree (an unpinned
+        # `brew install` follows Homebrew's rolling latest, so a new SwiftLint
+        # release could turn CI red on untouched code). Bump SWIFTLINT_VERSION
+        # deliberately; keep AGENTS.md's documented version in step. Installed from
+        # the tagged release's portable binary rather than a brew formula URL
+        # (which is fragile across formula revisions).
+        env:
+          SWIFTLINT_VERSION: 0.65.0
         run: |
-          brew install swiftlint
-          swiftlint lint --strict
+          curl -sSL -o swiftlint.zip \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip"
+          unzip -o -q swiftlint.zip -d swiftlint-bin
+          ./swiftlint-bin/swiftlint version | grep -qx "${SWIFTLINT_VERSION}" \
+            || { echo "SwiftLint version mismatch"; exit 1; }
+          ./swiftlint-bin/swiftlint lint --strict
       - name: swift-format
         run: |
           swift format lint --strict --recursive --configuration .swift-format \
