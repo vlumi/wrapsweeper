@@ -185,21 +185,43 @@ public final class Scoreboard: ObservableObject {
         return centiseconds < best
     }
 
-    /// Record a win: bump the clear count, set the best time if it beats the
-    /// cross-device best. Returns true on a new best.
+    /// Record a win: bump the clear count, store this DEVICE's best/top times, and
+    /// fold in the mastery signals. The best time is device-owned (kept on our own
+    /// record regardless of other devices) with its timestamp; the "new record" the
+    /// UI celebrates is still judged against the CROSS-DEVICE best. `noFlag`/`noChord`
+    /// are the game-end purity bits (a resumed game passes them as false). Returns
+    /// true if this beat the cross-device best.
     @discardableResult
-    public func submit(_ centiseconds: Int, for config: GameConfig) -> Bool {
+    public func submit(
+        _ centiseconds: Int, for config: GameConfig,
+        at achievedAt: Date = Date(), noFlag: Bool = false, noChord: Bool = false
+    ) -> Bool {
         var record = records[config.storageKey] ?? ScoreRecord()
         record.wins.add(1)
-        // Judge against the cross-device best, but store in this device's own record.
-        let isBest = best(for: config).map { centiseconds < $0 } ?? true
-        if isBest {
-            record.bestCentiseconds = centiseconds
-            recentRecord = config.storageKey
+        if noFlag { record.noFlagWins.add(1) }
+        if noChord { record.noChordWins.add(1) }
+        stampPlayed(&record, at: achievedAt)
+
+        // "New record" is judged against the cross-device best (a faster time on
+        // another device already counts); the value is stored device-owned regardless.
+        let isCrossDeviceBest = best(for: config).map { centiseconds < $0 } ?? true
+        let time = BestTime(centiseconds: centiseconds, achievedAt: achievedAt)
+        // Our OWN best: keep the faster of ours and this clear (independent of others).
+        if record.best.map({ centiseconds < $0.centiseconds }) ?? true {
+            record.best = time
         }
+        record.topTimes.insertTop(time, limit: ScoreRecord.topTimeLimit)
+        if isCrossDeviceBest { recentRecord = config.storageKey }
+
         records[config.storageKey] = record
         persist()
-        return isBest
+        return isCrossDeviceBest
+    }
+
+    /// Stamp first/last-played on a record (first set once; last always advances).
+    private func stampPlayed(_ record: inout ScoreRecord, at date: Date) {
+        if record.firstPlayed == nil { record.firstPlayed = date }
+        record.lastPlayed = date
     }
 
     /// Record a *losing* game's progress, kept only if it beats the cross-device
@@ -234,14 +256,21 @@ public final class Scoreboard: ObservableObject {
         persist()
     }
 
-    /// Record a finished game's outcome: games-played + the mine tally (one hit on
-    /// a loss; disarmed count on a win). Activity accrues separately via
-    /// `recordActivity`; wins/loss-progress via `submit`/`submitLossProgress`.
-    public func recordGameOutcome(for config: GameConfig, minesHit: Int, minesDisarmed: Int) {
+    /// Record a finished game's outcome: games-played, win/loss, the mine tally (one
+    /// hit on a loss; disarmed count on a win), and the chords used this game.
+    /// Activity accrues separately via `recordActivity`; wins/loss-progress via
+    /// `submit`/`submitLossProgress`.
+    public func recordGameOutcome(
+        for config: GameConfig, won: Bool, minesHit: Int, minesDisarmed: Int,
+        chordsUsed: Int = 0, at date: Date = Date()
+    ) {
         var record = records[config.storageKey] ?? ScoreRecord()
         record.gamesPlayed.add(1)
+        if !won { record.losses.add(1) }
         record.minesHit.add(minesHit)
         record.minesDisarmed.add(minesDisarmed)
+        record.chordsUsed.add(chordsUsed)
+        stampPlayed(&record, at: date)
         records[config.storageKey] = record
         persist()
     }

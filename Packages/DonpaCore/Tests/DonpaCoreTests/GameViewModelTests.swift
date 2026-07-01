@@ -344,4 +344,45 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertNil(vm.pendingCameraRestore, "a fresh game centres on its own fit, not a resume")
         XCTAssertNil(vm.cameraView)
     }
+
+    // MARK: Mastery signals (no-flag / no-chord purity bits + chord count)
+
+    /// The purity bits start clean and LATCH on the first flag / chord; the chord
+    /// counter increments. A flag placed then removed still counts as "used flags".
+    func testPurityBitsLatchAndChordCounts() async {
+        let vm = await startedGame()
+        XCTAssertFalse(vm.usedFlagEver, "clean at start")
+        XCTAssertFalse(vm.usedChordEver)
+        XCTAssertEqual(vm.chordsThisGame, 0)
+
+        let target = aHiddenCell(vm)
+        vm.toggleFlag(target)
+        vm.toggleFlag(target)  // unflag — still "used flags"
+        XCTAssertTrue(vm.usedFlagEver, "latches on first placement, not cleared by unflag")
+
+        vm.chord(aHiddenCell(vm))
+        await vm.awaitPendingWork()
+        XCTAssertTrue(vm.usedChordEver)
+        XCTAssertEqual(vm.chordsThisGame, 1)
+    }
+
+    /// A new game resets the purity bits to clean; a RESTORE defaults them to
+    /// violated (a resumed game can't prove a clean run, so it can't earn the feat).
+    func testPurityBitsResetOnNewGameAndViolatedOnRestore() async {
+        let vm = await startedGame()
+        vm.toggleFlag(aHiddenCell(vm))
+        XCTAssertTrue(vm.usedFlagEver)
+
+        vm.newGame()
+        XCTAssertFalse(vm.usedFlagEver, "a fresh game is clean")
+        XCTAssertFalse(vm.usedChordEver)
+        XCTAssertEqual(vm.chordsThisGame, 0)
+
+        // Restore defaults to violated (deny over false-award).
+        let started = await startedGame()
+        let snapshot = started.snapshot()!
+        vm.restore(from: snapshot)
+        XCTAssertTrue(vm.usedFlagEver, "restore can't prove a clean run → violated")
+        XCTAssertTrue(vm.usedChordEver)
+    }
 }

@@ -38,9 +38,6 @@ development — entries land under Unreleased as they merge.
   **stays erased** — a device that was offline during the wipe clears itself when it
   reconnects, rather than re-uploading old data. With sync off it stays a local-only
   clear (the cloud is never touched).
-- **Screentone glow follows the hex shape.** The dig/flag pattern over unopened tiles
-  is now clipped to the cell outline, so on hex boards it hugs the hexagon instead of
-  overhanging as a square block.
 - **Minimap shows/hides reliably.** The corner minimap no longer pops in mid-game
   after a small pan on a board that fits (or stays hidden when it shouldn't) — its
   visibility now tracks the zoom level, not the camera position. Wrapped boards

@@ -83,6 +83,17 @@ public final class GameViewModel: ObservableObject {
     /// again — the lifetime stat counts actions). Reset on new game / restore.
     public private(set) var flagsPlacedThisGame = 0
 
+    /// Chord actions this game (a mastery signal; folded into the game-end stats).
+    /// Reset on new game / restore.
+    public private(set) var chordsThisGame = 0
+
+    /// Sticky "purity" bits for no-flag / no-chord feats: latch true the moment the
+    /// feat is broken and never reset within a game. On RESTORE they default to
+    /// "violated" (true) — a resumed game can't earn these (board state can't prove a
+    /// clean run), erring toward denial over a false award. See the achievements plan.
+    public private(set) var usedFlagEver = false
+    public private(set) var usedChordEver = false
+
     /// Activity already flushed for THIS game, so a flush only sends the new delta.
     private var flushedTiles = 0
     private var flushedFlags = 0
@@ -232,7 +243,10 @@ public final class GameViewModel: ObservableObject {
         guard canTakeInput, game.status == .notStarted || game.status == .playing else { return }
         let wasFlagged = game.board[c].state == .flagged
         game.toggleFlag(c)
-        if !wasFlagged, game.board[c].state == .flagged { flagsPlacedThisGame += 1 }
+        if !wasFlagged, game.board[c].state == .flagged {
+            flagsPlacedThisGame += 1
+            usedFlagEver = true  // latches; a placed-then-removed flag still counts
+        }
         bump()
     }
 
@@ -240,6 +254,8 @@ public final class GameViewModel: ObservableObject {
         // Gated on .playing so a post-game chord can't re-publish the result (which
         // would replay the end-game panel on every click).
         guard canTakeInput, game.status == .playing else { return }
+        chordsThisGame += 1
+        usedChordEver = true
         computeOffMain({ game in game.chord(c) }) { [weak self] in
             self?.finishIfEnded()
         }
@@ -259,6 +275,9 @@ public final class GameViewModel: ObservableObject {
         cameraView = nil
         isComputing = false  // gameID bumps below → any in-flight compute is dropped
         flagsPlacedThisGame = 0
+        chordsThisGame = 0
+        usedFlagEver = false
+        usedChordEver = false
         flushedTiles = 0
         flushedFlags = 0
         flushedCentiseconds = 0
@@ -331,6 +350,13 @@ public final class GameViewModel: ObservableObject {
         // Flag placements aren't persisted, so a resumed game only counts ones made
         // after resume (a minor under-count, not worth a snapshot field).
         flagsPlacedThisGame = 0
+        chordsThisGame = 0
+        // Purity bits default to VIOLATED on restore: board state can't prove a clean
+        // no-flag/no-chord run, so a resumed game can't earn those feats (deny over
+        // false-award). A non-empty restored flag set makes usedFlag definitely true;
+        // chord leaves no trace, so it's unknowable → true. See the achievements plan.
+        usedFlagEver = true
+        usedChordEver = true
         // Seed flush trackers to the restored state: pre-save tiles/time were
         // already flushed, so only post-resume activity counts (no re-adding).
         flushedTiles = game.revealedSafeCount

@@ -11,9 +11,15 @@ final class StatsMergeTests: XCTestCase {
     private func rec(
         wins: Int = 0, games: Int = 0, tiles: Int = 0, best: Int? = nil, loss: Double? = nil
     ) -> ScoreRecord {
-        ScoreRecord(
+        // A device-owned best is a (time, date) pair kept in `topTimes`; the merge
+        // projects `best` from it. Date is fixed — the merge picks by time, not date.
+        let bestTime = best.map {
+            BestTime(centiseconds: $0, achievedAt: Date(timeIntervalSince1970: 0))
+        }
+        return ScoreRecord(
             wins: .init(mine: wins), gamesPlayed: .init(mine: games),
-            tilesOpened: .init(mine: tiles), bestCentiseconds: best, bestLossProgress: loss)
+            tilesOpened: .init(mine: tiles), best: bestTime,
+            topTimes: bestTime.map { [$0] } ?? [], bestLossProgress: loss)
     }
 
     // MARK: Counters sum across devices
@@ -110,5 +116,81 @@ final class StatsMergeTests: XCTestCase {
         XCTAssertEqual(merged[key]!.wins.total, 3)
         XCTAssertEqual(merged[key]!.tilesOpened.total, 50)
         XCTAssertEqual(merged[key]!.bestCentiseconds, 200)
+    }
+
+    // MARK: Device-owned best time + timestamp (merged only for view)
+
+    /// The whole point of device-owned bests: the winning time's TIMESTAMP travels
+    /// with it. Merging must pick the faster device's (time, date) pair intact —
+    /// never the fast time with the wrong device's date.
+    func testBestTimestampTravelsWithItsValue() {
+        let mineDate = Date(timeIntervalSince1970: 1000)
+        let fastDate = Date(timeIntervalSince1970: 2000)
+        var mine = ScoreRecord()
+        mine.best = BestTime(centiseconds: 500, achievedAt: mineDate)
+        mine.topTimes = [mine.best!]
+        var theirs = ScoreRecord()
+        theirs.best = BestTime(centiseconds: 300, achievedAt: fastDate)
+        theirs.topTimes = [theirs.best!]
+        let merged = StatsMerge.merge(mine: [key: mine], others: ["b": [key: theirs]])[key]!
+        XCTAssertEqual(merged.best?.centiseconds, 300, "view shows the cross-device fastest")
+        XCTAssertEqual(
+            merged.best?.achievedAt, fastDate, "and its OWN timestamp, not the loser's date")
+    }
+
+    /// A device's OWN record keeps its own best untouched by the merge — the display
+    /// projection doesn't overwrite the stored own value.
+    func testOwnBestIsNotOverwrittenByAFasterOtherDevice() {
+        var mine = ScoreRecord()
+        mine.best = BestTime(centiseconds: 500, achievedAt: Date(timeIntervalSince1970: 0))
+        mine.topTimes = [mine.best!]
+        let orig = mine
+        var theirs = ScoreRecord()
+        theirs.best = BestTime(centiseconds: 100, achievedAt: Date(timeIntervalSince1970: 0))
+        theirs.topTimes = [theirs.best!]
+        _ = StatsMerge.merge(mine: [key: mine], others: ["b": [key: theirs]])
+        XCTAssertEqual(mine, orig, "merge is pure — this device's own stored record is unchanged")
+    }
+
+    /// Top-N merges to the fastest `topTimeLimit` across all devices, fastest first.
+    func testTopTimesMergeToFastestAcrossDevices() {
+        func t(_ cs: Int) -> BestTime {
+            BestTime(centiseconds: cs, achievedAt: Date(timeIntervalSince1970: 0))
+        }
+        var mine = ScoreRecord()
+        mine.topTimes = [t(300), t(500), t(700)]
+        var theirs = ScoreRecord()
+        theirs.topTimes = [t(200), t(400), t(600), t(800)]
+        let merged = StatsMerge.merge(mine: [key: mine], others: ["b": [key: theirs]])[key]!
+        XCTAssertEqual(
+            merged.topTimes.map(\.centiseconds), [200, 300, 400, 500, 600],
+            "fastest 5 across both devices")
+    }
+
+    /// Dates merge as earliest-first-played / latest-last-played.
+    func testPlayedDatesMergeMinFirstMaxLast() {
+        var mine = ScoreRecord()
+        mine.firstPlayed = Date(timeIntervalSince1970: 500)
+        mine.lastPlayed = Date(timeIntervalSince1970: 800)
+        var theirs = ScoreRecord()
+        theirs.firstPlayed = Date(timeIntervalSince1970: 300)
+        theirs.lastPlayed = Date(timeIntervalSince1970: 900)
+        let merged = StatsMerge.merge(mine: [key: mine], others: ["b": [key: theirs]])[key]!
+        XCTAssertEqual(
+            merged.firstPlayed, Date(timeIntervalSince1970: 300), "earliest first-played")
+        XCTAssertEqual(merged.lastPlayed, Date(timeIntervalSince1970: 900), "latest last-played")
+    }
+
+    /// The new skill counters sum across devices like the others.
+    func testSkillCountersSumAcrossDevices() {
+        var mine = ScoreRecord()
+        mine.noFlagWins.add(2)
+        mine.chordsUsed.add(10)
+        var theirs = ScoreRecord()
+        theirs.noFlagWins.add(3)
+        theirs.chordsUsed.add(5)
+        let merged = StatsMerge.merge(mine: [key: mine], others: ["b": [key: theirs]])[key]!
+        XCTAssertEqual(merged.noFlagWins.total, 5)
+        XCTAssertEqual(merged.chordsUsed.total, 15)
     }
 }

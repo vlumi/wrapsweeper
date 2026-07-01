@@ -43,17 +43,30 @@ enum StatsMerge {
         }
         foldCounter(\.wins)
         foldCounter(\.gamesPlayed)
+        foldCounter(\.losses)
         foldCounter(\.tilesOpened)
         foldCounter(\.flagsPlaced)
         foldCounter(\.minesHit)
         foldCounter(\.minesDisarmed)
         foldCounter(\.playtimeCentiseconds)
+        foldCounter(\.chordsUsed)
+        foldCounter(\.noFlagWins)
+        foldCounter(\.noChordWins)
 
-        // Best fields: idempotent min/max across this device + all others.
-        let allBest = ([own] + others).compactMap(\.bestCentiseconds)
-        out.bestCentiseconds = allBest.min()
-        let allProgress = ([own] + others).compactMap(\.bestLossProgress)
-        out.bestLossProgress = allProgress.max()
+        // Best time + top times are DEVICE-OWNED: `own` keeps this device's own best
+        // untouched; the DISPLAY record projects the cross-device view. Because each
+        // `BestTime` carries its own timestamp, picking whole entries by their time
+        // keeps every (time, date) pair intact — the timestamp is never merged apart.
+        out.topTimes = own.topTimes.mergedTop(
+            with: others.map(\.topTimes), limit: ScoreRecord.topTimeLimit)
+        out.best = out.topTimes.first ?? own.best
+
+        // Loss progress: idempotent max across all devices.
+        out.bestLossProgress = ([own] + others).compactMap(\.bestLossProgress).max()
+
+        // Dates: earliest first-played, latest last-played across all devices.
+        out.firstPlayed = ([own] + others).compactMap(\.firstPlayed).min()
+        out.lastPlayed = ([own] + others).compactMap(\.lastPlayed).max()
 
         return out
     }

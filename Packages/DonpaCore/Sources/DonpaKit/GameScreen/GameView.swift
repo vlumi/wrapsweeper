@@ -352,7 +352,9 @@ struct GameContent: View {
             // show how much faster this clear was rather than the (already-on-timer)
             // final time. No prior best → a first-ever clear (improvedBy nil).
             let priorBest = scoreboard.best(for: config)
-            let isRecord = scoreboard.submit(centiseconds, for: config)
+            let isRecord = scoreboard.submit(
+                centiseconds, for: config,
+                noFlag: !viewModel.usedFlagEver, noChord: !viewModel.usedChordEver)
             if isRecord {
                 let improvedBy = priorBest.map { $0 - centiseconds }
                 kind = .record(centiseconds: centiseconds, improvedBy: improvedBy)
@@ -382,8 +384,10 @@ struct GameContent: View {
         // on a win disarmedMineCount reads the full set.
         scoreboard.recordGameOutcome(
             for: viewModel.config,
+            won: isWin,
             minesHit: isWin ? 0 : 1,
-            minesDisarmed: viewModel.game.board.disarmedMineCount)
+            minesDisarmed: viewModel.game.board.disarmedMineCount,
+            chordsUsed: viewModel.chordsThisGame)
         showPanel(kind)
 
         if !reduceMotion {

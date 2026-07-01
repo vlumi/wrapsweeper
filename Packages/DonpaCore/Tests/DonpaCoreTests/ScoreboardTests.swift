@@ -280,6 +280,50 @@ final class ScoreboardTests: XCTestCase {
         XCTAssertEqual(Scoreboard.decodeEpoch(Data(withEpoch.utf8)), 3)
     }
 
+    /// A win stamps first/last-played, keeps the best `topTimeLimit` times (fastest
+    /// first), and folds in the no-flag/no-chord skill flags.
+    func testSubmitRecordsTimestampsTopTimesAndSkill() {
+        let board = Scoreboard(defaults: defaults)
+        let t0 = Date(timeIntervalSince1970: 1000)
+        board.submit(300, for: .beginner, at: t0, noFlag: true, noChord: true)
+        board.submit(200, for: .beginner, at: t0.addingTimeInterval(60))
+        board.submit(400, for: .beginner, at: t0.addingTimeInterval(120))
+        let r = board.record(for: .beginner)!
+        XCTAssertEqual(r.best?.centiseconds, 200, "device best is the fastest")
+        XCTAssertEqual(r.topTimes.map(\.centiseconds), [200, 300, 400], "top times, fastest first")
+        XCTAssertEqual(r.best?.achievedAt, t0.addingTimeInterval(60), "best carries its timestamp")
+        XCTAssertEqual(r.firstPlayed, t0, "first-played is the earliest submit")
+        XCTAssertEqual(r.lastPlayed, t0.addingTimeInterval(120), "last-played advances")
+        XCTAssertEqual(r.noFlagWins.total, 1, "one no-flag win")
+        XCTAssertEqual(r.noChordWins.total, 1, "one no-chord win")
+    }
+
+    /// Top times cap at the limit, keeping the fastest.
+    func testTopTimesCapAtLimit() {
+        let board = Scoreboard(defaults: defaults)
+        for cs in [500, 100, 400, 200, 600, 300, 700] {
+            board.submit(cs, for: .beginner)
+        }
+        let top = board.record(for: .beginner)!.topTimes.map(\.centiseconds)
+        XCTAssertEqual(top, [100, 200, 300, 400, 500], "keeps fastest \(ScoreRecord.topTimeLimit)")
+    }
+
+    /// A record from before device-owned bests (scalar `bestCentiseconds`, no
+    /// `best`/`topTimes`) lifts into a `BestTime` and seeds the top list, so old
+    /// high scores survive the reshape. New counters/dates default empty.
+    func testDecodeLiftsLegacyScalarBestIntoBestTime() {
+        let key = GameConfig.beginner.storageKey
+        let legacy =
+            #"{"version":1,"epoch":1,"records":{"\#(key)":"#
+            + #"{"bestCentiseconds":777,"wins":{"mine":1}}}}"#
+        let records = Scoreboard.decodeBlob(Data(legacy.utf8))
+        let r = records[key]
+        XCTAssertEqual(r?.best?.centiseconds, 777, "scalar best lifted into a BestTime")
+        XCTAssertEqual(r?.topTimes.first?.centiseconds, 777, "and seeds the top list")
+        XCTAssertEqual(r?.noFlagWins.total, 0, "new counters default empty")
+        XCTAssertNil(r?.lastPlayed, "new dates default nil")
+    }
+
     /// The legacy bare-dict fallback (records at the top level, before the versioned
     /// envelope existed) still decodes — tested on the decoder directly, since the
     /// load path's epoch floor would otherwise drop such a blob before this matters.

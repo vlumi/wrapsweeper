@@ -46,10 +46,10 @@ final class CumulativeStatsTests: XCTestCase {
         let board = Scoreboard(defaults: defaults)
         board.recordActivity(
             for: .beginner, tilesOpened: 50, flagsPlaced: 6, playtimeCentiseconds: 1200)
-        board.recordGameOutcome(for: .beginner, minesHit: 1, minesDisarmed: 4)
+        board.recordGameOutcome(for: .beginner, won: false, minesHit: 1, minesDisarmed: 4)
         board.recordActivity(
             for: .expert, tilesOpened: 200, flagsPlaced: 30, playtimeCentiseconds: 8000)
-        board.recordGameOutcome(for: .expert, minesHit: 0, minesDisarmed: 99)
+        board.recordGameOutcome(for: .expert, won: true, minesHit: 0, minesDisarmed: 99)
         // Per-config kept.
         XCTAssertEqual(board.record(for: .beginner)?.tilesOpened.total, 50)
         XCTAssertEqual(board.record(for: .expert)?.minesDisarmed.total, 99)
@@ -64,7 +64,9 @@ final class CumulativeStatsTests: XCTestCase {
 
     func testGamesPlayedCountsEachOutcome() {
         let board = Scoreboard(defaults: defaults)
-        for _ in 0..<5 { board.recordGameOutcome(for: .beginner, minesHit: 1, minesDisarmed: 0) }
+        for _ in 0..<5 {
+            board.recordGameOutcome(for: .beginner, won: false, minesHit: 1, minesDisarmed: 0)
+        }
         XCTAssertEqual(board.totalGamesPlayed, 5)
     }
 
@@ -86,7 +88,7 @@ final class CumulativeStatsTests: XCTestCase {
         // A later finished game records the outcome → games-played increments.
         board.recordActivity(
             for: .beginner, tilesOpened: 5, flagsPlaced: 1, playtimeCentiseconds: 100)
-        board.recordGameOutcome(for: .beginner, minesHit: 1, minesDisarmed: 0)
+        board.recordGameOutcome(for: .beginner, won: false, minesHit: 1, minesDisarmed: 0)
         XCTAssertEqual(board.totalGamesPlayed, 1)
         XCTAssertEqual(board.totalTilesOpened, 17, "activity accumulates across all flushes")
     }
