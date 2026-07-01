@@ -21,6 +21,10 @@ development — entries land under Unreleased as they merge.
 
 ### Unreleased (next build)
 
+- **Minimap shows/hides reliably.** The corner minimap no longer pops in mid-game
+  after a small pan on a board that fits (or stays hidden when it shouldn't) — its
+  visibility now tracks the zoom level, not the camera position. Wrapped boards
+  always show it (there's no edge to fit).
 - **Wrapped (torus) boards.** A new Modern option: the board's edges connect, so it
   scrolls seamlessly in every direction — pan off one side and the other flows in,
   forever. Pick **Wrapped** in the New Game screen (next to the size/difficulty).

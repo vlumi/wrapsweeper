@@ -34,19 +34,17 @@ extension BoardScene {
     func refreshMinimap() {
         let w = viewModel.boardWidth
         let h = viewModel.boardHeight
-        // Whether the WHOLE board fits, from the true visible world rect — NOT
-        // `visibleRange()`, whose +1-cell culling margin (so cells build before
-        // scrolling in) makes a board with a partly-clipped edge column read as
-        // "fits", leaving the minimap hidden until a nudge crossed the rounding edge.
-        let board = layout.boardSize(width: w, height: h)
-        let scale = cameraNode.xScale
-        let halfW = size.width / 2 * scale
-        let halfH = size.height / 2 * scale
-        let cam = cameraNode.position
-        let eps: CGFloat = 0.5  // sub-pixel slack, so an exact fit isn't a false "exceeds"
-        let fits =
-            cam.x - halfW <= eps && cam.y - halfH <= eps
-            && cam.x + halfW >= board.width - eps && cam.y + halfH >= board.height - eps
+        // Does the whole board fit? Defined by the ZOOM, not the camera position.
+        // The old position-based test flipped on a pan: it asked "does the current
+        // viewport rect cover the board rect", but `centerCamera` rests with
+        // `fitScale`'s 1.1 margin of slack, so a small pan into that slack uncovered
+        // an edge and popped the minimap in mid-game (seen on wrapped boards, but the
+        // same hazard on any just-fitting bounded board). The board fits iff the
+        // camera is zoomed out at least to `fitScale` — pan-invariant, and consistent
+        // with how `centerCamera` lays it out. A wrapped board never "fits" (it
+        // scrolls forever), so the navigator is always wanted.
+        let eps: CGFloat = 0.001  // float slack so an exact fit isn't a false "exceeds"
+        let fits = !isWrapped && cameraNode.xScale >= fitScale - eps
         // Publish so the toolbar toggle can disable when the board fits. Assign only
         // on change to avoid @Published churn every frame.
         let exceeds = !fits
