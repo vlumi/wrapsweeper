@@ -107,7 +107,8 @@ final class ScoreboardTests: XCTestCase {
         // A record carrying a best time but a zero wins counter and an old loss %.
         let key = GameConfig.beginner.storageKey
         writeRaw(
-            #"{"version":1,"epoch":1,"records":{"\#(key)":{"bestCentiseconds":1234,"bestLossProgress":0.97}}}"#
+            #"{"version":1,"epoch":1,"records":{"\#(key)":"#
+                + #"{"bestCentiseconds":1234,"bestLossProgress":0.97}}}"#
         )
         let board = Scoreboard(defaults: defaults)
         XCTAssertEqual(board.wins(for: .beginner), 0, "wins counter is zero in this record")
