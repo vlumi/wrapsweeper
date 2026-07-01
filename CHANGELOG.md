@@ -25,7 +25,8 @@ development — entries land under Unreleased as they merge.
   cell has six neighbours instead of eight. Pick **Hex** in the New Game screen
   (alongside size/difficulty). Works with both bounded and **wrapped** edges — a hex
   torus that scrolls seamlessly in every direction. Scores are tracked separately
-  from square boards.
+  from square boards. Hex carries a touch more mines at each difficulty (its six-
+  neighbour cascades play easier otherwise, so it's tuned to match square).
 - **Board sizes rebalanced to powers of two** (8, 16, 32, 64, 128, 256, 1024). Every
   board is now even-sided (which the wrapped-hex torus needs), and the size ladder is
   cleaner. Mine-density tiers were re-tuned to 10/12/14/16/18% so the five

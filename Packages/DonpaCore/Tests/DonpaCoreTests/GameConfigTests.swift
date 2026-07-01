@@ -229,14 +229,15 @@ final class GameConfigTests: XCTestCase {
         }
     }
 
-    /// Square and hex key distinctly (separate scoreboards), the hex key carries the
-    /// `hex` shape token, and the square key is unchanged from before the hex axis.
+    /// Square and hex key distinctly (separate scoreboards): the hex key carries the
+    /// `hex` shape token AND a higher mine count — hex runs +2 density points, so
+    /// S·Normal is 12% (31 mines) square vs 14% (36) hex.
     func testShapeDistinguishStorageKey() {
         let square = GameConfig.modern(.s, .normal, .bounded, .square).storageKey
         let hex = GameConfig.modern(.s, .normal, .bounded, .hex).storageKey
         XCTAssertNotEqual(square, hex)
         XCTAssertEqual(square, "v1|modern|sq|bounded|16x16|m31")
-        XCTAssertEqual(hex, "v1|modern|hex|bounded|16x16|m31")
+        XCTAssertEqual(hex, "v1|modern|hex|bounded|16x16|m36")
     }
 
     /// Every shape case has a distinct, non-empty label (the New Game picker's
@@ -246,6 +247,17 @@ final class GameConfigTests: XCTestCase {
         XCTAssertTrue(labels.allSatisfy { !$0.isEmpty }, "each shape case has a label")
         XCTAssertEqual(Set(labels).count, BoardShape.allCases.count, "labels are distinct")
         for s in BoardShape.allCases { XCTAssertEqual(s.id, s.rawValue) }
+    }
+
+    /// Hex boards carry +2 density points over square at every tier (its gentler
+    /// 6-neighbour cascades were near one-tap on small boards); same size, more mines.
+    func testHexIsDenserThanSquare() {
+        for density in Density.allCases {
+            let square = GameConfig.modern(.m, density, .bounded, .square).mineCount
+            let hex = GameConfig.modern(.m, density, .bounded, .hex).mineCount
+            // M = 32×32 = 1024 cells, so +2 points ≈ +20 mines (±1 from rounding).
+            XCTAssertEqual(Double(hex - square), 0.02 * 1024, accuracy: 1.5, "\(density): +2pt")
+        }
     }
 
     /// A hex config round-trips through Codable with shape intact.

@@ -44,19 +44,14 @@ func mines(width: Int, height: Int, density: Double) -> Int {
     Int((Double(width * height) * density).rounded())
 }
 
-// Classic presets (sanity-check anchors) + Modern candidates across two size
-// sets and three densities (Easy 12% / Normal 16% / Hard 20%).
-// Locked Modern tiers (chosen from this analysis): five densities forming a
-// smooth ramp from fair (Easy) to near-unsolvable-by-logic (Insane), across
-// three square sizes. Classic presets included as calibration anchors.
-// The five Modern tiers, SHARED by square and hex. Hex plays a touch easier per
-// tier (6 neighbours vs 8 → less logic cascade), but its guess% spreads more evenly
-// across the tiers where square bunches Brutal/Insane near 100% — so the same table
-// gives hex a nicely distinct-per-tier curve. Decision (2026-07-01): keep shared,
-// hex-a-bit-easier is fine. SWEEP=1 replaces the tiers with a fine density ramp to
-// re-check the mapping if that's ever revisited.
+// The five Modern SQUARE tiers (the base ladder). Classic presets are calibration
+// anchors. Hex is NOT shared: `run()` adds +2 density points for the hex pass,
+// mirroring the ship rule (`Density.fraction(shape:)`) — hex's 6-neighbour cascades
+// play easier at a given mine%, and small hex Easy was near one-tap on the shared
+// table. `1tap%` (share of games the first flood-fill clears the whole board) is the
+// metric that caught it. SWEEP=1 replaces the tiers with a fine density ramp.
 var densities: [(String, Double)] = [
-    ("Easy", 0.10), ("Normal", 0.13), ("Hard", 0.16), ("Brutal", 0.19), ("Insane", 0.22),
+    ("Easy", 0.10), ("Normal", 0.12), ("Hard", 0.14), ("Brutal", 0.16), ("Insane", 0.18),
 ]
 if ProcessInfo.processInfo.environment["SWEEP"] == "1" {
     densities = stride(from: 0.11, through: 0.30, by: 0.01).map {
@@ -73,7 +68,7 @@ var candidates: [Candidate] = [
 // The rebalanced power-of-2 ladder (8/16/32/64/128/256/1024). Sample a few rungs
 // for the density sweep; playability is roughly size-stable above ~S.
 let sizeSets: [(String, [(String, Int)])] = [
-    ("Modern", [("S", 16), ("M", 32), ("L", 64)])
+    ("Modern", [("XS", 8), ("S", 16), ("M", 32)])
 ]
 for (setName, sizes) in sizeSets {
     for (sizeLabel, side) in sizes {
@@ -89,18 +84,23 @@ for (setName, sizes) in sizeSets {
 let games = 2000
 let solver = Solver()
 
-// Hex cells have 6 neighbours vs square's 8, so each revealed number constrains
-// fewer cells and logic cascades less — meaning the SAME mine% plays harder on
-// hex. This pass runs the identical solver over both topologies so the hex tiers
-// can be re-picked to match the square difficulty CURVE (same solve% per tier),
-// not the same density. `SHAPE=hex` (or `both`, default) selects which to run.
+// Runs the identical solver over both topologies (`SHAPE=hex|square|both`). The hex
+// pass adds the ship's +2 density points (see `run`), so the two columns show the
+// ACTUAL shipping boards side by side rather than the same mine% on different grids.
 enum Shape: String { case square, hex }
 
 func run(_ shape: Shape, _ c: Candidate) {
     let cells = c.width * c.height
+    // Ship rule: hex runs +2 density points over the base (square) tier — its 6-
+    // neighbour cascades play easier, so mirror `Density.fraction(shape:)` here so
+    // the tool measures the ACTUAL hex boards, not the square mine count on a hex
+    // grid. Candidate.mines is the square baseline.
+    let mineCount = shape == .hex ? c.mines + Int((0.02 * Double(cells)).rounded()) : c.mines
+    let safe = cells - mineCount  // non-mine cells; a one-tap clear opens them all
     var solved = 0
     var deductSum = 0
     var openSum = 0
+    var oneTap = 0  // games the FIRST flood-fill opened the whole board (won on one tap)
     let topo: any RectangularTopology =
         shape == .hex
         ? HexTopology(width: c.width, height: c.height)
@@ -108,26 +108,28 @@ func run(_ shape: Shape, _ c: Candidate) {
     let click = Coord(c.width / 2, c.height / 2)
 
     for seed in 0..<games {
-        var game = Game(topology: topo, mineCount: c.mines)
+        var game = Game(topology: topo, mineCount: mineCount)
         var rng = SeededRNG(seed: UInt64(seed))
         let r = solver.solve(&game, firstClick: click, using: &rng)
         openSum += r.firstOpenSize
+        if r.firstOpenSize >= safe { oneTap += 1 }
         if r.solvedWithoutGuessing {
             solved += 1
             deductSum += r.deductions
         }
     }
 
-    let density = Double(c.mines) / Double(cells) * 100
+    let density = Double(mineCount) / Double(cells) * 100
     let solvePct = Double(solved) / Double(games) * 100
     let avgDeduce = solved > 0 ? Double(deductSum) / Double(solved) : 0
     let avgOpen = Double(openSum) / Double(games)
+    let oneTapPct = Double(oneTap) / Double(games) * 100
 
     let row =
         pad(shape.rawValue, 6) + " " + pad(c.label, 28) + " " + pad("\(cells)", 6) + " "
-        + pad("\(c.mines)", 6) + " " + pad(col(density) + "%", 8) + " "
+        + pad("\(mineCount)", 6) + " " + pad(col(density) + "%", 8) + " "
         + pad(col(solvePct) + "%", 7) + " " + pad(col(100 - solvePct) + "%", 7) + " "
-        + pad(col(avgDeduce), 7) + " " + pad(col(avgOpen), 6)
+        + pad(col(avgDeduce), 7) + " " + pad(col(avgOpen), 6) + " " + pad(col(oneTapPct) + "%", 7)
     print(row)
 }
 
@@ -139,7 +141,9 @@ let shapesToRun: [Shape] = {
     }
 }()
 
-print("shape  config                       cells  mines  density  solve%  guess%  deduce  open")
+print(
+    "shape  config                       cells  mines  density  solve%  guess%  deduce  open   1tap%"
+)
 print(String(repeating: "-", count: 93))
 for shape in shapesToRun {
     for c in candidates { run(shape, c) }
