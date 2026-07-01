@@ -39,7 +39,43 @@ final class CellLayoutTests: XCTestCase {
         XCTAssertEqual(layout.boardSize(width: 9, height: 16), CGSize(width: 90, height: 160))
     }
 
+    /// The square-grid `CellLayout` defaults: uniform pitch, square tile.
+    func testSquareLayoutGeometryDefaults() {
+        let layout = SquareLayout(cellSize: 20)
+        XCTAssertEqual(layout.columnPitch, 20)
+        XCTAssertEqual(layout.rowPitch, 20)
+        XCTAssertEqual(layout.tileShape, .roundedSquare)
+        XCTAssertEqual(layout.tileSize, CGSize(width: 20, height: 20))
+    }
+
     // MARK: HexLayout
+
+    /// Hex geometry knobs: full-width columns, √3/2 row pitch, hex tile taller than
+    /// wide by 2/√3 — what the renderer reads to size/space tiles.
+    func testHexLayoutGeometry() {
+        let layout = HexLayout(cellSize: 32)
+        XCTAssertEqual(layout.columnPitch, 32, accuracy: 0.001)
+        XCTAssertEqual(layout.rowPitch, 32 * 0.866_025_403_784_438_6, accuracy: 0.001)
+        XCTAssertEqual(layout.tileShape, .pointyHex)
+        XCTAssertEqual(layout.tileSize.width, 32, accuracy: 0.001)
+        XCTAssertEqual(layout.tileSize.height, 32 * 1.154_700_538_379_251_5, accuracy: 0.001)
+    }
+
+    /// `boardSize`: width gains half a cell for the odd-row shift (height > 1), and
+    /// height is (h-1) row pitches plus one full vertex-to-vertex hex height. A
+    /// single row has no odd-row overhang.
+    func testHexBoardSize() {
+        let layout = HexLayout(cellSize: 32)
+        let pitch = 32 * 0.866_025_403_784_438_6
+        let vertexH = 32 * 1.154_700_538_379_251_5
+        let multi = layout.boardSize(width: 4, height: 3)
+        XCTAssertEqual(multi.width, (4 + 0.5) * 32, accuracy: 0.001)
+        XCTAssertEqual(multi.height, 2 * pitch + vertexH, accuracy: 0.001)
+        // Single row: no odd rows exist, so no half-cell width overhang.
+        let single = layout.boardSize(width: 4, height: 1)
+        XCTAssertEqual(single.width, 4 * 32, accuracy: 0.001)
+        XCTAssertEqual(single.height, vertexH, accuracy: 0.001)
+    }
 
     func testHexOddRowsAreShiftedRight() {
         let layout = HexLayout(cellSize: 32)

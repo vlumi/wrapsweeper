@@ -222,6 +222,15 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(hex, "v1|modern|hex|bounded|16x16|m33")
     }
 
+    /// Every shape case has a distinct, non-empty label (the New Game picker's
+    /// Square/Hex segments) and an id matching its rawValue.
+    func testShapeLabelsAndIDs() {
+        let labels = BoardShape.allCases.map(\.label)
+        XCTAssertTrue(labels.allSatisfy { !$0.isEmpty }, "each shape case has a label")
+        XCTAssertEqual(Set(labels).count, BoardShape.allCases.count, "labels are distinct")
+        for s in BoardShape.allCases { XCTAssertEqual(s.id, s.rawValue) }
+    }
+
     /// A hex config round-trips through Codable with shape intact.
     func testCodableRoundTripPreservesShape() throws {
         let cfg = GameConfig.modern(.m, .hard, .bounded, .hex)

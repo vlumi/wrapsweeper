@@ -34,7 +34,7 @@ public protocol CellLayout: Sendable {
 
 /// The outline a cell's tile is drawn with. `CellLayout` picks it so the renderer
 /// stays geometry-agnostic (it just draws the requested shape at `cellSize`).
-public enum TileShape: Sendable {
+public enum TileShape: Sendable, Equatable {
     case roundedSquare
     /// Pointy-top regular hexagon, flat-to-flat width = `cellSize`.
     case pointyHex
