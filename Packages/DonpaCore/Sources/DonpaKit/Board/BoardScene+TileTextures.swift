@@ -52,7 +52,8 @@ extension BoardScene {
 
     /// Add the tile outline (rounded square or pointy-top hexagon) to `ctx`, inset
     /// from the `w×h` canvas edges (canvas points, already scaled by the caller).
-    private func addTilePath(
+    /// Non-private so the mode-glow can clip its screentone to the same outline.
+    func addTilePath(
         to ctx: CGContext, shape: TileShape, w: CGFloat, h: CGFloat, inset: CGFloat
     ) {
         let lo = inset

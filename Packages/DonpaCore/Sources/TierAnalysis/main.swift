@@ -70,8 +70,10 @@ var candidates: [Candidate] = [
     Candidate(label: "Classic Expert    30x16", width: 30, height: 16, mines: 99),
 ]
 
+// The rebalanced power-of-2 ladder (8/16/32/64/128/256/1024). Sample a few rungs
+// for the density sweep; playability is roughly size-stable above ~S.
 let sizeSets: [(String, [(String, Int)])] = [
-    ("Modern", [("Small", 9), ("Medium", 16), ("Large", 25)])
+    ("Modern", [("S", 16), ("M", 32), ("L", 64)])
 ]
 for (setName, sizes) in sizeSets {
     for (sizeLabel, side) in sizes {
