@@ -29,6 +29,22 @@ final class SaveStoreTests: XCTestCase {
         return GameSnapshot(game: game, config: config, elapsedCentiseconds: 500)!
     }
 
+    /// A save whose geometry no longer matches its config (a between-builds
+    /// size/density retune) is discarded — restoring it would mangle the board.
+    func testLoadRejectsInconsistentSave() throws {
+        // Beginner claims 10 mines; this save carries 3 (written under an older
+        // meaning of the tier). Fabricated via decode — capture can't produce it.
+        let stale = try JSONDecoder().decode(
+            GameSnapshot.self,
+            from: Data(
+                #"{"config":{"classic":{"_0":"beginner"}},"mines":[[0,0],[1,1],[2,2]]}"#.utf8)
+        )
+        XCTAssertFalse(stale.isConsistent)
+        store.save(stale)
+        XCTAssertTrue(store.hasSave, "the file exists…")
+        XCTAssertNil(store.load(), "…but an inconsistent save must not load")
+    }
+
     func testSaveThenLoadRoundTrips() {
         XCTAssertNil(store.load())
         let snap = sampleSnapshot()
@@ -92,9 +108,12 @@ final class SaveStoreTests: XCTestCase {
 
     func testLoadAcceptsOlderVersion() throws {
         // The format is additive: a save at or below currentVersion still loads
-        // (an in-progress game survives a compatible app upgrade).
+        // (an in-progress game survives a compatible app upgrade). The fixture must
+        // be geometry-consistent (Beginner = 9×9, 10 mines) to pass the load gate.
         let url = dir.appendingPathComponent(filename)
-        let json = #"{"version":0,"config":{"classic":{"_0":"beginner"}},"mines":[[0,0]]}"#
+        let mines = ((0..<9).map { "[\($0),0]" } + ["[0,1]"]).joined(separator: ",")
+        let json =
+            #"{"version":0,"config":{"classic":{"_0":"beginner"}},"mines":[\#(mines)]}"#
         try Data(json.utf8).write(to: url)
         let loaded = store.load()
         XCTAssertNotNil(loaded, "an older, compatible save is preserved across upgrade")

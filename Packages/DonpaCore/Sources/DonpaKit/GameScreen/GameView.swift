@@ -181,7 +181,11 @@ struct GameContent: View {
         // Fold each live activity-flush delta (tiles/flags/time) into the lifetime
         // totals WITHOUT counting a game played — the outcome is recorded at end.
         // Wired before any newGame below so the first flush is caught.
-        viewModel.onActivityFlush = { tiles, flags, centiseconds in
+        viewModel.onActivityFlush = { [weak viewModel] tiles, flags, centiseconds in
+            // Weak: the closure lives ON viewModel — a strong capture is a self-cycle
+            // (harmless for these app-lifetime objects today, a leak in any future
+            // scene-per-window world).
+            guard let viewModel else { return }
             scoreboard.recordActivity(
                 for: viewModel.config, tilesOpened: tiles, flagsPlaced: flags,
                 playtimeCentiseconds: centiseconds)

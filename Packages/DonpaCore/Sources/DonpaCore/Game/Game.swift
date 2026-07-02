@@ -81,7 +81,12 @@ public struct Game: Sendable {
     /// Rebuild a game from a persisted snapshot. Mines are restored exactly (not
     /// re-randomized — they're first-click-safe).
     public static func restored(from s: GameSnapshot) -> Game {
-        var game = Game(topology: s.config.topology, mineCount: s.config.mineCount)
+        // Trust the SAVED layout's count over the config's freshly-computed one:
+        // the config is symbolic, so a density retune between builds would
+        // otherwise skew safeCellCount/flagsRemaining against the actual mines
+        // (early win, or a board that can never be won).
+        let mineCount = s.mines.isEmpty ? s.config.mineCount : s.mines.count
+        var game = Game(topology: s.config.topology, mineCount: mineCount)
         game.board.restore(mines: s.mines, revealed: s.revealed, flagged: s.flagged)
         game.minesPlaced = !game.board.mineCoords.isEmpty
         game.status = s.status
@@ -115,7 +120,11 @@ public struct Game: Sendable {
 
     public mutating func reveal<R: RandomNumberGenerator>(_ c: Coord, using rng: inout R) {
         guard status == .notStarted || status == .playing else { return }
-        guard topology.normalize(c) != nil else { return }
+        // Shadow with the FOLDED coord: on a wrapped topology normalize never fails,
+        // and using the raw coord past this point would read/write phantom off-board
+        // cells (silent no-op writes, and a first-click safe zone around the wrong
+        // cell). Bounded topologies still reject off-board here.
+        guard let c = topology.normalize(c) else { return }
         guard board[c].state == .hidden else { return }
 
         if !minesPlaced {
@@ -168,7 +177,9 @@ public struct Game: Sendable {
 
     public mutating func toggleFlag(_ c: Coord) {
         guard status == .playing || status == .notStarted else { return }
-        guard topology.normalize(c) != nil else { return }
+        // Folded coord, same as `reveal`: a raw wrapped coord would pass the check
+        // but write to a phantom cell.
+        guard let c = topology.normalize(c) else { return }
         switch board[c].state {
         case .hidden: board[c].state = .flagged
         case .flagged: board[c].state = .hidden
@@ -195,6 +206,19 @@ public struct Game: Sendable {
             reveal(n, using: &rng)
             if status == .lost { return }
         }
+    }
+
+    /// Whether a chord on `c` would actually reveal something: a revealed number
+    /// whose adjacent flag count matches, with at least one hidden neighbour left.
+    /// The UI routes EVERY tap on a revealed cell through `chord`, so callers use
+    /// this to skip the compute — and any chord *stats* — for no-op taps (a stray
+    /// tap on a 0-cell must not count as "used chord").
+    public func canChord(_ c: Coord) -> Bool {
+        guard status == .playing else { return false }
+        guard board[c].state == .revealed, board[c].adjacentMines > 0 else { return false }
+        let neighbors = topology.neighbors(of: c)
+        guard neighbors.contains(where: { board[$0].state == .hidden }) else { return false }
+        return neighbors.filter { board[$0].state == .flagged }.count == board[c].adjacentMines
     }
 
     // MARK: - Win/lose helpers

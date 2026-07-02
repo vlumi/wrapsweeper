@@ -114,7 +114,11 @@ targets:
         # are suffixed "-games" (iOS's plain `public.app-category.puzzle` is
         # rejected at Mac App Store validation).
         LSApplicationCategoryType: public.app-category.puzzle-games
-        LSMinimumSystemVersion: "13.0"
+        # Must track the deploymentTarget above — this explicit key OVERRIDES the
+        # build-setting-derived minimum, so a stale value advertises installability
+        # on an OS the binary was never built for (13.0 lingered after the floor
+        # moved to 14).
+        LSMinimumSystemVersion: "14.0"
         NSHighResolutionCapable: true
     settings:
       base:

@@ -132,4 +132,10 @@ final class GameResultTests: XCTestCase {
         XCTAssertNotNil(secondID)
         XCTAssertGreaterThan(secondID!, firstID!, "each finished game gets a fresh result id")
     }
+
+    func testIsWinDistinguishesOutcomes() {
+        XCTAssertTrue(GameResult.won(centiseconds: 100, config: .beginner).isWin)
+        XCTAssertFalse(GameResult.lost(at: Coord(1, 1)).isWin)
+        XCTAssertFalse(GameResult.lost(at: nil).isWin)
+    }
 }

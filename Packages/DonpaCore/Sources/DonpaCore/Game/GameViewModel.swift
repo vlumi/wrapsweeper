@@ -1,32 +1,6 @@
 import Combine
 import Foundation
 
-/// What a plain tap/click on a *hidden* cell does. A revealed number always
-/// chords and a long-press always does the opposite action, regardless of mode.
-public enum InputMode: String, Codable, Sendable {
-    case reveal
-    case flag
-
-    public mutating func toggle() { self = flipped }
-    public var flipped: InputMode { self == .reveal ? .flag : .reveal }
-}
-
-/// The outcome of a finished game, for end-of-game feedback.
-public enum GameResult: Equatable, Sendable {
-    case won(centiseconds: Int, config: GameConfig)
-    /// `at` is the detonated mine (for a focused loss animation).
-    case lost(at: Coord?)
-
-    public var isWin: Bool { if case .won = self { return true } else { return false } }
-}
-
-/// A result tagged with a monotonic id, so observers fire even on two identical
-/// outcomes in a row.
-public struct GameResultEvent: Equatable, Sendable {
-    public let id: Int
-    public let result: GameResult
-}
-
 /// The live game clock, split out as its own observable so the ~10×/sec timer tick
 /// only re-renders the timer readout — NOT the whole `GameContent` body. (Reading
 /// the tick straight off `GameViewModel` made every view observing the VM re-render
@@ -241,9 +215,13 @@ public final class GameViewModel: ObservableObject {
     public func toggleFlag(_ c: Coord) {
         // O(1), so synchronous — but still gated mid-compute / paused / finished.
         guard canTakeInput, game.status == .notStarted || game.status == .playing else { return }
-        let wasFlagged = game.board[c].state == .flagged
+        let before = game.board[c].state
         game.toggleFlag(c)
-        if !wasFlagged, game.board[c].state == .flagged {
+        let after = game.board[c].state
+        // A tap on a revealed cell (or off-board) changes nothing — skip the bump
+        // too, or every stray right-click schedules a full-board autosave + redraw.
+        guard after != before else { return }
+        if after == .flagged {
             flagsPlacedThisGame += 1
             usedFlagEver = true  // latches; a placed-then-removed flag still counts
         }
@@ -254,6 +232,11 @@ public final class GameViewModel: ObservableObject {
         // Gated on .playing so a post-game chord can't re-publish the result (which
         // would replay the end-game panel on every click).
         guard canTakeInput, game.status == .playing else { return }
+        // The UI routes EVERY tap on a revealed cell here (including 0-cells), so
+        // only count a chord that will actually reveal something — a stray tap must
+        // not inflate chordsUsed or burn the no-chord feat. Skipping the compute for
+        // no-ops is a bonus.
+        guard game.canChord(c) else { return }
         chordsThisGame += 1
         usedChordEver = true
         computeOffMain({ game in game.chord(c) }) { [weak self] in
@@ -408,7 +391,10 @@ public final class GameViewModel: ObservableObject {
     public func resume() {
         guard isPaused else { return }
         isPaused = false
-        startTimer()
+        // The final reveal can finish OFF-main while paused (pause during the
+        // compute); don't restart the clock on a decided board — it would tick
+        // past the recorded final time.
+        if game.status == .playing { startTimer() }
     }
 
     private func startTimer() {

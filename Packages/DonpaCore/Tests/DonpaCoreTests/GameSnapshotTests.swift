@@ -45,6 +45,53 @@ final class GameSnapshotTests: XCTestCase {
         }
     }
 
+    // MARK: Cross-version consistency — the config is stored symbolically, so a
+    // size/density retune between builds changes what it MEANS out from under a
+    // save. Such saves must be detected (and discarded by loaders), not restored
+    // into a mangled board.
+
+    /// Decode a hand-built snapshot JSON (the only way to fabricate a mismatched
+    /// one — the capture initializers can't produce it).
+    private func snapshot(json: String) throws -> GameSnapshot {
+        try JSONDecoder().decode(GameSnapshot.self, from: Data(json.utf8))
+    }
+
+    func testGenuineSnapshotIsConsistent() throws {
+        let (game, config) = playingGame()
+        let snap = try XCTUnwrap(GameSnapshot(game: game, config: config, elapsedCentiseconds: 0))
+        XCTAssertTrue(snap.isConsistent)
+    }
+
+    func testMineCountMismatchIsInconsistent() throws {
+        // Beginner means 10 mines; a save carrying 3 was written under a different
+        // meaning of the same config (a density retune).
+        let snap = try snapshot(
+            json: #"{"config":{"classic":{"_0":"beginner"}},"mines":[[0,0],[1,1],[2,2]]}"#)
+        XCTAssertFalse(snap.isConsistent)
+    }
+
+    func testOutOfBoundsCoordsAreInconsistent() throws {
+        // 10 mines (count matches Beginner) but one sits outside today's 9×9 —
+        // a save from a build where this size tier was bigger.
+        let mines = (0..<9).map { "[\($0),0]" } + ["[99,0]"]
+        let snap = try snapshot(
+            json:
+                #"{"config":{"classic":{"_0":"beginner"}},"mines":[\#(mines.joined(separator: ","))]}"#
+        )
+        XCTAssertFalse(snap.isConsistent)
+    }
+
+    /// Belt-and-suspenders below the loader's consistency gate: a restored game
+    /// trusts the SAVED layout's mine count over the config's freshly-computed
+    /// number, so win detection and the flag counter track the actual board.
+    func testRestoredGameDerivesMineCountFromSavedLayout() throws {
+        let snap = try snapshot(
+            json: #"{"config":{"classic":{"_0":"beginner"}},"mines":[[0,0],[1,1],[2,2]]}"#)
+        let restored = snap.makeGame()
+        XCTAssertEqual(restored.mineCount, 3, "saved layout wins over the config's 10")
+        XCTAssertEqual(restored.safeCellCount, 81 - 3)
+    }
+
     func testRestoredGameRemainsPlayable() throws {
         let (game, config) = playingGame()
         let snap = try XCTUnwrap(GameSnapshot(game: game, config: config, elapsedCentiseconds: 0))

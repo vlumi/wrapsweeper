@@ -90,6 +90,45 @@ final class ChordTests: XCTestCase {
 
     // MARK: Helpers
 
+    // MARK: canChord — the "would this chord actually do anything?" pre-check
+    // (the UI counts chord stats only when it returns true, so a stray tap on a
+    // 0-cell or an unmatched number must be false).
+
+    func testCanChordMirrorsChordActionability() {
+        var game = Game(difficulty: .beginner)
+        var rng = SeededRNG(seed: 9)
+        game.reveal(Coord(4, 4), using: &rng)
+
+        guard let target = revealedNumberWithAllMineNeighborsKnown(in: game) else {
+            XCTFail("no suitable numbered cell for seed")
+            return
+        }
+        XCTAssertFalse(game.canChord(target), "no flags yet → chord would be a no-op")
+
+        for m in neighbors(of: target, in: game) where game.board[m].isMine {
+            game.toggleFlag(m)
+        }
+        let hidden = neighbors(of: target, in: game).filter { game.board[$0].state == .hidden }
+        XCTAssertFalse(hidden.isEmpty, "test needs a hidden neighbour left to open")
+        XCTAssertTrue(game.canChord(target), "matching flags + hidden neighbours → actionable")
+
+        game.chord(target, using: &rng)
+        XCTAssertFalse(game.canChord(target), "nothing hidden left → no longer actionable")
+    }
+
+    func testCanChordIsFalseOnZeroAndHiddenCells() {
+        var game = Game(difficulty: .beginner)
+        var rng = SeededRNG(seed: 9)
+        game.reveal(Coord(4, 4), using: &rng)
+
+        // The safe first click always opens a 0-cell.
+        XCTAssertEqual(game.board[Coord(4, 4)].adjacentMines, 0)
+        XCTAssertFalse(game.canChord(Coord(4, 4)), "a revealed 0-cell can't chord")
+
+        let hidden = game.board.allCoords.first { game.board[$0].state == .hidden }!
+        XCTAssertFalse(game.canChord(hidden), "a hidden cell can't chord")
+    }
+
     private func neighbors(of c: Coord, in game: Game) -> [Coord] {
         BoundedSquareTopology(width: 9, height: 9).neighbors(of: c)
     }

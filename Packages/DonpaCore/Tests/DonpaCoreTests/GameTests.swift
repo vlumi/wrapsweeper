@@ -145,6 +145,39 @@ final class GameTests: XCTestCase {
         XCTAssertEqual(game.status, .won, "hex game should be winnable with unchanged logic")
     }
 
+    /// On a wrapped topology `normalize` never fails, so actions must FOLD a raw
+    /// off-board coord onto the board — not index phantom cells with it (which
+    /// silently discards writes and can double-count reveals).
+    func testWrappedActionsFoldOffBoardCoords() {
+        let t = WrappedSquareTopology(width: 9, height: 9)
+        var game = Game(topology: t, mineCount: 10)
+        var rng = SeededRNG(seed: 11)
+        game.reveal(Coord(4, 4), using: &rng)
+
+        // Flag through the seam: (-1, y) is (8, y) on the torus.
+        guard let y = (0..<9).first(where: { game.board[Coord(8, $0)].state == .hidden }) else {
+            return XCTFail("no hidden cell in the last column for seed")
+        }
+        game.toggleFlag(Coord(-1, y))
+        XCTAssertEqual(game.board[Coord(8, y)].state, .flagged, "flag folds onto the board")
+        game.toggleFlag(Coord(-1, y))  // unflag for the reveal below
+
+        // Reveal through the seam: the folded cell changes state, and the derived
+        // progress counter matches the board (no phantom increment).
+        guard
+            let y2 = (0..<9).first(where: {
+                game.board[Coord(8, $0)].state == .hidden && !game.board[Coord(8, $0)].isMine
+            })
+        else {
+            return XCTFail("no hidden safe cell in the last column for seed")
+        }
+        game.reveal(Coord(-1, y2), using: &rng)
+        XCTAssertEqual(game.board[Coord(8, y2)].state, .revealed, "reveal folds onto the board")
+        XCTAssertEqual(
+            game.revealedSafeCount, game.board.revealedSafeCount,
+            "counter must track real cells, never a phantom")
+    }
+
     func testGameLogicRunsUnchangedOnWrappedHexTopology() {
         // Both seams at once: a 6-neighbour hex board whose edges wrap. Even height
         // (8) is required for a consistent hex torus. Play a full game to a win.

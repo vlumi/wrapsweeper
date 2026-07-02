@@ -59,11 +59,14 @@ public struct SaveStore {
 
     /// Load a saved snapshot, or nil if none/unreadable/unsupported version.
     /// Accepts any save at or below `currentVersion` (additive format). A *newer*
-    /// app's save may rely on a breaking change, so it's discarded.
+    /// app's save may rely on a breaking change, so it's discarded — and so is a
+    /// save whose geometry no longer matches its config (a size/density retune
+    /// between builds; see `GameSnapshot.isConsistent`).
     public func load() -> GameSnapshot? {
         guard let data = try? Data(contentsOf: url),
             let snapshot = try? JSONDecoder().decode(GameSnapshot.self, from: data),
-            snapshot.version <= GameSnapshot.currentVersion
+            snapshot.version <= GameSnapshot.currentVersion,
+            snapshot.isConsistent
         else { return nil }
         return snapshot.migrated()
     }

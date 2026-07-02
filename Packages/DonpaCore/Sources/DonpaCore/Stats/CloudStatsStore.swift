@@ -51,15 +51,26 @@ public final class UbiquitousStatsStore: CloudStatsStore {
 
     private let kvs = NSUbiquitousKeyValueStore.default
     public var onExternalChange: (() -> Void)?
+    private var observer: NSObjectProtocol?
 
     public init() {
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(externalChange(_:)),
-            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: kvs)
+        // The external-change notification's delivery thread is NOT documented as
+        // main; the callback re-enters @MainActor sync code, so marshal it to the
+        // main queue explicitly (block-based observer with queue: .main) instead of
+        // a selector that runs on whatever thread posted.
+        observer = NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: kvs,
+            queue: .main
+        ) { [weak self] _ in
+            // Fires for server and account changes; either way, re-merge.
+            MainActor.assumeIsolated { self?.onExternalChange?() }
+        }
         kvs.synchronize()
     }
 
-    deinit { NotificationCenter.default.removeObserver(self) }
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
 
     /// Signed into iCloud iff there's a ubiquity identity token.
     public var isAvailable: Bool { FileManager.default.ubiquityIdentityToken != nil }
@@ -103,15 +114,15 @@ public final class UbiquitousStatsStore: CloudStatsStore {
 
     public func writeResetEpoch(_ epoch: Int) {
         guard isAvailable else { return }
-        kvs.set(Int64(epoch), forKey: Self.resetEpochKey)
+        // Best-effort monotonic guard: KVS is eventually consistent, so a wiper
+        // computing its next epoch from a stale read could otherwise LOWER the
+        // published epoch and split devices into diverging generations. A re-read
+        // here can still be stale, but never regress what this device can see.
+        let current = Int(kvs.longLong(forKey: Self.resetEpochKey))
+        kvs.set(Int64(max(current, epoch)), forKey: Self.resetEpochKey)
         kvs.synchronize()
     }
 
     public func synchronize() { kvs.synchronize() }
-
-    @objc private func externalChange(_ note: Notification) {
-        // Fires for server and account changes; either way, re-merge.
-        onExternalChange?()
-    }
 }
 #endif

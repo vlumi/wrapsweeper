@@ -53,7 +53,8 @@ final class FakeCloud: CloudStatsStore {
 
     func writeResetEpoch(_ epoch: Int) {
         guard available else { return }
-        shared.resetEpoch = epoch
+        // Mirror the real store's monotonic guard: the epoch never regresses.
+        shared.resetEpoch = max(shared.resetEpoch, epoch)
         for peer in shared.peers where peer !== self { peer.onExternalChange?() }
     }
 

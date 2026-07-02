@@ -27,12 +27,17 @@ development — entries land under Unreleased as they merge.
   torus that scrolls seamlessly in every direction. Scores are tracked separately
   from square boards. Hex carries a touch more mines at each difficulty (its six-
   neighbour cascades play easier otherwise, so it's tuned to match square).
+- **Wrapped (torus) boards.** A new Modern option: the board's edges connect, so it
+  scrolls seamlessly in every direction — pan off one side and the other flows in,
+  forever. Pick **Wrapped** in the New Game screen (next to the size/difficulty).
+  Scores are tracked separately from bounded boards.
 - **Board sizes rebalanced to powers of two** (8, 16, 32, 64, 128, 256, 1024). Every
   board is now even-sided (which the wrapped-hex torus needs), and the size ladder is
   cleaner. Mine-density tiers were re-tuned to 10/12/14/16/18% so the five
   difficulties stay distinct on the larger boards. **All existing scores are reset**
   (a clean pre-release slate) — this one-off clears local and iCloud stats across
-  every device.
+  every device, and an in-progress game saved by an older build is discarded rather
+  than restored onto a board it no longer fits.
 - **Erase synced scores on all your devices.** The stats-sheet reset now offers a
   true cross-device wipe when iCloud sync is on: it erases every device's scores and
   **stays erased** — a device that was offline during the wipe clears itself when it
@@ -42,10 +47,6 @@ development — entries land under Unreleased as they merge.
   after a small pan on a board that fits (or stays hidden when it shouldn't) — its
   visibility now tracks the zoom level, not the camera position. Wrapped boards
   always show it (there's no edge to fit).
-- **Wrapped (torus) boards.** A new Modern option: the board's edges connect, so it
-  scrolls seamlessly in every direction — pan off one side and the other flows in,
-  forever. Pick **Wrapped** in the New Game screen (next to the size/difficulty).
-  Scores are tracked separately from bounded boards.
 
 ## [0.2.0] — Cross-device & big boards
 

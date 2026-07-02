@@ -98,6 +98,23 @@ public struct GameSnapshot: Codable, Sendable {
         Game.restored(from: self)
     }
 
+    /// Whether this snapshot still matches what its `config` MEANS in this build.
+    /// The config is stored symbolically (size/density tiers), so a between-builds
+    /// retune changes its dimensions or mine count out from under an old save —
+    /// restoring one would drop out-of-bounds coords and skew win detection into a
+    /// mangled, unwinnable (or instantly-won) board. Loaders discard such saves and
+    /// start fresh instead.
+    public var isConsistent: Bool {
+        guard !mines.isEmpty, mines.count == config.mineCount else { return false }
+        let width = config.width
+        let height = config.height
+        func inBounds(_ c: Coord) -> Bool {
+            c.x >= 0 && c.x < width && c.y >= 0 && c.y < height
+        }
+        return mines.allSatisfy(inBounds) && revealed.allSatisfy(inBounds)
+            && flagged.allSatisfy(inBounds) && (lossCoord.map(inBounds) ?? true)
+    }
+
     /// Migration seam for a future *breaking* change: when `currentVersion` is
     /// bumped, transform an older-`version` snapshot up to the current shape here.
     /// Identity today.
